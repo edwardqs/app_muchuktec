@@ -1,4 +1,4 @@
-// screens/reports_screen.dart
+// lib/screens/reports_screen.dart
 import 'package:flutter/material.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -20,14 +20,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       // Ya estás en Reportes
         break;
       case 2:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Presupuestos en desarrollo')),
-        );
+      // CORREGIDO: Navegar a presupuestos en lugar de mostrar SnackBar
+        Navigator.pushReplacementNamed(context, '/budgets');
         break;
       case 3:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categorías en desarrollo')),
-        );
+      // CORREGIDO: Navegar a categorías en lugar de mostrar SnackBar
+        Navigator.pushReplacementNamed(context, '/categories');
         break;
       case 4:
         Navigator.pushReplacementNamed(context, '/settings');
@@ -44,7 +42,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/dashboard'),
         ),
         title: const Text(
           'Reportes',
@@ -146,7 +144,7 @@ class SimpleMonthlySummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Resumen Mensual (Julio 2025)',
+            'Resumen Mensual (Agosto 2025)',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
