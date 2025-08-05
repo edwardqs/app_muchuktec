@@ -16,14 +16,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pushReplacementNamed(context, '/dashboard');
         break;
       case 1:
-      // Ya estás en Reportes
         break;
       case 2:
-      // CORREGIDO: Navegar a presupuestos en lugar de mostrar SnackBar
         Navigator.pushReplacementNamed(context, '/budgets');
         break;
       case 3:
-      // CORREGIDO: Navegar a categorías en lugar de mostrar SnackBar
         Navigator.pushReplacementNamed(context, '/categories');
         break;
       case 4:

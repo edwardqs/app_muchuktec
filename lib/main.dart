@@ -44,9 +44,9 @@ class EconoMuchikApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => const ReportsScreen());
           case '/categories':
             return MaterialPageRoute(builder: (context) => const CategoriesScreen());
-          case '/budgets': // Vista principal de presupuestos (bottom navigation)
+          case '/budgets':
             return MaterialPageRoute(builder: (context) => const BudgetsScreen());
-          case '/assign-budget': // Vista para asignar presupuesto (acción rápida)
+          case '/assign-budget':
             return MaterialPageRoute(builder: (context) => const AssignBudgetScreen());
           default:
             return MaterialPageRoute(builder: (context) => const LoginScreen());
