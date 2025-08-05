@@ -1,4 +1,4 @@
-// widgets/quick_actions.dart
+// lib/widgets/quick_actions.dart
 import 'package:flutter/material.dart';
 
 class QuickActions extends StatelessWidget {
@@ -26,7 +26,11 @@ class QuickActions extends StatelessWidget {
                 label: 'Registrar\nMovimiento',
                 color: Colors.blue[100]!,
                 iconColor: Colors.blue[700]!,
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Registrar movimiento en desarrollo')),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -36,7 +40,11 @@ class QuickActions extends StatelessWidget {
                 label: 'Asignar\nPresupuesto',
                 color: Colors.green[100]!,
                 iconColor: Colors.green[700]!,
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Asignar presupuesto en desarrollo')),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -46,7 +54,11 @@ class QuickActions extends StatelessWidget {
                 label: 'Registrar\nCompromiso',
                 color: Colors.purple[100]!,
                 iconColor: Colors.purple[700]!,
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Registrar compromiso en desarrollo')),
+                  );
+                },
               ),
             ),
           ],
@@ -60,7 +72,10 @@ class QuickActions extends StatelessWidget {
                 label: 'Gestionar\nCategorías',
                 color: Colors.yellow[100]!,
                 iconColor: Colors.orange[700]!,
-                onTap: () {},
+                onTap: () {
+                  // NAVEGACIÓN ACTUALIZADA A CATEGORÍAS
+                  Navigator.pushNamed(context, '/categories');
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -70,7 +85,11 @@ class QuickActions extends StatelessWidget {
                 label: 'Gestionar\nCompromisos',
                 color: Colors.pink[100]!,
                 iconColor: Colors.pink[700]!,
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Gestionar compromisos en desarrollo')),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),

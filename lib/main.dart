@@ -1,4 +1,4 @@
-// main.dart
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -6,6 +6,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/loading_screen.dart';
+import 'screens/categories_screen.dart';
 
 void main() {
   runApp(const EconoMuchikApp());
@@ -18,14 +19,14 @@ class EconoMuchikApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Econo Muchik Finance',
-      debugShowCheckedModeBanner: false, // Quita el banner Debug
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.purple,
         fontFamily: 'Roboto',
       ),
       home: const LoginScreen(),
       onGenerateRoute: (settings) {
-        print('onGenerateRoute called with: ${settings.name}'); // Debug
+        print('onGenerateRoute called with: ${settings.name}');
         switch (settings.name) {
           case '/login':
             return MaterialPageRoute(builder: (context) => const LoginScreen());
@@ -39,6 +40,8 @@ class EconoMuchikApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => const DashboardScreen());
           case '/reports':
             return MaterialPageRoute(builder: (context) => const ReportsScreen());
+          case '/categories': // NUEVA RUTA
+            return MaterialPageRoute(builder: (context) => const CategoriesScreen());
           default:
             return MaterialPageRoute(builder: (context) => const LoginScreen());
         }

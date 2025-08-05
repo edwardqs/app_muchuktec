@@ -15,7 +15,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   void _onItemTapped(int index) {
-    print('Dashboard _onItemTapped called with index: $index'); // Debug
+    print('Dashboard _onItemTapped called with index: $index');
 
     switch (index) {
       case 0:
@@ -33,15 +33,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
         break;
       case 3:
-        print('Categorías clicked');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categorías en desarrollo')),
-        );
+        print('Navigating to Categories'); // ACTUALIZADO
+        Navigator.pushNamed(context, '/categories'); // ACTUALIZADO
         break;
       case 4:
         print('🔥 Navigating to Settings');
-        print('🔥 Context: $context');
-        print('🔥 Routes available: ${ModalRoute.of(context)?.settings.name}');
         try {
           final result = Navigator.pushNamed(context, '/settings');
           print('🔥 Navigator.pushNamed returned: $result');
