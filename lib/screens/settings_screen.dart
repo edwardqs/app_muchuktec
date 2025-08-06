@@ -16,19 +16,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pushReplacementNamed(context, '/dashboard');
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, '/reports');
         break;
       case 2:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Presupuestos en desarrollo')),
-        );
+        Navigator.pushReplacementNamed(context, '/budgets');
         break;
       case 3:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categorías en desarrollo')),
-        );
+        Navigator.pushReplacementNamed(context, '/categories');
         break;
       case 4:
+        Navigator.pushReplacementNamed(context, '/settings');
         break;
     }
   }

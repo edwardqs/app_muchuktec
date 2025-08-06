@@ -41,9 +41,8 @@ class QuickActions extends StatelessWidget {
                 color: Colors.green[100]!,
                 iconColor: Colors.green[700]!,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Asignar presupuesto en desarrollo')),
-                  );
+                  // RUTA ESPECÍFICA PARA ASIGNAR PRESUPUESTO
+                  Navigator.pushNamed(context, '/assign-budget');
                 },
               ),
             ),
@@ -73,7 +72,6 @@ class QuickActions extends StatelessWidget {
                 color: Colors.yellow[100]!,
                 iconColor: Colors.orange[700]!,
                 onTap: () {
-                  // NAVEGACIÓN ACTUALIZADA A CATEGORÍAS
                   Navigator.pushNamed(context, '/categories');
                 },
               ),
