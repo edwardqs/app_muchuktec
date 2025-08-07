@@ -27,14 +27,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Navigator.pushNamed(context, '/reports');
         break;
       case 2:
-        print('Presupuestos clicked');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Presupuestos en desarrollo')),
-        );
+        print('Navigating to Budgets'); // ACTUALIZADO
+        Navigator.pushNamed(context, '/budgets'); // ACTUALIZADO
         break;
       case 3:
-        print('Navigating to Categories'); // ACTUALIZADO
-        Navigator.pushNamed(context, '/categories'); // ACTUALIZADO
+        print('Navigating to Categories');
+        Navigator.pushNamed(context, '/categories');
         break;
       case 4:
         print('🔥 Navigating to Settings');

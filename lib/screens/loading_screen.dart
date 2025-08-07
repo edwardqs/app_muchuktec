@@ -1,7 +1,14 @@
 // screens/loading_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
+import 'package:app_muchik/services/user_session.dart';
+
+//rene
+const String apiUrl = 'http://127.0.0.1:8000/api';
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
 
@@ -86,7 +93,9 @@ class _LoadingScreenState extends State<LoadingScreen>
       curve: Curves.easeOut,
     ));
 
+
     _startAnimations();
+    _checkLoginStatus();
   }
 
   void _startAnimations() async {
@@ -105,6 +114,73 @@ class _LoadingScreenState extends State<LoadingScreen>
     await Future.delayed(const Duration(milliseconds: 2500));
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/dashboard');
+    }
+  }
+
+  void _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
+
+    if (token != null) {
+      // Si existe un token, intentamos obtener los datos del usuario
+      await _fetchUserData(token);
+    } else {
+      // Si no hay token, esperamos a que las animaciones terminen y navegamos al login.
+      await animationFuture;
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/');
+      }
+    }
+  }
+
+  Future<void> _fetchUserData(String token) async {
+    final url = Uri.parse('$apiUrl/user');
+    final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      // Esperamos a que la animación termine, si la API responde antes.
+      await animationFuture;
+
+      if (response.statusCode == 200) {
+        final userData = json.decode(response.body);
+        // Accedemos directamente a la instancia singleton
+        final userSession = UserSession();
+
+        userSession.setUserData(
+          token: token,
+          name: userData['nombres_completos'] ?? 'Usuario',
+        );
+        print('✅ Datos del usuario obtenidos y guardados: ${userData['nombres_completos']}');
+
+        if (mounted) {
+          // Navegamos al dashboard
+          Navigator.of(context).pushReplacementNamed('/dashboard');
+        }
+      } else {
+        // El token no es válido o ha expirado, cerramos la sesión y vamos al login
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('accessToken');
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/');
+        }
+      }
+    } catch (e) {
+      // Error de conexión o servidor, lo enviamos al login
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('accessToken');
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/');
+      }
+      print('Error al obtener los datos del usuario: $e');
     }
   }
 

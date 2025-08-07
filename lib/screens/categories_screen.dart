@@ -211,7 +211,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       ),
       child: Row(
         children: [
-          // Chip de tipo
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
@@ -273,7 +272,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        currentIndex: 3, // Categorías está seleccionado
+        currentIndex: 3,
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -297,7 +296,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
         onTap: (index) {
-          // Manejar navegación
+
           switch (index) {
             case 0:
               Navigator.pushReplacementNamed(context, '/dashboard');
@@ -306,13 +305,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Navigator.pushReplacementNamed(context, '/reports');
               break;
             case 2:
-            // Navegar a presupuestos
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Presupuestos en desarrollo')),
               );
               break;
             case 3:
-            // Ya estamos en categorías
+
               break;
             case 4:
               Navigator.pushReplacementNamed(context, '/settings');
