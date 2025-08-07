@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // Importa el paquete http
 import 'dart:convert'; // Importa para codificar/decodificar JSON
+import 'package:shared_preferences/shared_preferences.dart';
 const String apiUrl = 'http://127.0.0.1:8000/api';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,9 +47,8 @@ class _LoginScreenState extends State<LoginScreen> {
         final accessToken = responseData['access_token'];
 
         if (accessToken != null) {
-          // Si recibimos el token, navegamos a la pantalla principal
-          // Usamos pushReplacementNamed para que el usuario no pueda volver a la pantalla de login
-          // Pasamos el accessToken como argumento a la ruta '/home'
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('accessToken', accessToken);
           print('Inicio de sesión exitoso. Token: $accessToken');
           Navigator.of(context).pushReplacementNamed(
             '/loading', // La ruta nombrada de tu HomeScreen
