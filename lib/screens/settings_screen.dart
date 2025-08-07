@@ -16,6 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pushReplacementNamed(context, '/dashboard');
         break;
       case 1:
+        Navigator.pushReplacementNamed(context, '/reports');
         break;
       case 2:
         Navigator.pushReplacementNamed(context, '/budgets');
@@ -171,9 +172,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.edit_outlined,
                     title: 'Editar perfil',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Editar perfil en desarrollo')),
-                      );
+                      // NAVEGACIÓN ACTUALIZADA A EDITAR PERFIL
+                      Navigator.pushNamed(context, '/edit-profile');
                     },
                   ),
                   const Divider(height: 1, indent: 56),

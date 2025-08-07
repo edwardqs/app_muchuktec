@@ -9,6 +9,7 @@ import 'screens/loading_screen.dart';
 import 'screens/categories_screen.dart';
 import 'screens/budgets_screen.dart';
 import 'screens/assign_budget_screen.dart';
+import 'screens/edit_profile_screen.dart';
 
 void main() {
   runApp(const EconoMuchikApp());
@@ -44,6 +45,8 @@ class EconoMuchikApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => const ReportsScreen());
           case '/categories':
             return MaterialPageRoute(builder: (context) => const CategoriesScreen());
+          case '/edit-profile':
+            return MaterialPageRoute(builder: (context) => const EditProfileScreen());
           case '/budgets':
             return MaterialPageRoute(builder: (context) => const BudgetsScreen());
           case '/assign-budget':
