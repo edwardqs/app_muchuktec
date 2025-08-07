@@ -305,11 +305,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Navigator.pushReplacementNamed(context, '/reports');
               break;
             case 2:
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Presupuestos en desarrollo')),
-              );
-              break;
+              Navigator.pushReplacementNamed(context, '/budgets');
             case 3:
 
               break;

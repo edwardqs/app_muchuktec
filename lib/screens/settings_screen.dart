@@ -24,9 +24,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case 3:
         Navigator.pushReplacementNamed(context, '/categories');
         break;
-      case 4:
-        Navigator.pushReplacementNamed(context, '/settings');
-        break;
     }
   }
 
