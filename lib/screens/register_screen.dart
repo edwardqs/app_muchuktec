@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:app_muchik/services/user_session.dart';
 
-const String apiUrl = 'http://127.0.0.1:8000/api';
+const String apiUrl = 'http://10.0.2.2:8000/api';
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -657,7 +657,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       try {
         final response = await http.post(
           Uri.parse('$apiUrl/register'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept' : 'application/json',
+          },
           body: json.encode(requestBody),
         );
 

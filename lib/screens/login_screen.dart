@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http; // Importa el paquete http
 import 'dart:convert'; // Importa para codificar/decodificar JSON
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String apiUrl = 'http://127.0.0.1:8000/api';
+const String apiUrl = 'http://10.0.2.2:8000/api';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,7 +43,10 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept' : 'application/json',
+        },
         body: json.encode(body), // Codificar el cuerpo a JSON
       );
 
