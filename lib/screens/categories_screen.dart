@@ -18,7 +18,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   String _selectedType = 'Gasto o ingreso';
   final int _idCuenta = 1;
 
-// --- Estado para manejar la carga y los datos de la API ---
+// --- Estado para manejar la carga y los datos de la API --- gaaa
   List<CategoryModel> categories = [];
   bool isLoading = false;
   String? errorMessage;
