@@ -1,7 +1,11 @@
 // lib/screens/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:app_muchik/services/user_session.dart';
 
+const String apiUrl = 'http://127.0.0.1:8000/api';
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -23,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedDocumentType = 'DNI';
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _isLoading = false; // Estado de carga para el botón
 
   @override
   Widget build(BuildContext context) {
@@ -625,41 +630,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _handleRegister() {
+  // --- NUEVA LÓGICA DE REGISTRO ---
+  void _handleRegister() async {
+    // Validar el formulario antes de enviar
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '¡Cuenta creada exitosamente!\n$_selectedDocumentType: ${_documentController.text}\nCelular: ${_phoneController.text}',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.green[600],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      Future.delayed(const Duration(milliseconds: 500), () {
-        Navigator.pushReplacementNamed(context, '/loading');
+      setState(() {
+        _isLoading = true;
       });
+
+      // Mapear el tipo de documento a un código numérico
+      int tipoDocumento = _selectedDocumentType == 'DNI' ? 1 : 2;
+
+      // Crear el cuerpo de la solicitud JSON
+      final Map<String, dynamic> requestBody = {
+        'username': _usernameController.text,
+        'correo': _emailController.text,
+        'password': _passwordController.text,
+        'password_confirmation': _confirmPasswordController.text,
+        'nombres_completos': _nameController.text,
+        'tipodoc': tipoDocumento, // Clave corregida
+        'numerodoc': _documentController.text, // Clave corregida
+        'direccion': _addressController.text,
+        'telefono': _phoneController.text,
+      };
+
+      try {
+        final response = await http.post(
+          Uri.parse('$apiUrl/register'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(requestBody),
+        );
+
+        // Si el registro fue exitoso
+        if (response.statusCode == 201) {
+          _showSnackBar('✅ Registro exitoso. Ahora inicia sesión.', Colors.green[600]!);
+
+          Future.delayed(const Duration(seconds: 1), () {
+            // Navegar a la pantalla de login y eliminar la de registro del historial
+            Navigator.pushReplacementNamed(context, '/login');
+          });
+
+        } else {
+          final responseData = json.decode(response.body);
+          final errorMessage = responseData['message'] ?? 'Error desconocido';
+          _showSnackBar('❌ Error: $errorMessage', Colors.red[600]!);
+        }
+      } catch (e) {
+        // Manejar errores de conexión o del servidor
+        _showSnackBar('❌ Error de conexión. Inténtalo de nuevo.', Colors.red[600]!);
+        print('Error en el registro: $e');
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
   @override
   void dispose() {
     _nameController.dispose();
