@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // Importa el paquete http
 import 'dart:convert'; // Importa para codificar/decodificar JSON
 import 'package:shared_preferences/shared_preferences.dart';
+
 const String apiUrl = 'http://127.0.0.1:8000/api';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

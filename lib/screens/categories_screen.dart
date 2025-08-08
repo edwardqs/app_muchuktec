@@ -1,5 +1,10 @@
 // lib/screens/categories_screen.dart
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; // Importa el paquete http
+import 'dart:convert'; // Importa para codificar/decodificar JSON
+import 'package:shared_preferences/shared_preferences.dart'; // Importa para manejar preferencias
+
+const String apiUrl = 'http://127.0.0.1:8000/api';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -11,10 +16,151 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final TextEditingController _nameController = TextEditingController();
   String _selectedType = 'Gasto o ingreso';
+  final int _idCuenta = 1;
 
-  List<CategoryModel> categories = [
-    CategoryModel(id: '1', name: 'Transporte', type: 'Gasto'),
-  ];
+// --- Estado para manejar la carga y los datos de la API ---
+  List<CategoryModel> categories = [];
+  bool isLoading = false;
+  String? errorMessage;
+  String? _accessToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAccessTokenAndFetchCategories();
+  }
+
+  // Metodo para cargar el token
+  Future<void> _loadAccessTokenAndFetchCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString('accessToken'); // 2. Lee el token guardado
+
+    if (_accessToken != null) {
+      _fetchCategories(); // 3. Si hay un token, procede a cargar las categorías
+    } else {
+      if (!mounted) return;
+      setState(() {
+        errorMessage = 'No se encontró un token de sesión. Por favor, inicie sesión.';
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _deleteCategory(String categoryId) async {
+    // Asegúrate de que el token esté disponible antes de continuar
+    if (_accessToken == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se encontró el token de acceso.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // Prepara la URL con el ID de la categoría
+    final url = Uri.parse('$apiUrl/categorias/$categoryId');
+
+    setState(() {
+      // Puedes mostrar un indicador de carga si lo deseas
+      // isLoading = true;
+    });
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // 200 OK o 204 No Content son respuestas de éxito para DELETE
+        setState(() {
+          // Elimina la categoría de la lista local para actualizar la UI
+          categories.removeWhere((category) => category.id == categoryId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Categoría eliminada con éxito.'), backgroundColor: Colors.green),
+        );
+      } else if (response.statusCode == 404) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: La categoría no fue encontrada.'), backgroundColor: Colors.orange),
+        );
+      } else if (response.statusCode == 401) {
+        // Manejar la expiración del token como ya lo haces
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('accessToken');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
+        );
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar la categoría: ${response.statusCode}'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo conectar al servidor. Intente de nuevo.'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          // isLoading = false;
+        });
+      }
+    }
+  }
+
+  //Metodo para obtener las categorias
+  Future<void> _fetchCategories() async {
+    if (!mounted || _accessToken == null) {
+      if (_accessToken == null) {
+      }
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      errorMessage = null; // Limpiar errores previos
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('$apiUrl/categorias'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+        },
+      );
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          categories = data.map((json) => CategoryModel.fromJson(json)).toList();
+        });
+      } else {
+        setState(() {
+          errorMessage = 'Error al cargar las categorías. Intente de nuevo.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        errorMessage = 'No se pudo conectar al servidor. Revise su conexión.';
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +332,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             // Lista de categorías
             ListView.builder(
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final category = categories[index];
@@ -322,7 +468,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  void _addCategory() {
+  void _addCategory() async{
+    // 1. Validar los campos antes de enviar
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -342,28 +489,88 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       );
       return;
     }
+    // 2. Verificar si tienes un token de acceso
+    if (_accessToken == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se encontró el token de acceso. Por favor, reinicie la aplicación.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // 3. Preparar los datos para la petición POST
+    final body = {
+      'idcuenta': _idCuenta,
+      'nombre': _nameController.text.trim(),
+      'tipo': _selectedType.toLowerCase(),
+    };
 
     setState(() {
-      categories.add(
-        CategoryModel(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: _nameController.text.trim(),
-          type: _selectedType,
-        ),
-      );
-      _nameController.clear();
-      _selectedType = 'Gasto o ingreso';
+      isLoading = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Categoría agregada exitosamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    try {
+      // 4. Realizar la petición POST a la API
+      final response = await http.post(
+        Uri.parse('$apiUrl/categorias'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+        body: json.encode(body),
+      );
+
+      // 5. Manejar la respuesta del servidor
+      if (!mounted) return;
+      if (response.statusCode == 201) {
+        // Éxito: La categoría se creó correctamente (código 201 Created)
+        final newCategoryData = json.decode(response.body);
+        final newCategory = CategoryModel.fromJson(newCategoryData);
+
+        setState(() {
+          categories.add(newCategory); // Agrega la nueva categoría a la lista local
+          _nameController.clear();
+          _selectedType = 'Gasto o ingreso';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Categoría agregada exitosamente'), backgroundColor: Colors.green),
+        );
+      } else {
+        // Manejar errores: Si el backend devuelve otro código de estado
+        String errorMessage;
+        if (response.statusCode == 401 || response.statusCode == 302) {
+          errorMessage = 'Sesión expirada o token inválido. Por favor, inicie sesión de nuevo.';
+        } else if (response.headers['content-type']?.contains('application/json') == true) {
+          // Si el error es un JSON válido, decodifícalo
+          final errorData = json.decode(response.body);
+          errorMessage = errorData['message'] ?? 'Error desconocido';
+        } else {
+          // Si el error no es un JSON, usa el mensaje de estado y el cuerpo
+          errorMessage = 'Error al crear la categoría: Código ${response.statusCode}. ${response.body}';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo conectar al servidor. Intente de nuevo.'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
-  void _showDeleteConfirmation(CategoryModel category) {
+  void _showDeleteConfirmation(CategoryModel category) async{
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -390,16 +597,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                categories.removeWhere((c) => c.id == category.id);
-              });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Categoría eliminada'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              _deleteCategory(category.id);
             },
             child: Text(
               'Eliminar',
@@ -429,4 +628,13 @@ class CategoryModel {
     required this.name,
     required this.type,
   });
+
+  // Constructor de fábrica para convertir JSON a CategoryModel
+  factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    return CategoryModel(
+      id: json['id'].toString(),
+      name: json['nombre'] as String,
+      type: json['tipo'] as String,
+    );
+  }
 }
