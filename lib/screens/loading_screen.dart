@@ -7,10 +7,12 @@ import 'dart:convert';
 
 import 'package:app_muchik/services/user_session.dart';
 
-
+// rene
 const String apiUrl = 'http://10.0.2.2:8000/api';
+
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
+
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
 }
@@ -92,28 +94,25 @@ class _LoadingScreenState extends State<LoadingScreen>
       curve: Curves.easeOut,
     ));
 
-
     _startAnimations();
     _checkLoginStatus();
   }
 
   void _startAnimations() async {
-    // Start logo animation
+    if (!mounted) return;
     _logoController.forward();
 
-    // Wait a bit, then start text animation
     await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
     _textController.forward();
 
-    // Start progress animation
     await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
     _progressController.forward();
 
-    // Navigate to dashboard after all animations
     await Future.delayed(const Duration(milliseconds: 2500));
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    }
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/dashboard');
   }
 
   void _checkLoginStatus() async {
@@ -122,10 +121,8 @@ class _LoadingScreenState extends State<LoadingScreen>
     final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
 
     if (token != null) {
-      // Si existe un token, intentamos obtener los datos del usuario
       await _fetchUserData(token);
     } else {
-      // Si no hay token, esperamos a que las animaciones terminen y navegamos al login.
       await animationFuture;
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/');
@@ -142,31 +139,27 @@ class _LoadingScreenState extends State<LoadingScreen>
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Accept' : 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
-      // Esperamos a que la animación termine, si la API responde antes.
       await animationFuture;
 
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
-        // Accedemos directamente a la instancia singleton
         final userSession = UserSession();
 
         userSession.setUserData(
           token: token,
           name: userData['nombres_completos'] ?? 'Usuario',
         );
-        print('✅ Datos del usuario obtenidos y guardados: ${userData['nombres_completos']}');
+        print(
+            '✅ Datos del usuario obtenidos y guardados: ${userData['nombres_completos']}');
 
         if (mounted) {
-          // Navegamos al dashboard
           Navigator.of(context).pushReplacementNamed('/dashboard');
         }
       } else {
-        // El token no es válido o ha expirado, cerramos la sesión y vamos al login
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('accessToken');
         if (mounted) {
@@ -174,7 +167,6 @@ class _LoadingScreenState extends State<LoadingScreen>
         }
       }
     } catch (e) {
-      // Error de conexión o servidor, lo enviamos al login
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('accessToken');
       if (mounted) {
@@ -211,7 +203,6 @@ class _LoadingScreenState extends State<LoadingScreen>
             children: [
               const Spacer(flex: 2),
 
-              // Logo Animation
               AnimatedBuilder(
                 animation: _logoController,
                 builder: (context, child) {
@@ -247,7 +238,6 @@ class _LoadingScreenState extends State<LoadingScreen>
 
               const SizedBox(height: 40),
 
-              // Text Animation
               SlideTransition(
                 position: _textSlideAnimation,
                 child: FadeTransition(
@@ -279,7 +269,6 @@ class _LoadingScreenState extends State<LoadingScreen>
 
               const Spacer(flex: 2),
 
-              // Loading Animation
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 60),
                 child: Column(
@@ -297,7 +286,6 @@ class _LoadingScreenState extends State<LoadingScreen>
                     ),
                     const SizedBox(height: 20),
 
-                    // Custom Progress Bar
                     Container(
                       height: 4,
                       decoration: BoxDecoration(
@@ -330,7 +318,6 @@ class _LoadingScreenState extends State<LoadingScreen>
 
                     const SizedBox(height: 16),
 
-                    // Loading Dots
                     FadeTransition(
                       opacity: _textOpacityAnimation,
                       child: const LoadingDots(),
@@ -383,16 +370,14 @@ class _LoadingDotsState extends State<LoadingDots>
   void _startAnimation() async {
     while (mounted) {
       for (int i = 0; i < _controllers.length; i++) {
-        if (mounted) {
-          _controllers[i].forward();
-          await Future.delayed(const Duration(milliseconds: 200));
-        }
+        if (!mounted) return;
+        _controllers[i].forward();
+        await Future.delayed(const Duration(milliseconds: 200));
       }
       await Future.delayed(const Duration(milliseconds: 400));
       for (var controller in _controllers) {
-        if (mounted) {
-          controller.reverse();
-        }
+        if (!mounted) return;
+        controller.reverse();
       }
       await Future.delayed(const Duration(milliseconds: 600));
     }
