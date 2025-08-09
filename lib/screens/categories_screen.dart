@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http; // Importa el paquete http
 import 'dart:convert'; // Importa para codificar/decodificar JSON
 import 'package:shared_preferences/shared_preferences.dart'; // Importa para manejar preferencias
 
-const String apiUrl = 'http://127.0.0.1:8000/api';
+const String apiUrl = 'http://10.0.2.2:8000/api';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});

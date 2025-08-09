@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-//holi
+
 // Esta clase actuará como un "singleton" para mantener el estado de la sesión del usuario.
 class UserSession extends ChangeNotifier {
   // Patrón Singleton
