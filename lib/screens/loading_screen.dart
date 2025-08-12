@@ -131,7 +131,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   }
 
   Future<void> _fetchUserData(String token) async {
-    final url = Uri.parse('$apiUrl/user');
+    final url = Uri.parse('$apiUrl/getUser');
     final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
 
     try {

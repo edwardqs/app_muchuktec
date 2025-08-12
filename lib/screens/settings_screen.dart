@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:app_muchik/services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,12 +25,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case 3:
         Navigator.pushReplacementNamed(context, '/categories');
         break;
+      case 4:
+      // Ya estamos en la pantalla de ajustes, no hacemos nada.
+        break;
     }
   }
 
   void _showLogoutDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Cerrar sesión'),
@@ -40,13 +45,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cancelar'),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                // 1. Cierra el diálogo de confirmación actual
                 Navigator.of(context).pop();
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                      (route) => false,
-                );
+
+                // 2. Realiza la operación de logout.
+                // No necesitamos esperar la respuesta para navegar,
+                // ya que la sesión local se elimina en el servicio.
+                AuthService().logout();
+
+                // 3. Navega directamente a la pantalla de login.
+                // Esta es la acción final, por lo que no hay más pops después de esto.
+                // La navegación elimina todas las rutas anteriores y evita el problema de contexto.
+                if (mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login',
+                        (Route<dynamic> route) => false,
+                  );
+                }
               },
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
@@ -171,16 +188,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () {
                       // NAVEGACIÓN ACTUALIZADA A EDITAR PERFIL
                       Navigator.pushNamed(context, '/edit-profile');
-                    },
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _SettingsItem(
-                    icon: Icons.lock_outline,
-                    title: 'Cambiar contraseña',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cambiar contraseña en desarrollo')),
-                      );
                     },
                   ),
                   const Divider(height: 1, indent: 56),
