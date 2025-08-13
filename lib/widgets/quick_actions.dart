@@ -54,9 +54,8 @@ class QuickActions extends StatelessWidget {
                 color: Colors.purple[100]!,
                 iconColor: Colors.purple[700]!,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Registrar compromiso en desarrollo')),
-                  );
+                  // ¡Corregido! Usa la ruta correcta
+                  Navigator.pushNamed(context, '/compromises_create');
                 },
               ),
             ),
@@ -84,9 +83,7 @@ class QuickActions extends StatelessWidget {
                 color: Colors.pink[100]!,
                 iconColor: Colors.pink[700]!,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gestionar compromisos en desarrollo')),
-                  );
+                  Navigator.pushNamed(context, '/compromises');
                 },
               ),
             ),
