@@ -152,17 +152,17 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     }
 
     final body = {
-      'tipo': _selectedType,
+      'idcuenta': 1,
+      'tipo_compromiso': _selectedType,
       'nombre': _nameController.text,
-      'entidad': _entityController.text,
+      'idtercero': _entityController.text,
       'monto_total': double.parse(_amountController.text),
       'tasa_interes': double.parse(_interestRateController.text.isEmpty ? '0.0' : _interestRateController.text),
       'tipo_interes': _interestType,
-      'cuotas': int.parse(_installmentsController.text.isEmpty ? '0' : _installmentsController.text),
-      'frecuencia_cuota': _selectedFrequency,
-      'cuota_calculada': double.parse(_calculatedAmountController.text.isEmpty ? '0.0' : _calculatedAmountController.text),
+      'cantidad_cuotas': int.parse(_installmentsController.text.isEmpty ? '0' : _installmentsController.text),
+      'idfrecuencia': _selectedFrequencyId,
+      'monto_cuota': double.parse(_calculatedAmountController.text.isEmpty ? '0.0' : _calculatedAmountController.text),
       'fecha_inicio': _startDate!.toIso8601String().split('T')[0],
-      'id_cuenta': 1,
     };
 
     setState(() {
@@ -502,6 +502,20 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
+// Mapa: Texto visible -> ID que vas a enviar
+  final Map<String, int> frequencyMap = {
+    'Sin cuota': 1,
+    'S': 2,
+    'M': 3,
+    'A': 4,
+  };
+
+// Variable para guardar el texto seleccionado (para mostrar en el Dropdown)
+  String _selectedFrequencyText = 'Sin cuota';
+
+// Variable para guardar el ID que se enviará a la API
+  int? _selectedFrequencyId;
+
   Widget _buildFrequencyDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,10 +539,11 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _selectedFrequency,
+              value: _selectedFrequencyText,
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-              items: <String>['Sin cuota', 'S', 'M', 'A'].map<DropdownMenuItem<String>>((String value) {
+              items: frequencyMap.keys
+                  .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(
@@ -539,7 +554,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               }).toList(),
               onChanged: (String? newValue) {
                 setState(() {
-                  _selectedFrequency = newValue!;
+                  _selectedFrequencyText = newValue!;
+                  _selectedFrequencyId = frequencyMap[newValue];
                 });
               },
             ),
@@ -548,6 +564,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       ],
     );
   }
+
+
 
   Widget _buildBottomNavigationBar() {
     return Container(
