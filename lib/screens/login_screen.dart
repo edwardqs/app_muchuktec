@@ -54,10 +54,12 @@ class _LoginScreenState extends State<LoginScreen> {
         // Login exitoso
         final responseData = json.decode(response.body);
         final accessToken = responseData['access_token'];
+        final idCuenta = responseData['idCuenta'];
 
         if (accessToken != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('accessToken', accessToken);
+          await prefs.setInt('idCuenta', idCuenta);
           print('Inicio de sesión exitoso. Token: $accessToken');
           Navigator.of(context).pushReplacementNamed(
             '/loading', // La ruta nombrada de tu HomeScreen

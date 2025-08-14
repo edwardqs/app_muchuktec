@@ -16,7 +16,7 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final TextEditingController _nameController = TextEditingController();
   String _selectedType = 'Gasto o ingreso';
-  final int _idCuenta = 1;
+  int? _idCuenta;
 
 // --- Estado para manejar la carga y los datos de la API --- gaaa
   List<CategoryModel> categories = [];
@@ -34,6 +34,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   Future<void> _loadAccessTokenAndFetchCategories() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken'); // 2. Lee el token guardado
+    _idCuenta = prefs.getInt('idCuenta');
 
     if (_accessToken != null) {
       _fetchCategories(); // 3. Si hay un token, procede a cargar las categorías
@@ -486,7 +487,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       return;
     }
     // 2. Verificar si tienes un token de acceso
-    if (_accessToken == null) {
+    if (_accessToken == null || _idCuenta == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error: No se encontró el token de acceso. Por favor, reinicie la aplicación.'), backgroundColor: Colors.red),
