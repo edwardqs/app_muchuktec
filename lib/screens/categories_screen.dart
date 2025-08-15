@@ -15,6 +15,8 @@ class CategoriesScreen extends StatefulWidget {
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _editNameController = TextEditingController(); // Controlador para el modal de edición
+
   String _selectedType = 'Gasto o ingreso';
   int? _idCuenta;
 
@@ -114,6 +116,73 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           // isLoading = false;
         });
       }
+    }
+  }
+
+  // Nuevo método para actualizar una categoría
+  Future<void> _updateCategory(String categoryId, String newName) async {
+    if (_accessToken == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se encontró el token de acceso.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (newName.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El nombre no puede estar vacío.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final url = Uri.parse('$apiUrl/categorias/$categoryId');
+    final body = json.encode({'nombre': newName.trim()});
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+        body: body,
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final updatedCategoryData = json.decode(response.body);
+        final updatedCategory = CategoryModel.fromJson(updatedCategoryData);
+
+        setState(() {
+          final index = categories.indexWhere((category) => category.id == categoryId);
+          if (index != -1) {
+            categories[index] = updatedCategory;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Categoría actualizada con éxito.'), backgroundColor: Colors.green),
+        );
+      } else if (response.statusCode == 401) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('accessToken');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
+        );
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar la categoría: ${response.statusCode}'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo conectar al servidor. Intente de nuevo.'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -387,6 +456,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             ),
           ),
 
+          // Nuevo botón para editar
+          IconButton(
+            icon: Icon(Icons.edit_outlined, color: Colors.blue[400]),
+            onPressed: () => _showEditCategoryDialog(category),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
+          ),
           // Botón eliminar
           IconButton(
             icon: Icon(Icons.delete_outline, color: Colors.red[400]),
@@ -600,6 +676,58 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             child: Text(
               'Eliminar',
               style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Nuevo diálogo de edición
+  void _showEditCategoryDialog(CategoryModel category) {
+    _editNameController.text = category.name; // Carga el nombre actual en el controlador
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text(
+          'Editar Categoría',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: TextField(
+          controller: _editNameController,
+          decoration: InputDecoration(
+            labelText: 'Nombre de la categoría',
+            labelStyle: TextStyle(color: Colors.grey[600]),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.orange, width: 2),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _editNameController.clear();
+            },
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Cierra el modal
+              _updateCategory(category.id, _editNameController.text);
+              _editNameController.clear();
+            },
+            child: const Text(
+              'Guardar',
+              style: TextStyle(color: Colors.orange),
             ),
           ),
         ],
