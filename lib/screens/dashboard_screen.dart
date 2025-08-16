@@ -72,18 +72,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
             onPressed: () {},
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.purple[100],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.person,
-              size: 20,
-              color: Colors.purple[700],
+          InkWell(
+            onTap: () {
+              print('Navigating to accounts_screen');
+              Navigator.pushNamed(context, '/accounts');
+            },
+            borderRadius: BorderRadius.circular(16), // Ensures the ripple effect is a circle
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.purple[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person,
+                size: 20,
+                color: Colors.purple[700],
+              ),
             ),
           ),
         ],

@@ -257,12 +257,25 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             icon: Icon(Icons.notifications_outlined, color: Colors.black),
             onPressed: () {},
           ),
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.purple[100],
-              child: Icon(Icons.person, color: Colors.purple, size: 20),
+          InkWell(
+            onTap: () {
+              print('Navigating to accounts_screen');
+              Navigator.pushNamed(context, '/accounts');
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.purple[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person,
+                size: 20,
+                color: Colors.purple[700],
+              ),
             ),
           ),
         ],
