@@ -13,6 +13,7 @@ import 'screens/edit_profile_screen.dart';
 import 'screens/compromises_screen.dart';
 import 'screens/compromises_create_screen.dart';
 
+
 void main() {
   runApp(const EconoMuchikApp());
 }
