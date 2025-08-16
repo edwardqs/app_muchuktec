@@ -206,12 +206,25 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
             icon: const Icon(Icons.notifications_outlined, color: Colors.black),
             onPressed: () {},
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.purple[100],
-              child: const Icon(Icons.person, color: Colors.purple, size: 20),
+          InkWell(
+            onTap: () {
+              print('Navigating to accounts_screen');
+              Navigator.pushNamed(context, '/accounts');
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.purple[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person,
+                size: 20,
+                color: Colors.purple[700],
+              ),
             ),
           ),
         ],
@@ -240,6 +253,33 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 icon: const Icon(Icons.add_circle_outline, color: Colors.white),
                 label: const Text(
                   'Registrar Nuevo Compromiso',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Navega a la nueva vista para registrar un compromiso
+                  Navigator.pushNamed(context, '/compromises_tiers'); // Cambiado para navegar a la vista de terceros
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo, // Color cambiado a azul oscuro (indigo)
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.people_alt, color: Colors.white), // Icono cambiado a Icons.people_alt
+                label: const Text(
+                  'Ver mis terceros',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,

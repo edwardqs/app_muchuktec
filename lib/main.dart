@@ -12,6 +12,8 @@ import 'screens/assign_budget_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/compromises_screen.dart';
 import 'screens/compromises_create_screen.dart';
+import 'screens/accounts_screen.dart';
+import 'screens/compromises_tiers_screen.dart';
 
 void main() {
   runApp(const EconoMuchikApp());
@@ -57,6 +59,10 @@ class EconoMuchikApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => const CompromisesScreen());
           case '/compromises_create':
             return MaterialPageRoute(builder: (context) => const CompromisesCreateScreen());
+          case '/accounts':
+            return MaterialPageRoute(builder: (context) => const AccountsScreen());
+          case '/compromises_tiers':
+            return MaterialPageRoute(builder: (context) => const TercerosScreen());
           default:
             return MaterialPageRoute(builder: (context) => const LoginScreen());
         }
