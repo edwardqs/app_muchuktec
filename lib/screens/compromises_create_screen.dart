@@ -29,16 +29,24 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
 
   bool isLoading = false;
   String? _accessToken;
+  int? _idCuenta;
+
+  List<Map<String, dynamic>> _terceros = [];
+  int? _selectedTerceroId;
+
 
   @override
   void initState() {
     super.initState();
-    _loadAccessToken();
+    _loadAccessToken().then((_) {
+      _loadTerceros();
+    });
   }
 
   Future<void> _loadAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
+    _idCuenta = prefs.getInt('idCuenta');
     if (_accessToken == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,6 +54,31 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       );
     }
   }
+
+  Future<void> _loadTerceros() async {
+    if (_accessToken == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('$apiUrl/terceros'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List data = json.decode(response.body);
+        setState(() {
+          _terceros = List<Map<String, dynamic>>.from(data);
+        });
+      } else {
+        print("Error al cargar terceros: ${response.body}");
+      }
+    } catch (e) {
+      print("Excepción cargando terceros: $e");
+    }
+  }
+
 
   // Método para seleccionar la fecha
   Future<void> _selectDate() async {
@@ -143,7 +176,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
 
   // Método para guardar el compromiso (llama a la API)
   void _saveCompromise() async {
-    if (_accessToken == null) {
+    if (_accessToken == null || _idCuenta == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error: No se encontró el token de acceso.'), backgroundColor: Colors.red),
@@ -151,11 +184,40 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       return;
     }
 
+    // Calcular fecha de término en base a frecuencia y cuotas
+    DateTime? fechaTermino;
+    int cuotas = int.parse(_installmentsController.text.isEmpty ? '0' : _installmentsController.text);
+
+    if (_selectedFrequencyText == 'Sin cuota') {
+      fechaTermino = null;
+    } else if (cuotas > 0) {
+      switch (_selectedFrequencyText) {
+        case 'S': // Semanal
+          fechaTermino = _startDate!.add(Duration(days: 7 * cuotas));
+          break;
+        case 'M': // Mensual
+          fechaTermino = DateTime(
+            _startDate!.year,
+            _startDate!.month + cuotas,
+            _startDate!.day,
+          );
+          break;
+        case 'A': // Anual
+          fechaTermino = DateTime(
+            _startDate!.year + cuotas,
+            _startDate!.month,
+            _startDate!.day,
+          );
+          break;
+      }
+    }
+
+
     final body = {
-      'idcuenta': 1,
+      'idcuenta': _idCuenta,
       'tipo_compromiso': _selectedType,
       'nombre': _nameController.text,
-      'idtercero': _entityController.text,
+      'idtercero': _selectedTerceroId,
       'monto_total': double.parse(_amountController.text),
       'tasa_interes': double.parse(_interestRateController.text.isEmpty ? '0.0' : _interestRateController.text),
       'tipo_interes': _interestType,
@@ -163,6 +225,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       'idfrecuencia': _selectedFrequencyId,
       'monto_cuota': double.parse(_calculatedAmountController.text.isEmpty ? '0.0' : _calculatedAmountController.text),
       'fecha_inicio': _startDate!.toIso8601String().split('T')[0],
+      'fecha_termino': fechaTermino != null ? fechaTermino.toIso8601String().split('T')[0] : null,
+      'estado': 'Pendiente', // valor inicial por defecto
     };
 
     setState(() {
@@ -287,12 +351,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             const SizedBox(height: 16),
 
             // Campo Entidad
-            _buildLabeledTextField(
-              label: 'Entidad',
-              hint: 'Juan Perez // Banco XYZ ...',
-              controller: _entityController,
-            ),
+            _buildEntidadField(),
             const SizedBox(height: 16),
+
 
             // Campo Monto total
             _buildLabeledTextField(
@@ -329,6 +390,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                     hint: '5',
                     controller: _installmentsController,
                     keyboardType: TextInputType.number,
+                    enabled: _selectedFrequencyText != 'Sin cuota',
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -392,6 +454,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     required String hint,
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
+    bool enabled = true, // <--- nuevo
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,6 +471,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
+          enabled: enabled,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),
@@ -431,6 +495,72 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       ],
     );
   }
+
+  // ====================== CAMPO ENTIDAD (TERCERO) ======================
+  Widget _buildEntidadField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Entidad',
+          style: TextStyle(
+            fontSize: 14,
+            color: Color.fromARGB(255, 78, 78, 78),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Autocomplete<Map<String, dynamic>>(
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.isEmpty) {
+              return const Iterable<Map<String, dynamic>>.empty();
+            }
+            return _terceros.where((tercero) =>
+                tercero['nombre']
+                    .toLowerCase()
+                    .contains(textEditingValue.text.toLowerCase()));
+          },
+          displayStringForOption: (option) => option['nombre'],
+          fieldViewBuilder:
+              (context, controller, focusNode, onFieldSubmitted) {
+            controller.text = _entityController.text;
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                hintText: 'Escribe para buscar...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                  const BorderSide(color: Colors.orange, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+              ),
+            );
+          },
+          onSelected: (Map<String, dynamic> selection) {
+            setState(() {
+              _selectedTerceroId = selection['id'];
+              _entityController.text = selection['nombre'];
+            });
+          },
+        ),
+      ],
+    );
+  }
+
 
   Widget _buildDateField({
     required String label,
@@ -569,6 +699,10 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                 setState(() {
                   _selectedFrequencyText = newValue!;
                   _selectedFrequencyId = frequencyMap[newValue];
+
+                  if (_selectedFrequencyText == 'Sin cuota') {
+                    _installmentsController.text = '0'; // siempre 0
+                  }
                 });
               },
             ),
