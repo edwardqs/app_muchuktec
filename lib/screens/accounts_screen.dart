@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_muchik/services/auth_service.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -10,91 +12,126 @@ class AccountsScreen extends StatefulWidget {
 }
 
 class _AccountsScreenState extends State<AccountsScreen> {
-  // Reemplaza esto con la URL de tu API de Laravel
-  final String _baseUrl = 'http://tu-api-laravel.com/api';
-  // Simula el ID del usuario, en un escenario real se obtendría del token de autenticación
-  final int _userId = 1;
-  // Simula el token de autenticación del usuario
-  final String _authToken = 'Bearer 1|f345hdsjkhf34kjh5kjh4k';
-
-  List<Map<String, dynamic>> _userProfiles = [];
+  final String _baseUrl = 'http://10.0.2.2:8000/api';
+  List<dynamic> _userProfiles = [];
   bool _isLoading = true;
+  String? _accessToken;
+  final TextEditingController _editNameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _fetchUserProfiles();
+    _loadAccessTokenAndFetchProfiles();
   }
 
-  // Método para obtener los perfiles del usuario desde la API de Laravel
+  Future<void> _loadAccessTokenAndFetchProfiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString('accessToken');
+
+    if (_accessToken != null) {
+      _fetchUserProfiles();
+    } else {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se encontró un token de sesión. Por favor, inicie sesión.')),
+      );
+    }
+  }
+
   Future<void> _fetchUserProfiles() async {
+    if (_accessToken == null) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/profiles?user_id=$_userId'),
+        Uri.parse('$_baseUrl/cuentas'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': _authToken,
+          'Authorization': 'Bearer $_accessToken',
         },
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['profiles'];
+        final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _userProfiles = data.cast<Map<String, dynamic>>();
+          _userProfiles = data;
           _isLoading = false;
         });
       } else {
-        throw Exception('Failed to load profiles');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar los perfiles.')),
+        );
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
+      if (!mounted) return;
       print("Error al obtener perfiles: $e");
       setState(() {
         _isLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cargar los perfiles.')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al conectar con el servidor.')),
+      );
     }
   }
 
-  // Método para mostrar el modal de agregar nuevo perfil
   void _showAddProfileModal() {
     if (_userProfiles.length >= 4) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No puedes tener más de 4 perfiles.')),
+          const SnackBar(content: Text('No puedes tener más de 4 perfiles.'), backgroundColor: Colors.orange),
         );
       }
       return;
     }
 
-    final TextEditingController _nameController = TextEditingController();
+    final TextEditingController nameController = TextEditingController();
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Agregar Nuevo Perfil'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Agregar Nuevo Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
           content: TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
+            controller: nameController,
+            decoration: InputDecoration(
               hintText: 'Nombre del perfil',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
-                if (_nameController.text.isNotEmpty) {
-                  _addProfile(_nameController.text);
+                if (nameController.text.isNotEmpty) {
+                  _addProfile(nameController.text);
                   Navigator.pop(context);
                 }
               },
-              child: const Text('Agregar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Agregar', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -102,81 +139,232 @@ class _AccountsScreenState extends State<AccountsScreen> {
     );
   }
 
-  // Método para agregar un nuevo perfil a la API de Laravel
-  Future<void> _addProfile(String name) async {
+  Future<void> _addProfile(String nombre) async {
+    if (_accessToken == null) return;
+
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/profiles'),
+        Uri.parse('$_baseUrl/cuentas'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': _authToken,
+          'Authorization': 'Bearer $_accessToken',
         },
-        body: json.encode({
-          'user_id': _userId,
-          'name': name,
-        }),
+        body: json.encode({'nombre': nombre}),
       );
 
       if (response.statusCode == 201) {
-        // Asumiendo que la API devuelve el nuevo perfil creado
-        final newProfile = json.decode(response.body);
-        setState(() {
-          _userProfiles.add(newProfile);
-        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil agregado exitosamente.')),
+            const SnackBar(content: Text('Perfil agregado exitosamente.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
           );
         }
+        _fetchUserProfiles();
       } else {
         throw Exception('Failed to add profile');
       }
     } catch (e) {
-      print('Error al agregar perfil: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al agregar el perfil.')),
+          const SnackBar(content: Text('Error al agregar el perfil.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
         );
       }
+    }
+  }
+
+  void _showDeleteConfirmation(dynamic profile) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Confirmar Eliminación', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('¿Estás seguro de que deseas eliminar el perfil "${profile['nombre']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deleteProfile(profile['id']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteProfile(int id) async {
+    if (_accessToken == null) return;
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/cuentas/$id'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+        },
+      );
+
+      if (response.statusCode == 204) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Perfil eliminado exitosamente.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+          );
+        }
+        _fetchUserProfiles();
+      } else {
+        throw Exception('Failed to delete profile');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al eliminar el perfil.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showEditProfileDialog(dynamic profile) {
+    _editNameController.text = profile['nombre'];
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: _editNameController,
+          decoration: InputDecoration(
+            hintText: 'Nuevo nombre',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _editNameController.clear();
+            },
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _updateProfile(profile['id'], _editNameController.text);
+              _editNameController.clear();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateProfile(int id, String newName) async {
+    if (_accessToken == null) return;
+
+    if (newName.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('El nombre no puede estar vacío.'), backgroundColor: Colors.orange),
+        );
+      }
+      return;
+    }
+
+    try {
+      final response = await http.put(
+        Uri.parse('$_baseUrl/cuentas/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+        },
+        body: json.encode({'nombre': newName.trim()}),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Perfil actualizado con éxito.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+          );
+        }
+        _fetchUserProfiles();
+      } else {
+        throw Exception('Failed to update profile');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al actualizar el perfil.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('accessToken');
+    AuthService().logout();
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+            (Route<dynamic> route) => false,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
-        title: const Text('Cuentas'),
+        title: const Text('Perfiles de Usuario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.indigo,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: _logout,
+            tooltip: 'Cerrar Sesión',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               '¿Quién está usando?',
               style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
                 color: Colors.black87,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Expanded(
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 24,
-                  mainAxisSpacing: 24,
+                  crossAxisSpacing: 32,
+                  mainAxisSpacing: 32,
                   childAspectRatio: 0.8,
                 ),
                 itemCount: _userProfiles.length < 4
@@ -188,8 +376,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   }
                   final profile = _userProfiles[index];
                   return _ProfileItem(
-                    name: profile['name'],
+                    name: profile['nombre'],
                     icon: Icons.person,
+                    onEdit: () => _showEditProfileDialog(profile),
+                    onDelete: () => _showDeleteConfirmation(profile),
                   );
                 },
               ),
@@ -205,55 +395,91 @@ class _AccountsScreenState extends State<AccountsScreen> {
 class _ProfileItem extends StatelessWidget {
   final String name;
   final IconData icon;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _ProfileItem({
     required this.name,
     required this.icon,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Seleccionaste a $name')),
-        );
-        // Aquí podrías agregar la lógica para cambiar al perfil seleccionado
-      },
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 90,
-            height: 90,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              color: Colors.blue[100],
               shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Colors.blueAccent.shade100, Colors.blue.shade400],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
+                  color: Colors.blue.withOpacity(0.4),
                   spreadRadius: 2,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Icon(
               icon,
-              size: 50,
-              color: Colors.blue[700],
+              size: 45,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            name,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit_rounded, color: Colors.blue[600]),
+                onPressed: onEdit,
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
+                onPressed: onDelete,
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
         ],
       ),
@@ -273,42 +499,50 @@ class _AddProfileButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade300, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade300, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              spreadRadius: 2,
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
-            child: Icon(
-              Icons.add,
-              size: 50,
-              color: Colors.grey[600],
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade400, width: 2),
+              ),
+              child: Icon(
+                Icons.add_rounded,
+                size: 45,
+                color: Colors.grey[600],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Agregar Perfil',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+            const SizedBox(height: 12),
+            const Text(
+              'Agregar Perfil',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
