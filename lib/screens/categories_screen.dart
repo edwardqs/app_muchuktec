@@ -596,7 +596,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     });
 
     try {
-      // 4. Realizar la petición POST a la API
       final response = await http.post(
         Uri.parse('$apiUrl/categorias'),
         headers: {
