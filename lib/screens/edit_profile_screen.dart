@@ -549,44 +549,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
       child: Column(
         children: [
+          // Nombres completos (no editable)
           _buildReadOnlyField(
             controller: _fullNameController,
             label: 'Nombres completos',
             icon: Icons.person_outline,
           ),
           const SizedBox(height: 20),
+          // Fila para tipo y número de documento (ambos no editables)
           Row(
             children: [
               Expanded(
-                flex: 4,
-                child: _buildDocTypeSelector(),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 6,
-                child: _buildEditableTextField(
-                  controller: _dniController,
-                  label: 'Número de documento',
-                  icon: Icons.badge_outlined,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(_docNumberMaxLength),
-                  ],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa un número';
-                    }
-                    if (value.length != _docNumberMaxLength) {
-                      return 'Debe tener $_docNumberMaxLength dígitos';
-                    }
-                    return null;
-                  },
+                child: _buildReadOnlyField(
+                  controller: _docTypeController, // Asumiendo un controlador para el tipo de documento
+                  label: 'Tipo',
+                  icon: Icons.description_outlined,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildReadOnlyField(
+                  controller: _dniController,
+                  label: 'Número de documento',
+                  icon: Icons.badge_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Username (editable)
           _buildEditableTextField(
             controller: _usernameController,
             label: 'Username',
@@ -602,6 +597,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
           ),
           const SizedBox(height: 20),
+          // Número de celular (editable)
           _buildEditableTextField(
             controller: _phoneController,
             label: 'Número de celular',
@@ -626,6 +622,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
           ),
           const SizedBox(height: 20),
+          // Dirección completa (editable)
           _buildEditableTextField(
             controller: _addressController,
             label: 'Dirección completa',
@@ -643,19 +640,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
           ),
           const SizedBox(height: 20),
-          _buildGenderSelector(),
-          const SizedBox(height: 20),
-          _buildBirthDateField(),
-          const SizedBox(height: 20),
+          // Género (no editable)
           _buildReadOnlyField(
+            controller: _genderController, // Asumiendo un controlador para el género
+            label: 'Género',
+            icon: Icons.transgender_outlined,
+          ),
+          const SizedBox(height: 20),
+          // Fecha de nacimiento (no editable)
+          _buildReadOnlyField(
+            controller: _birthDateController, // Asumiendo un controlador para la fecha de nacimiento
+            label: 'Fecha de nacimiento',
+            icon: Icons.cake_outlined,
+          ),
+          const SizedBox(height: 20),
+          // Correo electrónico (editable)
+          _buildEditableTextField(
             controller: _emailController,
             label: 'Correo electrónico',
             icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa tu correo electrónico';
+              }
+              return null;
+            },
           ),
         ],
       ),
     );
   }
+
 
   Widget _buildSaveButton() {
     return Container(
@@ -965,222 +981,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // Widget para el selector de género
-  Widget _buildGenderSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DropdownButtonFormField<String>(
-        value: _genderController.text.isNotEmpty ? _genderController.text : null,
-        decoration: InputDecoration(
-          labelText: 'Género',
-          labelStyle: TextStyle(
-            color: Colors.purple[600],
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.wc,
-              color: Colors.purple[600],
-              size: 20,
-            ),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.9),
-        ),
-        items: const [
-          DropdownMenuItem(
-            value: 'M',
-            child: Text('Masculino', style: TextStyle(color: Colors.black)),
-          ),
-          DropdownMenuItem(
-            value: 'F',
-            child: Text('Femenino', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-        onChanged: (String? newValue) {
-          setState(() {
-            _genderController.text = newValue ?? '';
-          });
-        },
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Por favor selecciona un género';
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  // Widget para el campo de fecha de nacimiento
-  Widget _buildBirthDateField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: _birthDateController,
-        readOnly: true,
-        onTap: () => _selectDate(context),
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: 'Fecha de nacimiento',
-          labelStyle: TextStyle(
-            color: Colors.purple[600],
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.cake_outlined,
-              color: Colors.purple[600],
-              size: 20,
-            ),
-          ),
-          suffixIcon: Icon(
-            Icons.calendar_today,
-            color: Colors.purple[400],
-            size: 20,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Colors.purple.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Colors.purple[400]!,
-              width: 2,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: Colors.red,
-              width: 1,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.9),
-        ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Por favor ingresa tu fecha de nacimiento';
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  // Widget para el selector de tipo de documento
-  Widget _buildDocTypeSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DropdownButtonFormField<String>(
-        value: _docTypeController.text.isNotEmpty ? _docTypeController.text : null,
-        decoration: InputDecoration(
-          labelText: 'Tipo',
-          labelStyle: TextStyle(
-            color: Colors.purple[600],
-            fontWeight: FontWeight.w500,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.9),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
-        ),
-        items: const [
-          DropdownMenuItem(
-            value: '1',
-            child: Text('DNI', style: TextStyle(color: Colors.black)),
-          ),
-          DropdownMenuItem(
-            value: '2',
-            child: Text('RUC', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-        onChanged: (String? newValue) {
-          setState(() {
-            _docTypeController.text = newValue ?? '1';
-            _updateDocNumberLength();
-          });
-        },
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Selecciona un tipo';
-          }
-          return null;
-        },
-      ),
-    );
-  }
 
   void _showOptionsMenu() {
     showModalBottomSheet(

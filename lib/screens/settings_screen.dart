@@ -212,9 +212,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.group_outlined,
                     title: 'Ver perfiles',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ver perfiles en desarrollo')),
-                      );
+                      print('Navigating to accounts_screen');
+                      Navigator.pushNamed(context, '/accounts');
                     },
                   ),
                 ],
