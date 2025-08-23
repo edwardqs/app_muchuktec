@@ -178,7 +178,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
 
     // Aquí iría la lógica para enviar los datos del presupuesto a la API.
     _showSnackBar(
-      'Presupuesto asignado a ${_selectedCategory!.name} para ${_selectedMonth} con S/.${amount.toStringAsFixed(2)}',
+      'Presupuesto asignado a ${_selectedCategory!.name} para $_selectedMonth con S/.${amount.toStringAsFixed(2)}',
       Colors.green,
     );
 

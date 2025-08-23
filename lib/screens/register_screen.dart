@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:app_muchik/services/user_session.dart';
+import 'package:intl/intl.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
 class RegisterScreen extends StatefulWidget {
@@ -21,13 +21,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _documentController = TextEditingController();
-  final _phoneController = TextEditingController(); // Nuevo controlador para celular
-  final _addressController = TextEditingController(); // Nuevo controlador para dirección
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
 
   String _selectedDocumentType = 'DNI';
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
-  bool _isLoading = false; // Estado de carga para el botón
+  bool _isLoading = false;
+
+  // Nuevas variables para Género y Fecha de Nacimiento
+  String? _selectedGender;
+  final _birthDateController = TextEditingController();
+  DateTime? _selectedDate;
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +241,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                         const SizedBox(height: 20),
 
+                        // Género Field - ACTUALIZADO
+                        _buildGenderSelector(),
+
+                        const SizedBox(height: 20),
+
+                        // Fecha de nacimiento Field - NUEVO
+                        _buildBirthDateField(),
+
+                        const SizedBox(height: 20),
+
                         // Password Field
                         _buildModernTextField(
                           controller: _passwordController,
@@ -311,7 +326,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                     child: ElevatedButton(
-                      onPressed: _handleRegister,
+                      onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -319,7 +334,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Row(
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      )
+                          : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
@@ -393,6 +412,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     String? Function(String?)? validator,
     List<TextInputFormatter>? inputFormatters,
     String? suffixText,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -409,6 +430,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       child: TextFormField(
         controller: controller,
+        readOnly: readOnly,
+        onTap: onTap,
         keyboardType: keyboardType,
         obscureText: isPassword ? !(isPasswordVisible ?? false) : false,
         inputFormatters: inputFormatters,
@@ -630,7 +653,122 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // --- NUEVA LÓGICA DE REGISTRO ---
+  // Nuevo widget para seleccionar el género - SIMPLIFICADO
+  Widget _buildGenderSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.purple[50],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.wc_outlined,
+              color: Colors.purple[600],
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _selectedGender,
+              decoration: InputDecoration(
+                labelText: 'Género',
+                labelStyle: TextStyle(
+                  color: Colors.purple[600],
+                  fontWeight: FontWeight.w500,
+                ),
+                border: InputBorder.none,
+              ),
+              // Opciones de género simplificadas a solo Masculino y Femenino
+              items: ['Masculino', 'Femenino']
+                  .map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _selectedGender = newValue;
+                });
+              },
+              validator: (value) {
+                if (value == null) {
+                  return 'Por favor selecciona tu género';
+                }
+                return null;
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Nuevo widget para seleccionar la fecha de nacimiento
+  Widget _buildBirthDateField() {
+    return _buildModernTextField(
+      controller: _birthDateController,
+      label: 'Fecha de nacimiento',
+      icon: Icons.calendar_today,
+      readOnly: true,
+      onTap: () async {
+        final DateTime? picked = await showDatePicker(
+          context: context,
+          initialDate: _selectedDate ?? DateTime.now(),
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+          builder: (BuildContext context, Widget? child) {
+            return Theme(
+              data: ThemeData.light().copyWith(
+                colorScheme: ColorScheme.light(
+                  primary: Colors.purple[600]!, // Color del encabezado
+                  onPrimary: Colors.white, // Color del texto del encabezado
+                  surface: Colors.white, // Color de fondo del calendario
+                  onSurface: Colors.black87, // Color del texto del calendario
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.purple[600], // Color de los botones 'CANCEL' y 'OK'
+                  ),
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null && picked != _selectedDate) {
+          setState(() {
+            _selectedDate = picked;
+            _birthDateController.text = DateFormat('yyyy-MM-dd').format(picked);
+          });
+        }
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Por favor ingresa tu fecha de nacimiento';
+        }
+        return null;
+      },
+    );
+  }
+
   void _handleRegister() async {
     // Validar el formulario antes de enviar
     if (_formKey.currentState!.validate()) {
@@ -641,6 +779,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Mapear el tipo de documento a un código numérico
       int tipoDocumento = _selectedDocumentType == 'DNI' ? 1 : 2;
 
+      // Convertir el género seleccionado a 'M' o 'F'
+      String? generoParaEnvio;
+      if (_selectedGender == 'Masculino') {
+        generoParaEnvio = 'M';
+      } else if (_selectedGender == 'Femenino') {
+        generoParaEnvio = 'F';
+      }
+
       // Crear el cuerpo de la solicitud JSON
       final Map<String, dynamic> requestBody = {
         'username': _usernameController.text,
@@ -648,10 +794,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'password': _passwordController.text,
         'password_confirmation': _confirmPasswordController.text,
         'nombres_completos': _nameController.text,
-        'tipodoc': tipoDocumento, // Clave corregida
-        'numerodoc': _documentController.text, // Clave corregida
+        'tipodoc': tipoDocumento,
+        'numerodoc': _documentController.text,
         'direccion': _addressController.text,
         'telefono': _phoneController.text,
+        'genero': generoParaEnvio, // Campo de género actualizado
+        'fecha_nacimiento': _birthDateController.text,
       };
 
       try {
@@ -706,6 +854,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -714,8 +863,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _documentController.dispose();
-    _phoneController.dispose(); // Nuevo dispose
-    _addressController.dispose(); // Nuevo dispose
+    _phoneController.dispose();
+    _addressController.dispose();
+    _birthDateController.dispose();
     super.dispose();
   }
 }

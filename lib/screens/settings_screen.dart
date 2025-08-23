@@ -9,7 +9,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  int _selectedIndex = 4;
+  final int _selectedIndex = 4;
 
   void _onItemTapped(int index) {
     switch (index) {
