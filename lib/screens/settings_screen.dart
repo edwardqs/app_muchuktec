@@ -1,3 +1,4 @@
+// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:app_muchik/services/auth_service.dart';
 
@@ -26,7 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pushReplacementNamed(context, '/categories');
         break;
       case 4:
-      // Ya estamos en la pantalla de ajustes, no hacemos nada.
         break;
     }
   }
@@ -35,28 +35,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) { // Usamos 'dialogContext' aquí
         return AlertDialog(
           title: const Text('Cerrar sesión'),
           content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancelar'),
             ),
             TextButton(
               onPressed: () async {
-                // 1. Cierra el diálogo de confirmación actual
-                Navigator.of(context).pop();
-
-                // 2. Realiza la operación de logout.
-                // No necesitamos esperar la respuesta para navegar,
-                // ya que la sesión local se elimina en el servicio.
-                AuthService().logout();
-
-                // 3. Navega directamente a la pantalla de login.
-                // Esta es la acción final, por lo que no hay más pops después de esto.
-                // La navegación elimina todas las rutas anteriores y evita el problema de contexto.
+                // Navegar inmediatamente DESPUÉS de cerrar el diálogo
+                // El pop y la navegación deben estar en una sola operación.
+                await AuthService().logout();
+                Navigator.of(dialogContext).pop();
                 if (mounted) {
                   Navigator.pushNamedAndRemoveUntil(
                     context,

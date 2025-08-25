@@ -1,7 +1,7 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // Importa el paquete http
-import 'dart:convert'; // Importa para codificar/decodificar JSON
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
@@ -20,13 +20,40 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
-  bool isLoading = false; // Estado para el indicador de carga
-  String errorMessage = ''; // Estado para mostrar mensajes de error de la API
+  bool isLoading = false;
+  String errorMessage = '';
+  bool _isRedirecting = false;
 
-  // Método para manejar el inicio de sesión (MANTIENE LA LÓGICA ORIGINAL)
+  Future<void> _checkSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+
+    // Nueva comprobación: Si no hay un token, nos aseguramos de que no redirija.
+    // Esto previene la redirección si el usuario acaba de cerrar sesión.
+    if (accessToken == null) {
+      return;
+    }
+
+    if (accessToken != null && !_isRedirecting) {
+      setState(() {
+        _isRedirecting = true;
+      });
+      Navigator.of(context).pushReplacementNamed(
+        '/loading',
+        arguments: accessToken,
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
   Future<void> _performLogin() async {
     if (!_formKey.currentState!.validate()) {
-      return; // No proceder si la validación del formulario falla
+      return;
     }
 
     setState(() {
@@ -47,11 +74,10 @@ class _LoginScreenState extends State<LoginScreen> {
           'Content-Type': 'application/json',
           'Accept' : 'application/json',
         },
-        body: json.encode(body), // Codificar el cuerpo a JSON
+        body: json.encode(body),
       );
 
       if (response.statusCode == 200) {
-        // Login exitoso
         final responseData = json.decode(response.body);
         final accessToken = responseData['access_token'];
         final idCuenta = responseData['idCuenta'];
@@ -61,10 +87,12 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('accessToken', accessToken);
           await prefs.setInt('idCuenta', idCuenta);
           print('Inicio de sesión exitoso. Token: $accessToken');
-          Navigator.of(context).pushReplacementNamed(
-            '/loading', // La ruta nombrada de tu HomeScreen
-            arguments: accessToken, // Pasar el token como argumento
-          );
+          if (!_isRedirecting) {
+            Navigator.of(context).pushReplacementNamed(
+              '/loading',
+              arguments: accessToken,
+            );
+          }
         } else {
           setState(() {
             errorMessage = 'Token no recibido. Por favor, intente de nuevo.';
@@ -118,8 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(height: 80),
-
-                  // Hero Logo con animación
                   Container(
                     width: 140,
                     height: 140,
@@ -149,7 +175,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 40),
 
-                  // Title con estilo moderno
                   ShaderMask(
                     shaderCallback: (bounds) => LinearGradient(
                       colors: [Colors.white, Colors.purple[100]!],
@@ -176,7 +201,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 50),
 
-                  // Formulario con glassmorphism
                   Container(
                     padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
@@ -197,7 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: Column(
                       children: [
-                        // Mostrar mensaje de error de la API (NUEVA FUNCIONALIDAD)
                         if (errorMessage.isNotEmpty)
                           Container(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -225,7 +248,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                        // Email Field
                         _buildModernTextField(
                           controller: _emailController,
                           label: 'Correo Electrónico',
@@ -244,7 +266,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Password Field
                         _buildModernTextField(
                           controller: _passwordController,
                           label: 'Contraseña',
@@ -265,11 +286,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
 
                         const SizedBox(height: 20),
-
-                        // Remember me y Forgot password
                         Row(
                           children: [
-                            // Remember me
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -322,7 +340,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             const Spacer(),
-                            // Forgot password
                             TextButton(
                               onPressed: () {
                                 _showForgotPasswordDialog();
@@ -345,7 +362,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 32),
 
-                  // Login Button con estilo llamativo (MANTIENE LA LÓGICA ORIGINAL)
                   Container(
                     width: double.infinity,
                     height: 56,
@@ -367,7 +383,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     child: ElevatedButton(
-                      // MANTIENE LA LÓGICA ORIGINAL DE LA API
                       onPressed: isLoading ? null : _performLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
@@ -405,7 +420,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Divider con "O"
                   Row(
                     children: [
                       Expanded(
@@ -436,7 +450,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Register Button con estilo outline
                   Container(
                     width: double.infinity,
                     height: 56,
@@ -491,7 +504,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 40),
 
-                  // Footer text
                   Text(
                     '© 2025 Econo Muchik Finance',
                     style: TextStyle(
