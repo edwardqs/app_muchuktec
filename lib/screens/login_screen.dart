@@ -328,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _showForgotPasswordDialog();
                               },
                               child: Text(
-                                '¿Olvidaste tu contraseña?',
+                                'Recupera tu contraseña',
                                 style: TextStyle(
                                   color: Colors.white.withOpacity(0.9),
                                   fontSize: 14,

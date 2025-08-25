@@ -1,4 +1,5 @@
 // lib/screens/edit_profile_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -6,17 +7,14 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/services/user_session.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 
-// URL base de tu API
 const String apiUrl = 'http://10.0.2.2:8000/api';
-
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
-
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
-
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
@@ -35,44 +33,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _currentPasswordController = TextEditingController(); // Nuevo controlador
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
+  final ImagePicker _picker = ImagePicker();
+  String? _profileImageUrl;
+  bool _isUploadingImage = false;
   int _docNumberMaxLength = 8; // Longitud máxima por defecto para DNI
-
   bool _isLoading = false;
   bool _isSaving = false;
   bool _isPasswordSaving = false; // Nuevo estado para el botón de cambio de contraseña
-
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _docTypeController.addListener(_updateDocNumberLength);
   }
-
-  // --- Funciones de Lógica y Mapeo ---
-
   void _updateDocNumberLength() {
     setState(() {
       final docType = _docTypeController.text;
       _docNumberMaxLength = (docType == '1') ? 8 : 11;
     });
   }
-
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
     });
-
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
-
     if (token == null) {
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/');
       }
       return;
     }
-
     try {
       final url = Uri.parse('$apiUrl/getUser');
       final response = await http.get(
@@ -84,10 +75,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (!mounted) return;
-
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
-
         _usernameController.text = userData['username'] ?? '';
         _emailController.text = userData['correo'] ?? '';
         _fullNameController.text = userData['nombres_completos'] ?? '';
@@ -96,6 +85,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _addressController.text = userData['direccion'] ?? '';
         _genderController.text = userData['genero'] ?? '';
         _birthDateController.text = userData['fecha_nacimiento'] ?? '';
+        _profileImageUrl = userData['profile_photo_url']; // Cargar la URL de la foto
 
         final docTypeFromBackend = userData['tipodoc']?.toString();
         _docTypeController.text = docTypeFromBackend ?? '1';
@@ -123,7 +113,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
   }
-
   void _saveChanges() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -143,10 +132,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    // CORRECCIÓN CLAVE: Convertir la cadena a entero antes de enviar
     final docTypeId = int.tryParse(_docTypeController.text);
-
-    // Construir el cuerpo de la solicitud
     final requestBody = {
       'username': _usernameController.text,
       'correo': _emailController.text,
@@ -157,10 +143,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       'tipodoc_id': docTypeId,
       'numerodoc': _dniController.text,
     };
-
-    // Imprimir el cuerpo de la solicitud para depuración
     print("Enviando al backend: ${json.encode(requestBody)}");
-
     try {
       final url = Uri.parse('$apiUrl/datospersonales/update');
       final response = await http.put(
@@ -199,7 +182,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
   }
-
   Future<void> _updatePassword() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
@@ -282,7 +264,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
   }
+  // Función para seleccionar la imagen y subirla al backend
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70, // Optimiza la calidad
+      );
+      if (image == null) return;
+      await _uploadImageToBackend(File(image.path));
+    } catch (e) {
+      print('Error al seleccionar la imagen: $e');
+      _showSnackbar('No se pudo seleccionar la imagen.', Colors.red);
+    }
+  }
+  // Función para enviar la imagen al backend
+  Future<void> _uploadImageToBackend(File imageFile) async {
+    setState(() {
+      _isUploadingImage = true;
+    });
 
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    if (token == null) {
+      if (mounted) Navigator.of(context).pushReplacementNamed('/');
+      return;
+    }
+
+    final url = Uri.parse('$apiUrl/profile/upload-photo');
+    final request = http.MultipartRequest('POST', url);
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'profile_photo', // Asegúrate que este nombre de campo coincida con tu backend
+        imageFile.path,
+      ),
+    );
+
+    try {
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(responseBody);
+        final newImageUrl = jsonResponse['profile_photo_url'];
+        setState(() {
+          _profileImageUrl = newImageUrl;
+        });
+        _showSnackbar('Foto de perfil actualizada.', Colors.green);
+      } else {
+        _showSnackbar('Error al subir la imagen: ${responseBody}', Colors.red);
+      }
+    } catch (e) {
+      print('Error al subir la imagen: $e');
+      _showSnackbar('Error de conexión al subir la imagen.', Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
   void _showPasswordChangeModal() {
     // Usamos showDialog para un modal en el centro de la pantalla
     showDialog(
@@ -415,7 +459,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       },
     );
   }
-
   void _showSnackbar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -428,7 +471,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -454,7 +496,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -527,7 +568,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
   Widget _buildFormContainer() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -671,8 +711,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
-
   Widget _buildSaveButton() {
     return Container(
       width: double.infinity,
@@ -726,7 +764,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
   Widget _buildCustomAppBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -768,59 +805,96 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
   Widget _buildUserAvatar() {
     return Stack(
       children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [
-                Colors.white,
-                Colors.purple[50]!,
+        // Si _isUploadingImage es true, muestra el indicador de carga
+        if (_isUploadingImage)
+          Container(
+            width: 100,
+            height: 100,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  Colors.purple[50]!,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.3),
+                  spreadRadius: 5,
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.white.withOpacity(0.3),
-                spreadRadius: 5,
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[700]!),
+            ),
+          )
+        // Si no se está cargando, muestra la imagen de perfil o un icono
+        else
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  Colors.purple[50]!,
+                ],
               ),
-            ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.3),
+                  spreadRadius: 5,
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+              image: _profileImageUrl != null
+                  ? DecorationImage(
+                image: NetworkImage(_profileImageUrl!),
+                fit: BoxFit.cover,
+              )
+                  : null,
+            ),
+            child: _profileImageUrl == null
+                ? Icon(
+              Icons.person,
+              size: 50,
+              color: Colors.purple[700],
+            )
+                : null,
           ),
-          child: Icon(
-            Icons.person,
-            size: 50,
-            color: Colors.purple[700],
-          ),
-        ),
         Positioned(
           bottom: 0,
           right: 0,
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: Colors.purple[600],
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: const Icon(
-              Icons.edit,
-              size: 16,
-              color: Colors.white,
+          child: GestureDetector(
+            onTap: _pickAndUploadImage,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.purple[600],
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.edit,
+                size: 16,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
       ],
     );
   }
-
-  // Se añadió el parámetro `obscureText` para ocultar la contraseña
   Widget _buildReadOnlyField({
     required TextEditingController controller,
     required String label,
@@ -883,8 +957,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
-  // Se añadió el parámetro `obscureText` para ocultar la contraseña
   Widget _buildEditableTextField({
     required TextEditingController controller,
     required String label,
@@ -980,8 +1052,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
-
   void _showOptionsMenu() {
     showModalBottomSheet(
       context: context,
@@ -1000,7 +1070,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               title: const Text('Cambiar foto de perfil'),
               onTap: () {
                 Navigator.pop(context);
-                // Implementar cambio de foto
+                _pickAndUploadImage();
               },
             ),
             ListTile(

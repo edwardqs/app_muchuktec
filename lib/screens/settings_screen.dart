@@ -191,7 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _SettingsItem(
                     icon: Icons.edit_outlined,
-                    title: 'Editar perfil',
+                    title: 'Editar datos personales',
                     onTap: () {
                       // NAVEGACIÓN ACTUALIZADA A EDITAR PERFIL
                       Navigator.pushNamed(context, '/edit-profile');
