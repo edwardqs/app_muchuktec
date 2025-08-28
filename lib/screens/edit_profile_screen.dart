@@ -93,15 +93,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _genderController.text = userData['genero'] ?? '';
         _birthDateController.text = userData['fecha_nacimiento'] ?? '';
         _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
-
+        final genderFromBackend = userData['genero']?.toString();
+        String genderText;
+        if (genderFromBackend == 'M') {
+          genderText = 'Masculino';
+        } else {
+          genderText = 'Femenino';
+        }
+        _genderController.text = genderText;
         final docTypeFromBackend = userData['tipodoc']?.toString();
-        _docTypeController.text = docTypeFromBackend ?? '1';
+        String docTypeText;
+        if (docTypeFromBackend == '1') {
+          docTypeText = 'DNI';
+        } else {
+          docTypeText = 'RUC';
+        }
+        _docTypeController.text = docTypeText;
         final imagenText = '$STORAGE_BASE_URL/$relativePath';
         print("Valor del backend para tipodoc: $docTypeFromBackend");
         print("Valor de la imagen: $imagenText");
-
         _updateDocNumberLength();
-
         setState(() {
           _isLoading = false;
         });
