@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
+const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
+
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
   @override
@@ -76,7 +78,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (!mounted) return;
       if (response.statusCode == 200) {
+
         final userData = json.decode(response.body);
+        String relativePath = userData['ruta_imagen'];
+        if (relativePath.startsWith('/')) {
+          relativePath = relativePath.substring(1);
+        }
         _usernameController.text = userData['username'] ?? '';
         _emailController.text = userData['correo'] ?? '';
         _fullNameController.text = userData['nombres_completos'] ?? '';
@@ -85,12 +92,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _addressController.text = userData['direccion'] ?? '';
         _genderController.text = userData['genero'] ?? '';
         _birthDateController.text = userData['fecha_nacimiento'] ?? '';
-        _profileImageUrl = userData['profile_photo_url']; // Cargar la URL de la foto
+        _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
 
         final docTypeFromBackend = userData['tipodoc']?.toString();
         _docTypeController.text = docTypeFromBackend ?? '1';
-
+        final imagenText = '$STORAGE_BASE_URL/$relativePath';
         print("Valor del backend para tipodoc: $docTypeFromBackend");
+        print("Valor de la imagen: $imagenText");
 
         _updateDocNumberLength();
 
@@ -291,7 +299,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    final url = Uri.parse('$apiUrl/profile/upload-photo');
+    final url = Uri.parse('$apiUrl/usuario/upload-photo');
     final request = http.MultipartRequest('POST', url);
 
     request.headers['Authorization'] = 'Bearer $token';
@@ -314,7 +322,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
         _showSnackbar('Foto de perfil actualizada.', Colors.green);
       } else {
-        _showSnackbar('Error al subir la imagen: ${responseBody}', Colors.red);
+        _showSnackbar('Error al subir la imagen: $responseBody', Colors.red);
       }
     } catch (e) {
       print('Error al subir la imagen: $e');

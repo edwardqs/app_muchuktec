@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -23,16 +24,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _documentController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _birthDateController = TextEditingController(); // Aquí se agregó la declaración
 
-  String _selectedDocumentType = 'DNI';
-  bool _isPasswordVisible = false;
-  bool _isConfirmPasswordVisible = false;
-  bool _isLoading = false;
+  // Gestión de estado con ValueNotifier para optimización
+  final ValueNotifier<String> _selectedDocumentType =
+  ValueNotifier<String>('DNI');
+  final ValueNotifier<bool> _isPasswordVisible = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isConfirmPasswordVisible =
+  ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isLoading = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> _selectedGender = ValueNotifier<String?>(null);
+  final ValueNotifier<DateTime?> _selectedDate = ValueNotifier<DateTime?>(null);
+  final ValueNotifier<String> _errorMessage = ValueNotifier<String>('');
 
-  // Nuevas variables para Género y Fecha de Nacimiento
-  String? _selectedGender;
-  final _birthDateController = TextEditingController();
-  DateTime? _selectedDate;
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _documentController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _birthDateController.dispose(); // Asegúrate de que se libere correctamente
+    _selectedDocumentType.dispose();
+    _isPasswordVisible.dispose();
+    _isConfirmPasswordVisible.dispose();
+    _isLoading.dispose();
+    _selectedGender.dispose();
+    _selectedDate.dispose();
+    _errorMessage.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,349 +76,327 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
+            // Llamamos al getter para construir el contenido
+            child: _RegisterContent,
+          ),
+        ),
+      ),
+    );
+  }
 
-                  // Hero Logo
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white,
-                          Colors.purple[50]!,
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.3),
-                          spreadRadius: 5,
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.person_add_alt_1,
-                      size: 60,
-                      color: Colors.purple[700],
-                    ),
-                  ),
+  // Getter que devuelve el contenido completo del formulario
+  Widget get _RegisterContent {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          const _HeaderSection(),
+          const SizedBox(height: 40),
+          _buildFormContainer(),
+          const SizedBox(height: 32),
+          _buildRegisterButton(),
+          const SizedBox(height: 24),
+          _buildLoginButton(),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
 
-                  const SizedBox(height: 30),
-
-                  // Title con estilo moderno
-                  ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                      colors: [Colors.white, Colors.purple[100]!],
-                    ).createShader(bounds),
-                    child: const Text(
-                      '¡Únete a nosotros!',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Crea tu cuenta y comienza tu viaje financiero',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.9),
-                      fontWeight: FontWeight.w300,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Formulario con glassmorphism
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          spreadRadius: 0,
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Name Field
-                        _buildModernTextField(
-                          controller: _nameController,
-                          label: 'Nombres y apellidos',
-                          icon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu nombre completo';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Username Field
-                        _buildModernTextField(
-                          controller: _usernameController,
-                          label: 'Username',
-                          icon: Icons.alternate_email,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu username';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Tipo de documento con estilo moderno
-                        _buildDocumentTypeSelector(),
-
-                        const SizedBox(height: 20),
-
-                        // Campo DNI/RUC
-                        _buildDocumentField(),
-
-                        const SizedBox(height: 20),
-
-                        // Celular Field - NUEVO
-                        _buildModernTextField(
-                          controller: _phoneController,
-                          label: 'Número de celular',
-                          icon: Icons.phone_android,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(9),
-                          ],
-                          suffixText: '9 dígitos',
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu número de celular';
-                            }
-                            if (value.length != 9) {
-                              return 'El celular debe tener 9 dígitos';
-                            }
-                            if (!value.startsWith('9')) {
-                              return 'El celular debe empezar con 9';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Dirección Field - NUEVO
-                        _buildModernTextField(
-                          controller: _addressController,
-                          label: 'Dirección completa',
-                          icon: Icons.location_on_outlined,
-                          keyboardType: TextInputType.streetAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu dirección';
-                            }
-                            if (value.length < 10) {
-                              return 'Por favor ingresa una dirección completa';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Email Field
-                        _buildModernTextField(
-                          controller: _emailController,
-                          label: 'Correo electrónico',
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu email';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Por favor ingresa un email válido';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Género Field - ACTUALIZADO
-                        _buildGenderSelector(),
-
-                        const SizedBox(height: 20),
-
-                        // Fecha de nacimiento Field - NUEVO
-                        _buildBirthDateField(),
-
-                        const SizedBox(height: 20),
-
-                        // Password Field
-                        _buildModernTextField(
-                          controller: _passwordController,
-                          label: 'Contraseña',
-                          icon: Icons.lock_outline,
-                          isPassword: true,
-                          isPasswordVisible: _isPasswordVisible,
-                          onTogglePassword: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu contraseña';
-                            }
-                            if (value.length < 6) {
-                              return 'La contraseña debe tener al menos 6 caracteres';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Confirm Password Field
-                        _buildModernTextField(
-                          controller: _confirmPasswordController,
-                          label: 'Confirmar contraseña',
-                          icon: Icons.lock_outline,
-                          isPassword: true,
-                          isPasswordVisible: _isConfirmPasswordVisible,
-                          onTogglePassword: () {
-                            setState(() {
-                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor confirma tu contraseña';
-                            }
-                            if (value != _passwordController.text) {
-                              return 'Las contraseñas no coinciden';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Register Button con estilo llamativo
-                  Container(
-                    width: double.infinity,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.green[400]!,
-                          Colors.green[600]!,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.3),
-                          spreadRadius: 0,
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleRegister,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      )
-                          : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.rocket_launch,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Crear mi cuenta',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Back to Login con estilo
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(fontSize: 16),
-                          children: [
-                            TextSpan(
-                              text: '¿Ya tienes cuenta? ',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                            ),
-                            const TextSpan(
-                              text: 'Iniciar sesión',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ],
+  Widget _buildFormContainer() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Mensaje de error centralizado
+          ValueListenableBuilder<String>(
+            valueListenable: _errorMessage,
+            builder: (context, errorMsg, child) {
+              if (errorMsg.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorMsg,
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                  ),
+                  ],
+                ),
+              );
+            },
+          ),
+          _buildModernTextField(
+            controller: _nameController,
+            label: 'Nombres y apellidos',
+            icon: Icons.person_outline,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa tu nombre completo';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          _buildModernTextField(
+            controller: _usernameController,
+            label: 'Username',
+            icon: Icons.alternate_email,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa tu username';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          _buildDocumentTypeSelector(),
+          const SizedBox(height: 20),
+          ValueListenableBuilder<String>(
+            valueListenable: _selectedDocumentType,
+            builder: (context, type, child) {
+              return _buildDocumentField(type);
+            },
+          ),
+          const SizedBox(height: 20),
+          _buildModernTextField(
+            controller: _phoneController,
+            label: 'Número de celular',
+            icon: Icons.phone_android,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(9),
+            ],
+            suffixText: '9 dígitos',
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa tu número de celular';
+              }
+              if (value.length != 9) {
+                return 'El celular debe tener 9 dígitos';
+              }
+              if (!value.startsWith('9')) {
+                return 'El celular debe empezar con 9';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          _buildModernTextField(
+            controller: _addressController,
+            label: 'Dirección completa',
+            icon: Icons.location_on_outlined,
+            keyboardType: TextInputType.streetAddress,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa tu dirección';
+              }
+              if (value.length < 10) {
+                return 'Por favor ingresa una dirección completa';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          _buildModernTextField(
+            controller: _emailController,
+            label: 'Correo electrónico',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa tu email';
+              }
+              if (!value.contains('@')) {
+                return 'Por favor ingresa un email válido';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          ValueListenableBuilder<String?>(
+            valueListenable: _selectedGender,
+            builder: (context, gender, child) {
+              return _buildGenderSelector(gender);
+            },
+          ),
+          const SizedBox(height: 20),
+          _buildBirthDateField(),
+          const SizedBox(height: 20),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isPasswordVisible,
+            builder: (context, isVisible, child) {
+              return _buildModernTextField(
+                controller: _passwordController,
+                label: 'Contraseña',
+                icon: Icons.lock_outline,
+                isPassword: true,
+                isPasswordVisible: isVisible,
+                onTogglePassword: () {
+                  _isPasswordVisible.value = !isVisible;
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor ingresa tu contraseña';
+                  }
+                  if (value.length < 6) {
+                    return 'La contraseña debe tener al menos 6 caracteres';
+                  }
+                  return null;
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isConfirmPasswordVisible,
+            builder: (context, isVisible, child) {
+              return _buildModernTextField(
+                controller: _confirmPasswordController,
+                label: 'Confirmar contraseña',
+                icon: Icons.lock_outline,
+                isPassword: true,
+                isPasswordVisible: isVisible,
+                onTogglePassword: () {
+                  _isConfirmPasswordVisible.value = !isVisible;
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor confirma tu contraseña';
+                  }
+                  if (value != _passwordController.text) {
+                    return 'Las contraseñas no coinciden';
+                  }
+                  return null;
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-                  const SizedBox(height: 20),
-                ],
+  Widget _buildRegisterButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isLoading,
+      builder: (context, isLoading, child) {
+        return Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.green[400]!,
+                Colors.green[600]!,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.withOpacity(0.3),
+                spreadRadius: 0,
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ElevatedButton(
+            onPressed: isLoading ? null : _handleRegister,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
+            child: isLoading
+                ? const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            )
+                : const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.rocket_launch,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'Crear mi cuenta',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 16),
+            children: [
+              TextSpan(
+                text: '¿Ya tienes cuenta? ',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
+              const TextSpan(
+                text: 'Iniciar sesión',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -513,73 +515,76 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildDocumentTypeSelector() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.purple[50],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.credit_card,
-                  color: Colors.purple[600],
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Tipo de documento',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.purple[700],
-                ),
+    return ValueListenableBuilder<String>(
+      valueListenable: _selectedDocumentType,
+      builder: (context, type, child) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                spreadRadius: 0,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _buildDocumentOption('DNI', Icons.badge),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.purple[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.credit_card,
+                      color: Colors.purple[600],
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Tipo de documento',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.purple[700],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildDocumentOption('RUC', Icons.business),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDocumentOption('DNI', Icons.badge),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildDocumentOption('RUC', Icons.business),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildDocumentOption(String type, IconData icon) {
-    bool isSelected = _selectedDocumentType == type;
+    bool isSelected = _selectedDocumentType.value == type;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedDocumentType = type;
-          _documentController.clear();
-        });
+        _selectedDocumentType.value = type;
+        _documentController.clear();
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -624,12 +629,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildDocumentField() {
-    int expectedLength = _selectedDocumentType == 'DNI' ? 8 : 11;
+  Widget _buildDocumentField(String type) {
+    int expectedLength = type == 'DNI' ? 8 : 11;
     return _buildModernTextField(
       controller: _documentController,
-      label: 'Número de $_selectedDocumentType',
-      icon: _selectedDocumentType == 'DNI' ? Icons.person : Icons.business,
+      label: 'Número de $type',
+      icon: type == 'DNI' ? Icons.person : Icons.business,
       keyboardType: TextInputType.number,
       inputFormatters: [
         FilteringTextInputFormatter.digitsOnly,
@@ -638,12 +643,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       suffixText: '$expectedLength dígitos',
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Por favor ingresa tu $_selectedDocumentType';
+          return 'Por favor ingresa tu $type';
         }
         if (value.length != expectedLength) {
-          return '$_selectedDocumentType debe tener $expectedLength dígitos';
+          return '$type debe tener $expectedLength dígitos';
         }
-        if (_selectedDocumentType == 'RUC') {
+        if (type == 'RUC') {
           if (!value.startsWith('10') && !value.startsWith('20')) {
             return 'RUC debe empezar con 10 o 20';
           }
@@ -653,8 +658,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Nuevo widget para seleccionar el género - SIMPLIFICADO
-  Widget _buildGenderSelector() {
+  Widget _buildGenderSelector(String? gender) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
@@ -686,7 +690,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedGender,
+              value: gender,
               decoration: InputDecoration(
                 labelText: 'Género',
                 labelStyle: TextStyle(
@@ -695,18 +699,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 border: InputBorder.none,
               ),
-              // Opciones de género simplificadas a solo Masculino y Femenino
-              items: ['Masculino', 'Femenino']
-                  .map((String value) {
+              items: ['Masculino', 'Femenino'].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(value),
                 );
               }).toList(),
               onChanged: (String? newValue) {
-                setState(() {
-                  _selectedGender = newValue;
-                });
+                _selectedGender.value = newValue;
               },
               validator: (value) {
                 if (value == null) {
@@ -721,7 +721,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Nuevo widget para seleccionar la fecha de nacimiento
   Widget _buildBirthDateField() {
     return _buildModernTextField(
       controller: _birthDateController,
@@ -731,21 +730,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       onTap: () async {
         final DateTime? picked = await showDatePicker(
           context: context,
-          initialDate: _selectedDate ?? DateTime.now(),
+          initialDate: _selectedDate.value ?? DateTime.now(),
           firstDate: DateTime(1900),
           lastDate: DateTime.now(),
           builder: (BuildContext context, Widget? child) {
             return Theme(
               data: ThemeData.light().copyWith(
                 colorScheme: ColorScheme.light(
-                  primary: Colors.purple[600]!, // Color del encabezado
-                  onPrimary: Colors.white, // Color del texto del encabezado
-                  surface: Colors.white, // Color de fondo del calendario
-                  onSurface: Colors.black87, // Color del texto del calendario
+                  primary: Colors.purple[600]!,
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Colors.black87,
                 ),
                 textButtonTheme: TextButtonThemeData(
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.purple[600], // Color de los botones 'CANCEL' y 'OK'
+                    foregroundColor: Colors.purple[600],
                   ),
                 ),
               ),
@@ -753,11 +752,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             );
           },
         );
-        if (picked != null && picked != _selectedDate) {
-          setState(() {
-            _selectedDate = picked;
-            _birthDateController.text = DateFormat('yyyy-MM-dd').format(picked);
-          });
+        if (picked != null && picked != _selectedDate.value) {
+          _selectedDate.value = picked;
+          _birthDateController.text = DateFormat('yyyy-MM-dd').format(picked);
         }
       },
       validator: (value) {
@@ -770,24 +767,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _handleRegister() async {
-    // Validar el formulario antes de enviar
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+      _isLoading.value = true;
+      _errorMessage.value = '';
 
-      // Mapear el tipo de documento a un código numérico
-      int tipoDocumento = _selectedDocumentType == 'DNI' ? 1 : 2;
+      int tipoDocumento = _selectedDocumentType.value == 'DNI' ? 1 : 2;
 
-      // Convertir el género seleccionado a 'M' o 'F'
       String? generoParaEnvio;
-      if (_selectedGender == 'Masculino') {
+      if (_selectedGender.value == 'Masculino') {
         generoParaEnvio = 'M';
-      } else if (_selectedGender == 'Femenino') {
+      } else if (_selectedGender.value == 'Femenino') {
         generoParaEnvio = 'F';
       }
 
-      // Crear el cuerpo de la solicitud JSON
       final Map<String, dynamic> requestBody = {
         'username': _usernameController.text,
         'correo': _emailController.text,
@@ -798,7 +790,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'numerodoc': _documentController.text,
         'direccion': _addressController.text,
         'telefono': _phoneController.text,
-        'genero': generoParaEnvio, // Campo de género actualizado
+        'genero': generoParaEnvio,
         'fecha_nacimiento': _birthDateController.text,
       };
 
@@ -807,36 +799,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Uri.parse('$apiUrl/register'),
           headers: {
             'Content-Type': 'application/json',
-            'Accept' : 'application/json',
+            'Accept': 'application/json',
           },
           body: json.encode(requestBody),
         );
 
-        // Si el registro fue exitoso
         if (response.statusCode == 201) {
-          _showSnackBar('✅ Registro exitoso. Ahora inicia sesión.', Colors.green[600]!);
-
-          Future.delayed(const Duration(seconds: 1), () {
-            // Navegar a la pantalla de login y eliminar la de registro del historial
+          _showSnackBar(
+              '✅ Registro exitoso. Ahora puedes iniciar sesión.', Colors.green[600]!);
+          await Future.delayed(const Duration(seconds: 2));
+          if (mounted) {
             Navigator.pushReplacementNamed(context, '/login');
-          });
-
+          }
         } else {
           final responseData = json.decode(response.body);
-          final errorMessage = responseData['message'] ?? 'Error desconocido';
-          _showSnackBar('❌ Error: $errorMessage', Colors.red[600]!);
+          if (responseData['errors'] != null) {
+            final firstError = responseData['errors'].values.first[0];
+            _errorMessage.value = firstError;
+          } else {
+            _errorMessage.value =
+                responseData['message'] ?? 'Error desconocido al registrar.';
+          }
         }
       } catch (e) {
-        // Manejar errores de conexión o del servidor
-        _showSnackBar('❌ Error de conexión. Inténtalo de nuevo.', Colors.red[600]!);
+        _errorMessage.value = 'No se pudo conectar al servidor: $e';
         print('Error en el registro: $e');
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        _isLoading.value = false;
       }
     }
   }
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -854,18 +847,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+}
+
+// Widgets Estáticos para reusar y mejorar el rendimiento
+class _HeaderSection extends StatelessWidget {
+  const _HeaderSection();
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _documentController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
-    _birthDateController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                Colors.white,
+                Colors.purple[50]!,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                spreadRadius: 5,
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.person_add_alt_1,
+            size: 60,
+            color: Colors.purple[700],
+          ),
+        ),
+        const SizedBox(height: 30),
+        ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [Colors.white, Colors.purple[100]!],
+          ).createShader(bounds),
+          child: const Text(
+            '¡Únete a nosotros!',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Crea tu cuenta y comienza tu viaje financiero',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white.withOpacity(0.9),
+            fontWeight: FontWeight.w300,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 }
