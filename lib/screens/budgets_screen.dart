@@ -1,12 +1,11 @@
-// lib/screens/budgets_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
-
-const String apiUrl = 'http://10.0.2.2:8000/api';
+const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
+const String API_BASE_URL = 'http://10.0.2.2:8000/api';
 
 class BudgetsScreen extends StatefulWidget {
   const BudgetsScreen({super.key});
@@ -20,32 +19,41 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   bool _isLoading = true;
   List<Budget> budgets = [];
   String? _errorMessage;
+  String? _profileImageUrl;
 
   @override
   void initState() {
     super.initState();
-    _fetchBudgets();
+    _loadAllData();
   }
 
-  Future<void> _fetchBudgets() async {
+  Future<void> _loadAllData() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
+    await _fetchBudgets();
+    await _fetchProfilePhoto();
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _fetchBudgets() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
 
     if (token == null) {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
         _errorMessage = 'No se encontró el token de autenticación. Por favor, inicie sesión de nuevo.';
       });
       return;
     }
 
-    final uri = Uri.parse('$apiUrl/presupuestos');
+    final uri = Uri.parse('$API_BASE_URL/presupuestos');
     try {
       final response = await http.get(
         uri,
@@ -61,7 +69,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           budgets = data.map((json) => Budget.fromJson(json)).toList();
-          _isLoading = false;
         });
       } else if (response.statusCode == 401) {
         await prefs.remove('accessToken');
@@ -74,19 +81,54 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       } else {
         setState(() {
           _errorMessage = 'Error al cargar presupuestos: ${response.statusCode}. ${response.body}';
-          _isLoading = false;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Ocurrió un error de conexión: $e';
-        _isLoading = false;
       });
     }
   }
 
-  //Filtrar los presupuestos del mes
+  Future<void> _fetchProfilePhoto() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) {
+        return;
+      }
+
+      final url = Uri.parse('$API_BASE_URL/getProfilePhoto');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final relativePath = data['ruta_imagen'] as String?;
+
+        if (!mounted) return;
+        setState(() {
+          if (relativePath != null) {
+            _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+          } else {
+            _profileImageUrl = null;
+          }
+        });
+      } else {
+        print('Error fetching profile photo. Status Code: ${response.statusCode}');
+        print('Error body: ${response.body}');
+      }
+    } catch (e) {
+      print('Exception while fetching profile photo: $e');
+    }
+  }
+
   List<Budget> _getBudgetsForCurrentMonth() {
     final now = DateTime.now();
     final currentYearMonth = DateFormat('yyyy-MM').format(now);
@@ -97,7 +139,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     }).toList();
   }
 
-  //Función para obtener el nombre del mes actual
   String _getCurrentMonthName() {
     final now = DateTime.now();
     final formatter = DateFormat('MMMM yyyy');
@@ -138,17 +179,32 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: Colors.purple[100],
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.person,
-                size: 20,
-                color: Colors.purple[700],
-              ),
+              child: _isLoading
+                  ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.purple,
+                    strokeWidth: 2,
+                  ))
+                  : _profileImageUrl != null
+                  ? ClipOval(
+                child: Image.network(
+                  _profileImageUrl!,
+                  fit: BoxFit.cover,
+                  width: 40,
+                  height: 40,
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error al cargar la imagen de red: $error');
+                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                  },
+                ),
+              )
+                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
             ),
           ),
         ],
@@ -554,7 +610,8 @@ class Budget {
     final category = json['categoria_nombre'] as String? ?? 'Sin categoría';
 
     final budgetAmount = double.tryParse(json['monto'].toString()) ?? 0.0;
-
+    // NOTE: El monto gastado está hardcodeado, debes obtenerlo del backend
+    // Por ejemplo: final spentAmount = double.tryParse(json['monto_gastado'].toString()) ?? 0.0;
     final spentAmount = 285.0;
 
     return Budget(
