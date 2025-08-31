@@ -36,15 +36,50 @@ class _LoginScreenState extends State<LoginScreen> {
     final accessToken = prefs.getString('accessToken');
 
     if (accessToken == null) {
+      print('🚫 No se encontró un token de acceso en SharedPreferences. Se mantiene en la pantalla de login.');
       return;
     }
 
-    if (!_isRedirecting) {
-      _isRedirecting = true;
-      Navigator.of(context).pushReplacementNamed(
-        '/loading',
-        arguments: accessToken,
+    print('🔍 Token de acceso encontrado. Validando sesión con el servidor...');
+    _isLoading.value = true;
+    final url = Uri.parse('$apiUrl/getUser'); // Endpoint para obtener el usuario actual
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept' : 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
       );
+
+      _isLoading.value = false;
+
+      if (response.statusCode == 200) {
+        print('✅ Sesión validada con éxito. Redirigiendo a /loading...');
+        // El token es válido y el usuario existe en la base de datos
+        if (!_isRedirecting) {
+          _isRedirecting = true;
+          Navigator.of(context).pushReplacementNamed(
+            '/loading',
+            arguments: accessToken,
+          );
+        }
+      } else {
+        print('❌ El token no es válido o ha expirado. Estado: ${response.statusCode}');
+        // El token es inválido o el usuario ya no existe
+        await prefs.remove('accessToken');
+        await prefs.remove('idCuenta');
+        _errorMessage.value = 'Tu sesión ha expirado o ya no es válida. Por favor, inicia sesión de nuevo.';
+      }
+    } catch (e) {
+      _isLoading.value = false;
+      print('❗ Error al conectar con el servidor para validar la sesión: $e');
+      // Error de conexión al servidor
+      _errorMessage.value = 'No se pudo verificar tu sesión. Por favor, intenta de nuevo.';
+      await prefs.remove('accessToken');
+      await prefs.remove('idCuenta');
     }
   }
 

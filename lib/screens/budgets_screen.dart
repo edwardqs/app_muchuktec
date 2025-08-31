@@ -73,9 +73,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       } else if (response.statusCode == 401) {
         await prefs.remove('accessToken');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
-          );
+
           Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         }
       } else {

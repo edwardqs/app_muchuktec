@@ -78,9 +78,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (!mounted) return;
       if (response.statusCode == 200) {
-
         final userData = json.decode(response.body);
-        String relativePath = userData['ruta_imagen'];
+
+        // 🚩 CORRECTED LINE: Handle potential null value for 'ruta_imagen'
+        String relativePath = userData['ruta_imagen'] ?? '';
+
         if (relativePath.startsWith('/')) {
           relativePath = relativePath.substring(1);
         }
@@ -92,7 +94,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _addressController.text = userData['direccion'] ?? '';
         _genderController.text = userData['genero'] ?? '';
         _birthDateController.text = userData['fecha_nacimiento'] ?? '';
-        _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+
+        // 🚩 CORRECTED LOGIC: Only set image URL if relativePath is not empty
+        _profileImageUrl = relativePath.isNotEmpty ? '$STORAGE_BASE_URL/$relativePath' : null;
+
         final genderFromBackend = userData['genero']?.toString();
         String genderText;
         if (genderFromBackend == 'M') {
@@ -109,9 +114,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           docTypeText = 'RUC';
         }
         _docTypeController.text = docTypeText;
-        final imagenText = '$STORAGE_BASE_URL/$relativePath';
+
         print("Valor del backend para tipodoc: $docTypeFromBackend");
-        print("Valor de la imagen: $imagenText");
+        print("Valor de la imagen: $_profileImageUrl"); // Use the corrected variable
+
         _updateDocNumberLength();
         setState(() {
           _isLoading = false;
