@@ -1,10 +1,10 @@
-// lib/screens/categories_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // Importa el paquete http
 import 'dart:convert'; // Importa para codificar/decodificar JSON
 import 'package:shared_preferences/shared_preferences.dart'; // Importa para manejar preferencias
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
+const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -19,7 +19,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   String _selectedType = 'Gasto o ingreso';
   int? _idCuenta;
-
+  String? _profileImageUrl;
 // --- Estado para manejar la carga y los datos de la API --- gaaa
   List<CategoryModel> categories = [];
   bool isLoading = false;
@@ -30,6 +30,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   void initState() {
     super.initState();
     _loadAccessTokenAndFetchCategories();
+    // Llamada para cargar la foto de perfil
+    _fetchProfilePhoto();
   }
 
   // Metodo para cargar el token
@@ -118,7 +120,43 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       }
     }
   }
+  Future<void> _fetchProfilePhoto() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
 
+      if (token == null) {
+        return;
+      }
+
+      final url = Uri.parse('$apiUrl/getProfilePhoto');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final relativePath = data['ruta_imagen'] as String?;
+
+        if (!mounted) return;
+        setState(() {
+          if (relativePath != null) {
+            _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+          } else {
+            _profileImageUrl = null;
+          }
+        });
+      } else {
+        print('Error fetching profile photo. Status Code: ${response.statusCode}');
+        print('Error body: ${response.body}');
+      }
+    } catch (e) {
+      print('Exception while fetching profile photo: $e');
+    }
+  }
   // Nuevo método para actualizar una categoría
   Future<void> _updateCategory(String categoryId, String newName) async {
     if (_accessToken == null) {
@@ -265,16 +303,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.purple[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person,
-                size: 20,
-                color: Colors.purple[700],
+              // Aquí hemos reemplazado el Container por un CircleAvatar para mostrar la imagen
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.purple[100],
+                // Condición para mostrar la imagen de la red o un icono por defecto
+                backgroundImage: _profileImageUrl != null
+                    ? NetworkImage(_profileImageUrl!)
+                    : null,
+                child: _profileImageUrl == null
+                    ? Icon(
+                  Icons.person,
+                  size: 20,
+                  color: Colors.purple[700],
+                )
+                    : null, // Si hay imagen, el child es nulo
               ),
             ),
           ),

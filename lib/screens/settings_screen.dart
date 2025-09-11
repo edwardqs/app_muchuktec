@@ -1,6 +1,11 @@
-// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:app_muchik/services/auth_service.dart';
+import 'package:http/http.dart' as http; // Importa el paquete http
+import 'dart:convert'; // Importa para codificar/decodificar JSON
+import 'package:shared_preferences/shared_preferences.dart'; // Importa para manejar preferencias
+
+const String apiUrl = 'http://10.0.2.2:8000/api';
+const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,6 +16,56 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final int _selectedIndex = 4;
+  String? _profileImageUrl;
+  String? _accessToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAccessTokenAndFetchPhoto();
+  }
+
+  // Método para cargar el token y luego la foto de perfil
+  Future<void> _loadAccessTokenAndFetchPhoto() async {
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString('accessToken');
+
+    if (_accessToken != null) {
+      _fetchProfilePhoto();
+    }
+  }
+
+  Future<void> _fetchProfilePhoto() async {
+    try {
+      if (_accessToken == null) return;
+
+      final url = Uri.parse('$apiUrl/getProfilePhoto');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final relativePath = data['ruta_imagen'] as String?;
+
+        if (!mounted) return;
+        setState(() {
+          if (relativePath != null) {
+            _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+          } else {
+            _profileImageUrl = null;
+          }
+        });
+      } else {
+        print('Error fetching profile photo. Status Code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Exception while fetching profile photo: $e');
+    }
+  }
 
   void _onItemTapped(int index) {
     switch (index) {
@@ -138,16 +193,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.purple[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person,
-                size: 20,
-                color: Colors.purple[700],
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.purple[100],
+                backgroundImage: _profileImageUrl != null
+                    ? NetworkImage(_profileImageUrl!)
+                    : null,
+                child: _profileImageUrl == null
+                    ? Icon(
+                  Icons.person,
+                  size: 20,
+                  color: Colors.purple[700],
+                )
+                    : null,
               ),
             ),
           ),

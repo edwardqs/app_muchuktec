@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/services/auth_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // Importamos el nuevo paquete
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -13,10 +16,13 @@ class AccountsScreen extends StatefulWidget {
 
 class _AccountsScreenState extends State<AccountsScreen> {
   final String _baseUrl = 'http://10.0.2.2:8000/api';
+  final String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
+
   List<dynamic> _userProfiles = [];
   bool _isLoading = true;
   String? _accessToken;
   final TextEditingController _editNameController = TextEditingController();
+  final TextEditingController _editDescriptionController = TextEditingController();
 
   @override
   void initState() {
@@ -231,44 +237,117 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   void _showEditProfileDialog(dynamic profile) {
     _editNameController.text = profile['nombre'];
+    _editDescriptionController.text = profile['descripcion'] ?? '';
+    File? newImage;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: _editNameController,
-          decoration: InputDecoration(
-            hintText: 'Nuevo nombre',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _editNameController.clear();
-            },
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _updateProfile(profile['id'], _editNameController.text);
-              _editNameController.clear();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Sección de la imagen
+                    GestureDetector(
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setState(() {
+                            newImage = File(pickedFile.path);
+                          });
+                        }
+                      },
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey[200],
+                          border: Border.all(color: Colors.grey.shade400, width: 2),
+                        ),
+                        child: ClipOval(
+                          child: newImage != null
+                              ? Image.file(
+                            newImage!,
+                            fit: BoxFit.cover,
+                          )
+                              : (profile['ruta_imagen'] != null
+                              ? CachedNetworkImage( // Usamos CachedNetworkImage aquí también
+                            imageUrl: '$STORAGE_BASE_URL/${profile['ruta_imagen']}',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const CircularProgressIndicator(),
+                            errorWidget: (context, url, error) => Icon(Icons.person, size: 50, color: Colors.grey[600]),
+                          )
+                              : Icon(Icons.person, size: 50, color: Colors.grey[600])),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Campo para el nombre
+                    TextField(
+                      controller: _editNameController,
+                      decoration: InputDecoration(
+                        hintText: 'Nombre del perfil',
+                        labelText: 'Nombre',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Campo para la descripción
+                    TextField(
+                      controller: _editDescriptionController,
+                      decoration: InputDecoration(
+                        hintText: 'Descripción del perfil',
+                        labelText: 'Descripción',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _editNameController.clear();
+                    _editDescriptionController.clear();
+                  },
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _updateProfile(
+                      profile['id'],
+                      _editNameController.text,
+                      _editDescriptionController.text,
+                      newImage,
+                    );
+                    _editNameController.clear();
+                    _editDescriptionController.clear();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
-  Future<void> _updateProfile(int id, String newName) async {
+  Future<void> _updateProfile(int id, String newName, String newDescription, File? newImage) async {
     if (_accessToken == null) return;
 
     if (newName.trim().isEmpty) {
@@ -281,14 +360,21 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
 
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/cuentas/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_accessToken',
-        },
-        body: json.encode({'nombre': newName.trim()}),
-      );
+      // Usar MultipartRequest para enviar el archivo y los datos
+      var request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/cuentas/$id'));
+      request.headers['Authorization'] = 'Bearer $_accessToken';
+      request.fields['nombre'] = newName.trim();
+      request.fields['descripcion'] = newDescription.trim();
+      request.fields['_method'] = 'PUT'; // Sobrescribir el método HTTP a PUT
+
+      if (newImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('imagen', newImage.path),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         if (mounted) {
@@ -298,7 +384,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
         }
         _fetchUserProfiles();
       } else {
-        throw Exception('Failed to update profile');
+        throw Exception('Failed to update profile: ${response.body}');
       }
     } catch (e) {
       if (mounted) {
@@ -375,11 +461,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     return _AddProfileButton(onTap: _showAddProfileModal);
                   }
                   final profile = _userProfiles[index];
+                  // Pasa `canDelete` como `false` solo para el primer perfil (índice 0)
                   return _ProfileItem(
                     name: profile['nombre'],
-                    icon: Icons.person,
+                    // Lógica para determinar la ruta de la imagen
+                    imagePath: profile['ruta_imagen'] != null
+                        ? '$STORAGE_BASE_URL/${profile['ruta_imagen']}'
+                        : null,
                     onEdit: () => _showEditProfileDialog(profile),
                     onDelete: () => _showDeleteConfirmation(profile),
+                    canDelete: index > 0,
                   );
                 },
               ),
@@ -394,15 +485,17 @@ class _AccountsScreenState extends State<AccountsScreen> {
 // Widget para un ítem de perfil
 class _ProfileItem extends StatelessWidget {
   final String name;
-  final IconData icon;
+  final String? imagePath;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool canDelete;
 
   const _ProfileItem({
     required this.name,
-    required this.icon,
+    this.imagePath,
     required this.onEdit,
     required this.onDelete,
+    this.canDelete = true, // Valor por defecto para no romper el código anterior
   });
 
   @override
@@ -428,11 +521,13 @@ class _ProfileItem extends StatelessWidget {
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
+              gradient: imagePath == null
+                  ? LinearGradient(
                 colors: [Colors.blueAccent.shade100, Colors.blue.shade400],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-              ),
+              )
+                  : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.blue.withOpacity(0.4),
@@ -442,8 +537,24 @@ class _ProfileItem extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(
-              icon,
+            child: imagePath != null
+                ? ClipOval(
+              // Usamos CachedNetworkImage en lugar de Image.network
+              child: CachedNetworkImage(
+                imageUrl: imagePath!,
+                fit: BoxFit.cover,
+                // Muestra un indicador de carga mientras la imagen se descarga
+                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                // Muestra un ícono si hay un error al cargar la imagen
+                errorWidget: (context, url, error) => const Icon(
+                  Icons.person,
+                  size: 45,
+                  color: Colors.white,
+                ),
+              ),
+            )
+                : const Icon(
+              Icons.person,
               size: 45,
               color: Colors.white,
             ),
@@ -473,12 +584,13 @@ class _ProfileItem extends StatelessWidget {
                 constraints: const BoxConstraints(),
               ),
               const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
-                onPressed: onDelete,
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
-              ),
+              if (canDelete) // Mostrar el botón de eliminar solo si `canDelete` es true
+                IconButton(
+                  icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
+                  onPressed: onDelete,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                ),
             ],
           ),
         ],
