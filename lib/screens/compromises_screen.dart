@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String apiUrl = 'http://10.0.2.2:8000/api';
+const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
+const String API_BASE_URL = 'http://10.0.2.2:8000/api';
 
 class CompromisesScreen extends StatefulWidget {
   const CompromisesScreen({super.key});
@@ -18,11 +19,79 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   bool isLoading = false;
   String? errorMessage;
   String? _accessToken;
+  // --- Nuevas variables de estado para la imagen del perfil ---
+  String? _profileImageUrl;
+  bool _isLoadingImage = true;
 
   @override
   void initState() {
     super.initState();
+    // Se llama a ambos métodos para cargar datos
+    _loadSelectedAccountAndFetchImage();
     _loadAccessTokenAndFetchCompromises();
+  }
+
+  // --- Método para cargar la imagen del perfil (idéntico al de DashboardScreen) ---
+  Future<void> _loadSelectedAccountAndFetchImage() async {
+    setState(() {
+      _isLoadingImage = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+      final int? selectedAccountId = prefs.getInt('idCuenta');
+
+      if (token == null || selectedAccountId == null) {
+        if (mounted) {
+          print('Token o ID de cuenta no encontrados. No se puede cargar la imagen.');
+          setState(() {
+            _profileImageUrl = null;
+            _isLoadingImage = false;
+          });
+        }
+        return;
+      }
+
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final accountData = data['cuenta'];
+        final relativePath = accountData['ruta_imagen'] as String?;
+
+        setState(() {
+          if (relativePath != null) {
+            _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+            print('URL de la imagen construida: $_profileImageUrl');
+          } else {
+            _profileImageUrl = null;
+          }
+          _isLoadingImage = false;
+        });
+      } else {
+        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
+        setState(() {
+          _isLoadingImage = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print('Excepción al obtener los detalles de la cuenta: $e');
+        setState(() {
+          _isLoadingImage = false;
+        });
+      }
+    }
   }
 
   // Metodo para cargar el token y obtener los compromisos
@@ -54,7 +123,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('$apiUrl/compromisos'),
+        Uri.parse('$API_BASE_URL/compromisos'), // Usar la constante API_BASE_URL
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -95,7 +164,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       return;
     }
 
-    final url = Uri.parse('$apiUrl/compromisos/$compromiseId');
+    final url = Uri.parse('$API_BASE_URL/compromisos/$compromiseId');
 
     try {
       final response = await http.delete(
@@ -220,11 +289,26 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 color: Colors.purple[100],
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.person,
-                size: 20,
-                color: Colors.purple[700],
-              ),
+              child: _isLoadingImage
+                  ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.purple,
+                    strokeWidth: 2,
+                  ))
+                  : _profileImageUrl != null
+                  ? ClipOval(
+                child: Image.network(
+                  _profileImageUrl!,
+                  fit: BoxFit.cover,
+                  width: 32,
+                  height: 32,
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error al cargar la imagen de red: $error');
+                    return Icon(Icons.person, size: 20, color: Colors.purple[700]);
+                  },
+                ),
+              )
+                  : Icon(Icons.person, size: 20, color: Colors.purple[700]),
             ),
           ),
         ],
@@ -377,7 +461,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
             constraints: const BoxConstraints(),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const Icon(Icons.delete_outlined, color: Colors.red),
             onPressed: () => _showDeleteConfirmation(compromise),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -387,7 +471,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     );
   }
 
-  // --- Este es el BottomNavigationBar exacto que pediste ---
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -408,7 +491,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        // Eliminado el hardcode de 'currentIndex' para que no haya selección
         currentIndex: 0,
         items: const [
           BottomNavigationBarItem(
@@ -442,6 +524,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               break;
             case 2:
               Navigator.pushReplacementNamed(context, '/budgets');
+              break;
             case 3:
               Navigator.pushReplacementNamed(context, '/categories');
               break;

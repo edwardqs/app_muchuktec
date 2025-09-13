@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_model.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
+const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
 class AssignBudgetScreen extends StatefulWidget {
   const AssignBudgetScreen({super.key});
@@ -19,6 +20,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
 
   CategoryModel? _selectedCategory;
   String _selectedMonth = 'Mes - Año';
+  String? _profileImageUrl;
 
   // Variables para la carga de datos
   List<CategoryModel> categories = [];
@@ -26,6 +28,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   String? errorMessage;
   String? _accessToken;
   int? _idCuenta;
+  bool _isLoading = true;
 
   List<String> months = [];
 
@@ -34,6 +37,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
     super.initState();
     _loadUserDataAndFetchCategories();
     _generateMonthsList();
+    _loadSelectedAccountAndFetchImage();
   }
 
   void _generateMonthsList() {
@@ -49,6 +53,82 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       final month = spanishMonths[nextMonthDate.month - 1];
       final year = nextMonthDate.year;
       months.add('$month $year');
+    }
+  }
+
+  Future<void> _loadSelectedAccountAndFetchImage() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
+      final int? selectedAccountId = prefs.getInt('idCuenta');
+
+      if (token == null) {
+        if (mounted) {
+          print('Token no encontrado, redirigiendo al login...');
+          Navigator.of(context).pushReplacementNamed('/');
+        }
+        return;
+      }
+
+      if (selectedAccountId == null) {
+        if (mounted) {
+          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
+          setState(() {
+            _profileImageUrl = null;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
+      final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
+      print('Fetching account details from URL: $url');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final accountData = data['cuenta'];
+        final relativePath = accountData['ruta_imagen'] as String?;
+
+        setState(() {
+          if (relativePath != null) {
+            _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+            print('URL de la imagen construida: $_profileImageUrl');
+          } else {
+            _profileImageUrl = null;
+          }
+          _isLoading = false;
+        });
+      } else {
+        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
+        print('Body de la respuesta de error: ${response.body}');
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print('Excepción al obtener los detalles de la cuenta: $e');
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

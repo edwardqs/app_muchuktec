@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Importamos el nuevo paquete
+import 'package:cached_network_image/cached_network_image.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -21,6 +21,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   List<dynamic> _userProfiles = [];
   bool _isLoading = true;
   String? _accessToken;
+  int? _selectedAccountId;
   final TextEditingController _editNameController = TextEditingController();
   final TextEditingController _editDescriptionController = TextEditingController();
 
@@ -35,7 +36,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
     _accessToken = prefs.getString('accessToken');
 
     if (_accessToken != null) {
-      _fetchUserProfiles();
+      await _fetchUserProfiles();
+      _loadSelectedAccount();
     } else {
       if (!mounted) return;
       setState(() {
@@ -43,6 +45,30 @@ class _AccountsScreenState extends State<AccountsScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se encontró un token de sesión. Por favor, inicie sesión.')),
+      );
+    }
+  }
+
+  Future<void> _loadSelectedAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? savedId = prefs.getInt('idCuenta');
+    setState(() {
+      _selectedAccountId = savedId;
+    });
+  }
+
+  Future<void> _saveSelectedAccount(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('idCuenta', id);
+    setState(() {
+      _selectedAccountId = id;
+    });
+    if (mounted) {
+      // Navegar al dashboard después de seleccionar la cuenta
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/dashboard',
+            (route) => false, // Elimina todas las rutas de la pila de navegación
       );
     }
   }
@@ -278,7 +304,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                             fit: BoxFit.cover,
                           )
                               : (profile['ruta_imagen'] != null
-                              ? CachedNetworkImage( // Usamos CachedNetworkImage aquí también
+                              ? CachedNetworkImage(
                             imageUrl: '$STORAGE_BASE_URL/${profile['ruta_imagen']}',
                             fit: BoxFit.cover,
                             placeholder: (context, url) => const CircularProgressIndicator(),
@@ -360,12 +386,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
 
     try {
-      // Usar MultipartRequest para enviar el archivo y los datos
       var request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/cuentas/$id'));
       request.headers['Authorization'] = 'Bearer $_accessToken';
       request.fields['nombre'] = newName.trim();
       request.fields['descripcion'] = newDescription.trim();
-      request.fields['_method'] = 'PUT'; // Sobrescribir el método HTTP a PUT
+      request.fields['_method'] = 'PUT';
 
       if (newImage != null) {
         request.files.add(
@@ -398,6 +423,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
+    await prefs.remove('idCuenta'); // Eliminar también la cuenta seleccionada
     AuthService().logout();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(
@@ -406,6 +432,34 @@ class _AccountsScreenState extends State<AccountsScreen> {
             (Route<dynamic> route) => false,
       );
     }
+  }
+
+  void _showSelectionConfirmation(dynamic profile) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Confirmar Selección', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('¿Quieres usar el perfil "${profile['nombre']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _saveSelectedAccount(profile['id']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Seleccionar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -461,16 +515,18 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     return _AddProfileButton(onTap: _showAddProfileModal);
                   }
                   final profile = _userProfiles[index];
-                  // Pasa `canDelete` como `false` solo para el primer perfil (índice 0)
+                  bool isSelected = _selectedAccountId == profile['id'];
+
                   return _ProfileItem(
                     name: profile['nombre'],
-                    // Lógica para determinar la ruta de la imagen
                     imagePath: profile['ruta_imagen'] != null
                         ? '$STORAGE_BASE_URL/${profile['ruta_imagen']}'
                         : null,
                     onEdit: () => _showEditProfileDialog(profile),
                     onDelete: () => _showDeleteConfirmation(profile),
+                    onTap: () => _showSelectionConfirmation(profile),
                     canDelete: index > 0,
+                    isSelected: isSelected,
                   );
                 },
               ),
@@ -488,112 +544,133 @@ class _ProfileItem extends StatelessWidget {
   final String? imagePath;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
   final bool canDelete;
+  final bool isSelected;
 
   const _ProfileItem({
     required this.name,
     this.imagePath,
     required this.onEdit,
     required this.onDelete,
-    this.canDelete = true, // Valor por defecto para no romper el código anterior
+    required this.onTap,
+    this.canDelete = true,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 2,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: imagePath == null
-                  ? LinearGradient(
-                colors: [Colors.blueAccent.shade100, Colors.blue.shade400],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.4),
-                  spreadRadius: 2,
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected ? Border.all(color: Colors.blueAccent, width: 4) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              spreadRadius: 2,
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: imagePath == null
+                        ? LinearGradient(
+                      colors: [Colors.blueAccent.shade100, Colors.blue.shade400],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.4),
+                        spreadRadius: 2,
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: imagePath != null
+                      ? ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl: imagePath!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.person,
+                        size: 45,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                      : const Icon(
+                    Icons.person,
+                    size: 45,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.edit_rounded, color: Colors.blue[600]),
+                      onPressed: onEdit,
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 8),
+                    if (canDelete)
+                      IconButton(
+                        icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
+                        onPressed: onDelete,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
+                      ),
+                  ],
                 ),
               ],
             ),
-            child: imagePath != null
-                ? ClipOval(
-              // Usamos CachedNetworkImage en lugar de Image.network
-              child: CachedNetworkImage(
-                imageUrl: imagePath!,
-                fit: BoxFit.cover,
-                // Muestra un indicador de carga mientras la imagen se descarga
-                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                // Muestra un ícono si hay un error al cargar la imagen
-                errorWidget: (context, url, error) => const Icon(
-                  Icons.person,
-                  size: 45,
-                  color: Colors.white,
+            if (isSelected)
+              const Positioned(
+                top: 8,
+                right: 8,
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.blueAccent,
+                  size: 28,
                 ),
               ),
-            )
-                : const Icon(
-              Icons.person,
-              size: 45,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: Icon(Icons.edit_rounded, color: Colors.blue[600]),
-                onPressed: onEdit,
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              if (canDelete) // Mostrar el botón de eliminar solo si `canDelete` es true
-                IconButton(
-                  icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
-                  onPressed: onDelete,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

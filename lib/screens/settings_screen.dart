@@ -18,6 +18,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final int _selectedIndex = 4;
   String? _profileImageUrl;
   String? _accessToken;
+  bool _isLoading = true;
+
 
   @override
   void initState() {
@@ -31,39 +33,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _accessToken = prefs.getString('accessToken');
 
     if (_accessToken != null) {
-      _fetchProfilePhoto();
+      _loadSelectedAccountAndFetchImage();
     }
   }
 
-  Future<void> _fetchProfilePhoto() async {
-    try {
-      if (_accessToken == null) return;
+  Future<void> _loadSelectedAccountAndFetchImage() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-      final url = Uri.parse('$apiUrl/getProfilePhoto');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
+      final int? selectedAccountId = prefs.getInt('idCuenta');
+
+      if (token == null) {
+        if (mounted) {
+          print('Token no encontrado, redirigiendo al login...');
+          Navigator.of(context).pushReplacementNamed('/');
+        }
+        return;
+      }
+
+      if (selectedAccountId == null) {
+        if (mounted) {
+          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
+          setState(() {
+            _profileImageUrl = null;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
+      final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
+      print('Fetching account details from URL: $url');
+
       final response = await http.get(
         url,
         headers: {
-          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
         },
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final relativePath = data['ruta_imagen'] as String?;
+        final accountData = data['cuenta'];
+        final relativePath = accountData['ruta_imagen'] as String?;
 
-        if (!mounted) return;
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
+          _isLoading = false;
         });
       } else {
-        print('Error fetching profile photo. Status Code: ${response.statusCode}');
+        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
+        print('Body de la respuesta de error: ${response.body}');
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('Exception while fetching profile photo: $e');
+      if (mounted) {
+        print('Excepción al obtener los detalles de la cuenta: $e');
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

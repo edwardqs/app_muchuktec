@@ -25,54 +25,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchProfilePhoto();
+    _loadSelectedAccountAndFetchImage();
   }
 
   void _onItemTapped(int index) {
-    print('Dashboard _onItemTapped called with index: $index');
+    // Solo navega si el índice es diferente al actual
+    if (index == _selectedIndex) {
+      return;
+    }
 
     switch (index) {
-      case 0:
-      // Ya estamos en Dashboard
-        print('Staying in Dashboard');
+      case 0: // Inicio
+        Navigator.pushReplacementNamed(context, '/dashboard');
         break;
-      case 1:
-        print('Navigating to Reports');
-        Navigator.pushNamed(context, '/reports');
+      case 1: // Reportes
+        Navigator.pushReplacementNamed(context, '/reports');
         break;
-      case 2:
-        print('Navigating to Budgets');
-        Navigator.pushNamed(context, '/budgets');
+      case 2: // Presupuestos
+        Navigator.pushReplacementNamed(context, '/budgets');
         break;
-      case 3:
-        print('Navigating to Categories');
-        Navigator.pushNamed(context, '/categories');
+      case 3: // Categorías
+        Navigator.pushReplacementNamed(context, '/categories');
         break;
-      case 4:
-        print('🔥 Navigating to Settings');
-        try {
-          final result = Navigator.pushNamed(context, '/settings');
-          print('🔥 Navigator.pushNamed returned: $result');
-          print('🔥 Navigation to /settings completed successfully');
-        } catch (e, stackTrace) {
-          print('🔥 Error navigating to /settings: $e');
-          print('🔥 StackTrace: $stackTrace');
-        }
+      case 4: // Ajustes
+        Navigator.pushReplacementNamed(context, '/settings');
         break;
     }
   }
 
-  Future<void> _fetchProfilePhoto() async {
+  Future<void> _loadSelectedAccountAndFetchImage() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 1. Obtener el token de autenticación de SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
 
-      // 2. Verificar si el token existe. Si no, redirigir al login.
+      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
+      final int? selectedAccountId = prefs.getInt('idCuenta');
+
       if (token == null) {
         if (mounted) {
           print('Token no encontrado, redirigiendo al login...');
@@ -81,10 +73,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return;
       }
 
-      final url = Uri.parse('$API_BASE_URL/getProfilePhoto');
-      print('Fetching profile photo from URL: $url');
+      if (selectedAccountId == null) {
+        if (mounted) {
+          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
+          setState(() {
+            _profileImageUrl = null;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
-      // 3. Realizar la solicitud HTTP con el token en la cabecera
+      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
+      print('Fetching account details from URL: $url');
+
       final response = await http.get(
         url,
         headers: {
@@ -97,18 +100,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final relativePath = data['ruta_imagen'] as String?;
+        final accountData = data['cuenta'];
+        final relativePath = accountData['ruta_imagen'] as String?;
 
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
           _isLoading = false;
         });
       } else {
-        print('Error al obtener la foto de perfil. Status Code: ${response.statusCode}');
+        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
         print('Body de la respuesta de error: ${response.body}');
         setState(() {
           _isLoading = false;
@@ -116,7 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        print('Excepción al obtener la foto de perfil: $e');
+        print('Excepción al obtener los detalles de la cuenta: $e');
         setState(() {
           _isLoading = false;
         });
