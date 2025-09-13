@@ -164,6 +164,57 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       }
     }
   }
+  Future<void> _deleteBudgetOnServer(String budgetId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+
+    if (token == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se encontró el token de acceso.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final url = Uri.parse('$API_BASE_URL/presupuestos/$budgetId');
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // Éxito: El presupuesto fue eliminado o desactivado en el backend
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Presupuesto eliminado con éxito.'), backgroundColor: Colors.green),
+        );
+      } else if (response.statusCode == 401) {
+        // Manejar token expirado
+        await prefs.remove('accessToken');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
+        );
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      } else {
+        // Manejar otros errores
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar: ${response.statusCode}'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo conectar al servidor.'), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   List<Budget> _getBudgetsForCurrentMonth() {
     final now = DateTime.now();
@@ -605,17 +656,16 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                budgets.removeWhere((b) => b.id == budget.id);
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Presupuesto eliminado'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+            onPressed: () async {
+              Navigator.pop(context); // Cierra el diálogo
+              // Espera a que la eliminación en el servidor sea exitosa
+              await _deleteBudgetOnServer(budget.id);
+              // Luego, elimina el elemento de la lista local para actualizar la UI
+              if (mounted) {
+                setState(() {
+                  budgets.removeWhere((b) => b.id == budget.id);
+                });
+              }
             },
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
@@ -624,6 +674,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     );
   }
 }
+
 
 class Budget {
   final String id;

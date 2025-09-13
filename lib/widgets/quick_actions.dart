@@ -27,9 +27,8 @@ class QuickActions extends StatelessWidget {
                 color: Colors.blue[100]!,
                 iconColor: Colors.blue[700]!,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Registrar movimiento en desarrollo')),
-                  );
+                  // RUTA ESPECÍFICA PARA ASIGNAR MOVIMIENTO
+                  Navigator.pushNamed(context, '/movements');
                 },
               ),
             ),

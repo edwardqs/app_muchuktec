@@ -472,7 +472,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   elevation: 0,
                 ),
                 child: Text(
-                  'Guardar presupuesto',
+                  'Guardar categoria',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -624,6 +624,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               break;
             case 2:
               Navigator.pushReplacementNamed(context, '/budgets');
+              break;
             case 3:
 
               break;
