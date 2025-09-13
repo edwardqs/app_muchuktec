@@ -40,7 +40,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken'); // 2. Lee el token guardado
     _idCuenta = prefs.getInt('idCuenta');
-
+    print('id de cuenta encontrada seleccionada: $_idCuenta');
     if (_accessToken != null) {
       _fetchCategories(); // 3. Si hay un token, procede a cargar las categorías
     } else {
@@ -265,8 +265,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   //Metodo para obtener las categorias
   Future<void> _fetchCategories() async {
-    if (!mounted || _accessToken == null) {
-      if (_accessToken == null) {
+    if (!mounted || _accessToken == null || _idCuenta == null) {
+      if (_idCuenta == null) {
+        // Opcional: Manejar el caso donde no hay una cuenta seleccionada
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No se ha seleccionado una cuenta.';
+        });
       }
       return;
     }
@@ -277,11 +282,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     });
 
     try {
+      // ---- ESTE ES EL CAMBIO PRINCIPAL ----
+      // Construimos la URL con el query parameter 'idcuenta'
+      final url = Uri.parse('$apiUrl/categorias/').replace(
+        queryParameters: {
+          'idcuenta': _idCuenta.toString(),
+        },
+      );
+
+
+
       final response = await http.get(
-        Uri.parse('$apiUrl/categorias'),
+        url, // Usamos la nueva URL con el parámetro
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json', // Es una buena práctica incluir 'Accept'
         },
       );
 
@@ -292,8 +308,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           categories = data.map((json) => CategoryModel.fromJson(json)).toList();
         });
       } else {
+        // El error de validación de Laravel (422) puede ser manejado aquí
+        final errorData = json.decode(response.body);
         setState(() {
-          errorMessage = 'Error al cargar las categorías. Intente de nuevo.';
+          errorMessage = errorData['message'] ?? 'Error al cargar las categorías. Intente de nuevo.';
         });
       }
     } catch (e) {

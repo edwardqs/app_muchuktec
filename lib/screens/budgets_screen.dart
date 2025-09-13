@@ -44,16 +44,24 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Future<void> _fetchBudgets() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
+    final idCuenta = prefs.getInt('idCuenta');
 
-    if (token == null) {
+    if (token == null || idCuenta == null) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'No se encontró el token de autenticación. Por favor, inicie sesión de nuevo.';
+        _errorMessage = idCuenta == null
+            ? 'No se ha seleccionado una cuenta para ver los presupuestos.'
+            : 'No se encontró el token de autenticación. Por favor, inicie sesión de nuevo.';
       });
       return;
     }
 
-    final uri = Uri.parse('$API_BASE_URL/presupuestos');
+    final uri = Uri.parse('$API_BASE_URL/presupuestos').replace(
+      queryParameters: {
+        'idcuenta': idCuenta.toString(),
+      },
+    );
+
     try {
       final response = await http.get(
         uri,
@@ -73,7 +81,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       } else if (response.statusCode == 401) {
         await prefs.remove('accessToken');
         if (mounted) {
-
           Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         }
       } else {
