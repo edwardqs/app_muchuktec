@@ -207,7 +207,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 201) {
-        // Éxito: El movimiento se creó correctamente
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Movimiento guardado con éxito.'), backgroundColor: Colors.green),
         );

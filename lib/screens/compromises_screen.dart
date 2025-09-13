@@ -25,7 +25,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     _loadAccessTokenAndFetchCompromises();
   }
 
-  // Metodo para cargar el token y obtener los compromisos
   Future<void> _loadAccessTokenAndFetchCompromises() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
@@ -41,7 +40,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     }
   }
 
-  // Metodo para obtener los compromisos
   Future<void> _fetchCompromises() async {
     if (!mounted || _accessToken == null) {
       return;
@@ -57,6 +55,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         Uri.parse('$apiUrl/compromisos'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $_accessToken',
         },
       );
@@ -85,7 +84,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     }
   }
 
-  // Metodo para eliminar un compromiso
   Future<void> _deleteCompromise(String compromiseId) async {
     if (_accessToken == null) {
       if (!mounted) return;
@@ -140,7 +138,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     }
   }
 
-  // Dialogo de confirmación para eliminar
   void _showDeleteConfirmation(CompromiseModel compromise) {
     showDialog(
       context: context,
@@ -208,7 +205,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
           ),
           InkWell(
             onTap: () {
-              print('Navigating to accounts_screen');
               Navigator.pushNamed(context, '/accounts');
             },
             borderRadius: BorderRadius.circular(16),
@@ -234,12 +230,10 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Botón para ir a la vista de creación
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Navega a la nueva vista para registrar un compromiso
                   Navigator.pushNamed(context, '/compromises_create');
                 },
                 style: ElevatedButton.styleFrom(
@@ -266,18 +260,17 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Navega a la nueva vista para registrar un compromiso
-                  Navigator.pushNamed(context, '/compromises_tiers'); // Cambiado para navegar a la vista de terceros
+                  Navigator.pushNamed(context, '/compromises_tiers');
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo, // Color cambiado a azul oscuro (indigo)
+                  backgroundColor: Colors.indigo,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   elevation: 0,
                 ),
-                icon: const Icon(Icons.people_alt, color: Colors.white), // Icono cambiado a Icons.people_alt
+                icon: const Icon(Icons.people_alt, color: Colors.white),
                 label: const Text(
                   'Ver mis terceros',
                   style: TextStyle(
@@ -289,8 +282,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               ),
             ),
             const SizedBox(height: 32),
-
-            // Sección: Mis compromisos
             const Text(
               'Mis compromisos',
               style: TextStyle(
@@ -300,8 +291,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Lista de compromisos
             if (isLoading)
               const Center(child: CircularProgressIndicator())
             else if (errorMessage != null)
@@ -387,7 +376,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     );
   }
 
-  // --- Este es el BottomNavigationBar exacto que pediste ---
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -408,7 +396,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        // Eliminado el hardcode de 'currentIndex' para que no haya selección
         currentIndex: 0,
         items: const [
           BottomNavigationBarItem(
@@ -442,6 +429,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               break;
             case 2:
               Navigator.pushReplacementNamed(context, '/budgets');
+              break;
             case 3:
               Navigator.pushReplacementNamed(context, '/categories');
               break;
@@ -464,22 +452,75 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 class CompromiseModel {
   final String id;
   final String name;
-  final double amount;
+  final double amount; // <-- Se espera un double
   final String date;
+  final String? tipoCompromiso;
+  final int? idusuario;
+  final int? idcuenta;
+  final int? idtercero;
+  final int? idfrecuencia;
+  final double? montoTotal;
+  final int? cantidadCuotas;
+  final double? montoCuota;
+  final int? cuotasPagadas;
+  final double? tasaInteres;
+  final String? tipoInteres;
+  final String? fechaTermino;
+  final String? estado;
+  final int? estadoEliminar;
 
   CompromiseModel({
     required this.id,
     required this.name,
-    required this.amount,
+    required this.amount, // <-- Se espera un double
     required this.date,
+    this.tipoCompromiso,
+    this.idusuario,
+    this.idcuenta,
+    this.idtercero,
+    this.idfrecuencia,
+    this.montoTotal,
+    this.cantidadCuotas,
+    this.montoCuota,
+    this.cuotasPagadas,
+    this.tasaInteres,
+    this.tipoInteres,
+    this.fechaTermino,
+    this.estado,
+    this.estadoEliminar,
   });
 
   factory CompromiseModel.fromJson(Map<String, dynamic> json) {
+    final String amountString = json['monto_cuota']?.toString() ?? '0.0';
+    final double amount = double.tryParse(amountString) ?? 0.0;
+
+    final double? montoTotal = (json['monto_total'] is String) ? double.tryParse(json['monto_total']) : (json['monto_total'] as num?)?.toDouble();
+    final double? montoCuota = (json['monto_cuota'] is String)
+        ? double.tryParse(json['monto_cuota'])
+        : (json['monto_cuota'] as num?)?.toDouble();
+    final double? tasaInteres = (json['tasa_interes'] is String)
+        ? double.tryParse(json['tasa_interes'])
+        : (json['tasa_interes'] as num?)?.toDouble();
+
     return CompromiseModel(
-      id: json['id'].toString(),
+      id: json['id']?.toString() ?? '',
       name: json['nombre'] as String,
-      amount: (json['monto'] as num).toDouble(),
-      date: json['fecha'] as String,
+      amount: amount, // <-- Aquí se usa el valor de 'monto_cuota'
+      date: json['fecha_inicio'] as String,
+      tipoCompromiso: json['tipo_compromiso'] as String?,
+      idusuario: json['idusuario'] as int?,
+      idcuenta: json['idcuenta'] as int?,
+      idtercero: json['idtercero'] as int?,
+      idfrecuencia: json['idfrecuencia'] as int?,
+      montoTotal: montoTotal,
+      cantidadCuotas: json['cantidad_cuotas'] as int?,
+      montoCuota: montoCuota,
+      cuotasPagadas: json['cuotas_pagadas'] as int?,
+      tasaInteres: tasaInteres,
+      tipoInteres: json['tipo_interes'] as String?,
+      fechaTermino: json['fecha_termino'] as String?,
+      estado: json['estado'] as String?,
+      estadoEliminar: json['estado_eliminar'] as int?,
     );
   }
 }
