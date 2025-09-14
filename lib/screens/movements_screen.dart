@@ -79,14 +79,33 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
   // Lógica para obtener las categorías desde la API
   Future<void> _fetchCategories() async {
-    if (_accessToken == null) return;
+    // Verificación de seguridad: nos aseguramos de tener todo lo necesario
+    if (_accessToken == null || _idCuenta == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falta información de la sesión.'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
 
     try {
+      // --- ESTE ES EL CAMBIO PRINCIPAL ---
+      // Construimos la URL con el query parameter 'idcuenta'
+      final url = Uri.parse('$apiUrl/categorias').replace(
+        queryParameters: {
+          'idcuenta': _idCuenta.toString(),
+        },
+      );
+      // ------------------------------------
+
+      print('Llamando a la URL de categorías: $url'); // Para depurar
+
       final response = await http.get(
-        Uri.parse('$apiUrl/categorias'),
+        url, // Usamos la nueva URL
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
         },
       );
 
