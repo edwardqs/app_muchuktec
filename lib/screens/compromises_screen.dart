@@ -19,9 +19,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   bool isLoading = false;
   String? errorMessage;
   String? _accessToken;
-  // --- Nuevas variables de estado para la imagen del perfil ---
+  int? _idCuenta;
+
   String? _profileImageUrl;
   bool _isLoadingImage = true;
+
 
   @override
   void initState() {
@@ -98,20 +100,25 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   Future<void> _loadAccessTokenAndFetchCompromises() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
+    _idCuenta = prefs.getInt('idCuenta'); // <-- AÑADIR ESTA LÍNEA
 
-    if (_accessToken != null) {
+    // Imprime para verificar que se está leyendo bien
+    print('Cargando compromisos para la cuenta con ID: $_idCuenta');
+
+    if (_accessToken != null && _idCuenta != null) { // <-- AÑADIR LA VERIFICACIÓN DE _idCuenta
       _fetchCompromises();
     } else {
       if (!mounted) return;
       setState(() {
-        errorMessage = 'No se encontró un token de sesión. Por favor, inicie sesión.';
+        errorMessage = 'No se encontró un token o una cuenta seleccionada.';
         isLoading = false;
       });
     }
   }
 
   Future<void> _fetchCompromises() async {
-    if (!mounted || _accessToken == null) {
+    // La validación ahora está en el método anterior, pero mantenemos esta por seguridad
+    if (!mounted || _accessToken == null || _idCuenta == null) {
       return;
     }
 
@@ -121,14 +128,26 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     });
 
     try {
+      // ---- ESTE ES EL CAMBIO PRINCIPAL ----
+      final url = Uri.parse('$API_BASE_URL/compromisos').replace(
+        queryParameters: {
+          'idcuenta': _idCuenta.toString(),
+        },
+      );
+      // ------------------------------------
+
+      print('Llamando a la URL de compromisos: $url'); // Para depurar
+
       final response = await http.get(
-        Uri.parse('$API_BASE_URL/compromisos'), // Usar la constante API_BASE_URL
+        url, // Usar la nueva URL
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $_accessToken',
         },
       );
+
+      print('Respuesta del servidor: ${response.statusCode} - ${response.body}'); // Para depurar
 
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -138,11 +157,12 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         });
       } else {
         setState(() {
-          errorMessage = 'Error al cargar los compromisos. Intente de nuevo.';
+          errorMessage = 'Error al cargar los compromisos. Código: ${response.statusCode}';
         });
       }
     } catch (e) {
       if (!mounted) return;
+      print('Excepción en _fetchCompromises: $e'); // Imprime la excepción real
       setState(() {
         errorMessage = 'No se pudo conectar al servidor. Revise su conexión.';
       });

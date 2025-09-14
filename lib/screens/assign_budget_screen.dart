@@ -150,17 +150,38 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
 
   // Método para obtener las categorías desde la API
   Future<void> _fetchCategories() async {
+    // Verificación de seguridad por si acaso
+    if (_accessToken == null || _idCuenta == null) {
+      setState(() {
+        errorMessage = 'Token o ID de cuenta no disponibles.';
+        isLoading = false;
+      });
+      return;
+    }
+
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
 
     try {
+      // --- ESTE ES EL CAMBIO PRINCIPAL ---
+      // Construimos la URL con el query parameter 'idcuenta'
+      final url = Uri.parse('$apiUrl/categorias').replace(
+        queryParameters: {
+          'idcuenta': _idCuenta.toString(),
+        },
+      );
+      // ------------------------------------
+
+      print('Llamando a la URL de categorías: $url'); // Para depurar
+
       final response = await http.get(
-        Uri.parse('$apiUrl/categorias/'),
+        url, // Usamos la nueva URL
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json', // Buena práctica
         },
       );
 
@@ -171,32 +192,32 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         if (data is List) {
           setState(() {
             categories = data.map((json) => CategoryModel.fromJson(json)).toList();
-            isLoading = false;
-          });
-        } else if (data is Map<String, dynamic>) {
-          setState(() {
-            categories = [CategoryModel.fromJson(data)];
-            isLoading = false;
           });
         } else {
+          // Manejo por si la API devuelve algo que no es una lista
           setState(() {
             errorMessage = 'Formato de datos inesperado del servidor.';
-            isLoading = false;
           });
         }
 
       } else {
         setState(() {
-          errorMessage = 'Error al cargar las categorías. Intente de nuevo.';
-          isLoading = false;
+          errorMessage = 'Error al cargar las categorías. Código: ${response.statusCode}';
         });
       }
     } catch (e) {
       if (!mounted) return;
+      print('Excepción en _fetchCategories: $e'); // Ayuda a ver el error real
       setState(() {
         errorMessage = 'No se pudo conectar al servidor. Revise su conexión.';
-        isLoading = false;
       });
+    } finally {
+      // Este setState debe estar fuera de los if/else para ejecutarse siempre
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
