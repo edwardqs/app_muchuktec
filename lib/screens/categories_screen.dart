@@ -1,7 +1,8 @@
+// lib/screens/categories_screen.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // Importa el paquete http
-import 'dart:convert'; // Importa para codificar/decodificar JSON
-import 'package:shared_preferences/shared_preferences.dart'; // Importa para manejar preferencias
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
@@ -15,12 +16,11 @@ class CategoriesScreen extends StatefulWidget {
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _editNameController = TextEditingController(); // Controlador para el modal de edición
+  final TextEditingController _editNameController = TextEditingController();
 
   String _selectedType = 'Gasto o ingreso';
   int? _idCuenta;
   String? _profileImageUrl;
-// --- Estado para manejar la carga y los datos de la API --- gaaa
   List<CategoryModel> categories = [];
   bool isLoading = false;
   String? errorMessage;
@@ -31,18 +31,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   void initState() {
     super.initState();
     _loadAccessTokenAndFetchCategories();
-    // Llamada para cargar la foto de perfil
     _loadSelectedAccountAndFetchImage();
   }
 
-  // Metodo para cargar el token
   Future<void> _loadAccessTokenAndFetchCategories() async {
     final prefs = await SharedPreferences.getInstance();
-    _accessToken = prefs.getString('accessToken'); // 2. Lee el token guardado
+    _accessToken = prefs.getString('accessToken');
     _idCuenta = prefs.getInt('idCuenta');
     print('id de cuenta encontrada seleccionada: $_idCuenta');
     if (_accessToken != null) {
-      _fetchCategories(); // 3. Si hay un token, procede a cargar las categorías
+      _fetchCategories();
     } else {
       if (!mounted) return;
       setState(() {
@@ -53,7 +51,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Future<void> _deleteCategory(String categoryId) async {
-    // Asegúrate de que el token esté disponible antes de continuar
     if (_accessToken == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -62,13 +59,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       return;
     }
 
-    // Prepara la URL con el ID de la categoría
     final url = Uri.parse('$apiUrl/categorias/$categoryId');
 
-    setState(() {
-      // Puedes mostrar un indicador de carga si lo deseas
-      // isLoading = true;
-    });
+    setState(() {});
 
     try {
       final response = await http.delete(
@@ -82,9 +75,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        // 200 OK o 204 No Content son respuestas de éxito para DELETE
         setState(() {
-          // Elimina la categoría de la lista local para actualizar la UI
           categories.removeWhere((category) => category.id == categoryId);
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -95,7 +86,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           const SnackBar(content: Text('Error: La categoría no fue encontrada.'), backgroundColor: Colors.orange),
         );
       } else if (response.statusCode == 401) {
-        // Manejar la expiración del token como ya lo haces
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('accessToken');
         if (!mounted) return;
@@ -115,12 +105,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() {
-          // isLoading = false;
-        });
+        setState(() {});
       }
     }
   }
+
   Future<void> _loadSelectedAccountAndFetchImage() async {
     setState(() {
       _isLoading = true;
@@ -129,8 +118,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
-
-      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
@@ -152,7 +139,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         return;
       }
 
-      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
       final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
@@ -196,7 +182,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       }
     }
   }
-  // Nuevo método para actualizar una categoría
+
   Future<void> _updateCategory(String categoryId, String newName) async {
     if (_accessToken == null) {
       if (!mounted) return;
@@ -263,11 +249,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
-  //Metodo para obtener las categorias
   Future<void> _fetchCategories() async {
     if (!mounted || _accessToken == null || _idCuenta == null) {
       if (_idCuenta == null) {
-        // Opcional: Manejar el caso donde no hay una cuenta seleccionada
         setState(() {
           isLoading = false;
           errorMessage = 'No se ha seleccionado una cuenta.';
@@ -278,26 +262,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
     setState(() {
       isLoading = true;
-      errorMessage = null; // Limpiar errores previos
+      errorMessage = null;
     });
 
     try {
-      // ---- ESTE ES EL CAMBIO PRINCIPAL ----
-      // Construimos la URL con el query parameter 'idcuenta'
       final url = Uri.parse('$apiUrl/categorias/').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
       );
 
-
-
       final response = await http.get(
-        url, // Usamos la nueva URL con el parámetro
+        url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json', // Es una buena práctica incluir 'Accept'
+          'Accept': 'application/json',
         },
       );
 
@@ -308,7 +288,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           categories = data.map((json) => CategoryModel.fromJson(json)).toList();
         });
       } else {
-        // El error de validación de Laravel (422) puede ser manejado aquí
         final errorData = json.decode(response.body);
         setState(() {
           errorMessage = errorData['message'] ?? 'Error al cargar las categorías. Intente de nuevo.';
@@ -324,6 +303,136 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  // Lógica principal de registro
+  void _addCategory() {
+    final name = _nameController.text.trim();
+    final type = _selectedType;
+
+    // 1. Validar los campos localmente
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, ingresa un nombre para la categoría'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    if (type == 'Gasto o ingreso') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona un tipo de categoría'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    // 2. Mostrar diálogo de confirmación
+    _showConfirmationDialog(name, type.toLowerCase());
+  }
+
+  // Nuevo método para mostrar el diálogo de confirmación
+  void _showConfirmationDialog(String name, String type) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Registro'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                const Text('¿Estás seguro de que quieres crear esta categoría?'),
+                const SizedBox(height: 16),
+                Text('Nombre: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Tipo: $type', style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _sendCategoryToApi(name, type);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Nuevo método para enviar la categoría a la API
+  Future<void> _sendCategoryToApi(String name, String type) async {
+    if (_accessToken == null || _idCuenta == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se encontró el token de acceso. Por favor, reinicie la aplicación.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('$apiUrl/categorias'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+        body: json.encode({
+          'idcuenta': _idCuenta,
+          'nombre': name,
+          'tipo': type,
+        }),
+      );
+
+      if (!mounted) return;
+      if (response.statusCode == 201) {
+        final newCategoryData = json.decode(response.body);
+        final newCategory = CategoryModel.fromJson(newCategoryData);
+        setState(() {
+          categories.add(newCategory);
+          _nameController.clear();
+          _selectedType = 'Gasto o ingreso';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Categoría agregada exitosamente'), backgroundColor: Colors.green),
+        );
+      } else {
+        String errorMessage;
+        if (response.statusCode == 401 || response.statusCode == 302) {
+          errorMessage = 'Sesión expirada o token inválido. Por favor, inicie sesión de nuevo.';
+        } else if (response.headers['content-type']?.contains('application/json') == true) {
+          final errorData = json.decode(response.body);
+          errorMessage = errorData['message'] ?? 'Error desconocido';
+        } else {
+          errorMessage = 'Error al crear la categoría: Código ${response.statusCode}. ${response.body}';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo conectar al servidor. Intente de nuevo.'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -360,11 +469,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              // Aquí hemos reemplazado el Container por un CircleAvatar para mostrar la imagen
               child: CircleAvatar(
                 radius: 16,
                 backgroundColor: Colors.purple[100],
-                // Condición para mostrar la imagen de la red o un icono por defecto
                 backgroundImage: _profileImageUrl != null
                     ? NetworkImage(_profileImageUrl!)
                     : null,
@@ -374,7 +481,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   size: 20,
                   color: Colors.purple[700],
                 )
-                    : null, // Si hay imagen, el child es nulo
+                    : null,
               ),
             ),
           ),
@@ -385,7 +492,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sección: Añadir nueva categoría
             Text(
               'Añadir nueva categoría',
               style: TextStyle(
@@ -395,8 +501,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
             ),
             SizedBox(height: 16),
-
-            // Campo de nombre
             Text(
               'Nombre de la categoría',
               style: TextStyle(
@@ -429,8 +533,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
             ),
             SizedBox(height: 16),
-
-            // Campo de tipo
             Text(
               'Tipo',
               style: TextStyle(
@@ -475,8 +577,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
             ),
             SizedBox(height: 24),
-
-            // Botón guardar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -500,8 +600,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
             ),
             SizedBox(height: 32),
-
-            // Sección: Mis categorías
             Text(
               'Mis categorías',
               style: TextStyle(
@@ -511,17 +609,29 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
             ),
             SizedBox(height: 16),
-
-            // Lista de categorías
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                return _buildCategoryItem(category);
-              },
-            ),
+            if (isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (errorMessage != null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  return _buildCategoryItem(category);
+                },
+              ),
           ],
         ),
       ),
@@ -543,21 +653,19 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: category.type == 'Gasto' ? Colors.red[50] : Colors.green[50],
+              color: category.type.toLowerCase() == 'gasto' ? Colors.red[50] : Colors.green[50],
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               category.type,
               style: TextStyle(
-                color: category.type == 'Gasto' ? Colors.red[600] : Colors.green[600],
+                color: category.type.toLowerCase() == 'gasto' ? Colors.red[600] : Colors.green[600],
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
           SizedBox(width: 12),
-
-          // Nombre de la categoría
           Expanded(
             child: Text(
               category.name,
@@ -568,15 +676,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
             ),
           ),
-
-          // Nuevo botón para editar
           IconButton(
             icon: Icon(Icons.edit_outlined, color: Colors.blue[400]),
             onPressed: () => _showEditCategoryDialog(category),
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(),
           ),
-          // Botón eliminar
           IconButton(
             icon: Icon(Icons.delete_outline, color: Colors.red[400]),
             onPressed: () => _showDeleteConfirmation(category),
@@ -609,7 +714,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: 3,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             label: 'Inicio',
@@ -632,7 +737,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
         onTap: (index) {
-
           switch (index) {
             case 0:
               Navigator.pushReplacementNamed(context, '/dashboard');
@@ -644,7 +748,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Navigator.pushReplacementNamed(context, '/budgets');
               break;
             case 3:
-
               break;
             case 4:
               Navigator.pushReplacementNamed(context, '/settings');
@@ -655,108 +758,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  void _addCategory() async{
-    // 1. Validar los campos antes de enviar
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Por favor ingresa un nombre para la categoría'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedType == 'Gasto o ingreso') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Por favor selecciona un tipo de categoría'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    // 2. Verificar si tienes un token de acceso
-    if (_accessToken == null || _idCuenta == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No se encontró el token de acceso. Por favor, reinicie la aplicación.'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    // 3. Preparar los datos para la petición POST
-    final body = {
-      'idcuenta': _idCuenta,
-      'nombre': _nameController.text.trim(),
-      'tipo': _selectedType.toLowerCase(),
-    };
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final response = await http.post(
-        Uri.parse('$apiUrl/categorias'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: json.encode(body),
-      );
-
-      // 5. Manejar la respuesta del servidor
-      if (!mounted) return;
-      if (response.statusCode == 201) {
-        // Éxito: La categoría se creó correctamente (código 201 Created)
-        final newCategoryData = json.decode(response.body);
-        final newCategory = CategoryModel.fromJson(newCategoryData);
-
-        setState(() {
-          categories.add(newCategory); // Agrega la nueva categoría a la lista local
-          _nameController.clear();
-          _selectedType = 'Gasto o ingreso';
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categoría agregada exitosamente'), backgroundColor: Colors.green),
-        );
-      } else {
-        // Manejar errores: Si el backend devuelve otro código de estado
-        String errorMessage;
-        if (response.statusCode == 401 || response.statusCode == 302) {
-          errorMessage = 'Sesión expirada o token inválido. Por favor, inicie sesión de nuevo.';
-        } else if (response.headers['content-type']?.contains('application/json') == true) {
-          // Si el error es un JSON válido, decodifícalo
-          final errorData = json.decode(response.body);
-          errorMessage = errorData['message'] ?? 'Error desconocido';
-        } else {
-          // Si el error no es un JSON, usa el mensaje de estado y el cuerpo
-          errorMessage = 'Error al crear la categoría: Código ${response.statusCode}. ${response.body}';
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo conectar al servidor. Intente de nuevo.'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _showDeleteConfirmation(CategoryModel category) async{
+  void _showDeleteConfirmation(CategoryModel category) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -796,9 +798,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  // Nuevo diálogo de edición
   void _showEditCategoryDialog(CategoryModel category) {
-    _editNameController.text = category.name; // Carga el nombre actual en el controlador
+    _editNameController.text = category.name;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -816,7 +817,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           decoration: InputDecoration(
             labelText: 'Nombre de la categoría',
             labelStyle: TextStyle(color: Colors.grey[600]),
-            focusedBorder: UnderlineInputBorder(
+            focusedBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: Colors.orange, width: 2),
             ),
           ),
@@ -834,7 +835,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Cierra el modal
+              Navigator.pop(context);
               _updateCategory(category.id, _editNameController.text);
               _editNameController.clear();
             },
@@ -851,11 +852,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _editNameController.dispose();
     super.dispose();
   }
 }
 
-// Modelo simplificado para las categorías
 class CategoryModel {
   final String id;
   final String name;
@@ -867,7 +868,6 @@ class CategoryModel {
     required this.type,
   });
 
-  // Constructor de fábrica para convertir JSON a CategoryModel
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
     return CategoryModel(
       id: json['id'].toString(),

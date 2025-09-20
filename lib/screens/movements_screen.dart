@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
@@ -89,19 +90,16 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
 
     try {
-      // --- ESTE ES EL CAMBIO PRINCIPAL ---
-      // Construimos la URL con el query parameter 'idcuenta'
       final url = Uri.parse('$apiUrl/categorias').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
       );
-      // ------------------------------------
 
       print('Llamando a la URL de categorías: $url'); // Para depurar
 
       final response = await http.get(
-        url, // Usamos la nueva URL
+        url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -145,7 +143,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
 
-      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
@@ -167,7 +164,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
         return;
       }
 
-      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
       final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
@@ -214,13 +210,65 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
   // Metodo para manejar la lógica de guardar un movimiento
   void _saveMovement() {
-    if (_amountController.text.isEmpty || _selectedCategory == null) {
+    final double? amount = double.tryParse(_amountController.text);
+
+    if (_amountController.text.isEmpty || amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, completa todos los campos requeridos.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Por favor, ingresa un monto válido.'), backgroundColor: Colors.red),
       );
       return;
     }
-    _sendMovementToApi();
+
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona una categoría.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    _showConfirmationDialog(amount);
+  }
+
+  void _showConfirmationDialog(double amount) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar movimiento'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Tipo: $_selectedMovementType', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Monto: S/.${amount.toStringAsFixed(2)}'),
+                const SizedBox(height: 8),
+                Text('Categoría: ${_selectedCategory?.name ?? 'No seleccionada'}'),
+                const SizedBox(height: 8),
+                Text('Fecha: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'),
+                const SizedBox(height: 8),
+                Text('Nota: ${_noteController.text.isNotEmpty ? _noteController.text : 'Sin nota'}'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF9B59B6)),
+              child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _sendMovementToApi();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Lógica para enviar el movimiento a la API
@@ -232,7 +280,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
       return;
     }
 
-    // Convertir el monto a un número
     final double? amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -241,7 +288,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
       return;
     }
 
-    // Asegurarse de que se seleccionó una categoría
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, selecciona una categoría.'), backgroundColor: Colors.red),
@@ -257,14 +303,14 @@ class _MovementsScreenState extends State<MovementsScreen> {
       'idcategoria': int.tryParse(_selectedCategory!.id),
       'idcuenta': _idCuenta,
       'monto': amount,
-      'tipo': _selectedMovementType.toLowerCase(), // 'gasto' o 'ingreso'
+      'tipo': _selectedMovementType.toLowerCase(),
       'nota': _noteController.text,
       'fecha': DateFormat('yyyy-MM-dd').format(_selectedDate),
     };
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/movimientos'), // La ruta a tu endpoint de la API
+        Uri.parse('$apiUrl/movimientos'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -279,7 +325,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Movimiento guardado con éxito.'), backgroundColor: Colors.green),
         );
-        // Puedes limpiar los campos después de guardar
         _amountController.clear();
         _noteController.clear();
         setState(() {
@@ -288,7 +333,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
           _selectedMovementType = 'Gasto';
         });
       } else {
-        // Error en la API
         final responseBody = json.decode(response.body);
         final errorMessage = responseBody['message'] ?? 'Error al guardar el movimiento.';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -336,9 +380,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Puede filtra las categorías, solo quitar lo comentado
+    // Filtrar categorías según el tipo de movimiento seleccionado (gasto/ingreso)
     final filteredCategories = _allCategories
-        //.where((category) => category.type.toLowerCase() == _selectedMovementType.toLowerCase())
+        .where((category) => category.type.toLowerCase() == _selectedMovementType.toLowerCase())
         .toList();
 
     return Scaffold(
@@ -388,7 +432,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Selección de tipo de movimiento (Gasto/Ingreso) - MODIFICADO
             _buildRadioGroup(
               'Tipo:',
               ['Gasto', 'Ingreso'],
@@ -402,16 +445,17 @@ class _MovementsScreenState extends State<MovementsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Campo de Monto
             _buildTextField(
               controller: _amountController,
               label: 'Monto',
               hintText: 'S/.',
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
             ),
             const SizedBox(height: 16),
 
-            // Selector de Categoría
             _buildDropdown(
               label: 'Seleccionar categoría',
               hintText: 'Categoría',
@@ -419,7 +463,19 @@ class _MovementsScreenState extends State<MovementsScreen> {
               items: filteredCategories.map((category) {
                 return DropdownMenuItem<CategoryModel>(
                   value: category,
-                  child: Text(category.name),
+                  child: Row(
+                    children: [
+                      Text(category.name),
+                      const Spacer(),
+                      Text(
+                        '(${category.type})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: category.type == 'ingreso' ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (CategoryModel? newValue) {
@@ -430,11 +486,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Campo de Fecha
             _buildDateInput(),
             const SizedBox(height: 16),
 
-            // Campo de Nota Opcional
             _buildTextField(
               controller: _noteController,
               label: 'Nota opcional',
@@ -443,7 +497,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Botón para guardar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -471,13 +524,14 @@ class _MovementsScreenState extends State<MovementsScreen> {
     );
   }
 
-  // --- Widgets auxiliares (para mantener el código organizado) ---
+  // --- Widgets auxiliares ---
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
     int? maxLines = 1,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,6 +545,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(color: Colors.grey[400]),
@@ -587,7 +642,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     );
   }
 
-  // Widget para los Radio Buttons (ahora sin el borde de caja)
   Widget _buildRadioGroup(String label, List<String> options, String selectedValue, void Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,7 +678,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    // Implementación de la barra de navegación inferior
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -640,11 +693,11 @@ class _MovementsScreenState extends State<MovementsScreen> {
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: Colors.green, // Puedes cambiar este color si prefieres
+        selectedItemColor: Colors.green,
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        currentIndex: 0, // Ajusta el índice según la vista actual
+        currentIndex: 0,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
           BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Reportes'),

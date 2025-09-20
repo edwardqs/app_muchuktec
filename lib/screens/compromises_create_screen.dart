@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
 
@@ -41,6 +43,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     _loadAccessToken().then((_) {
       _loadTerceros();
     });
+    _amountController.addListener(_calculateInstallmentAmount);
+    _interestRateController.addListener(_calculateInstallmentAmount);
+    _installmentsController.addListener(_calculateInstallmentAmount);
   }
 
   Future<void> _loadAccessToken() async {
@@ -79,6 +84,44 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     }
   }
 
+  void _calculateInstallmentAmount() {
+    final String amountText = _amountController.text;
+    final String rateText = _interestRateController.text;
+    final String installmentsText = _installmentsController.text;
+
+    // Convertir los valores a números, con manejo de errores
+    final double? amount = double.tryParse(amountText);
+    final double? rate = double.tryParse(rateText);
+    final int? installments = int.tryParse(installmentsText);
+
+    // Si algún valor es nulo o cero, no se puede calcular
+    if (amount == null || amount <= 0 || (installments == null || installments <= 0)) {
+      _calculatedAmountController.text = ''; // Limpiar el campo si no hay valores válidos
+      return;
+    }
+
+    double calculatedAmount = 0.0;
+    double monthlyRate = (rate ?? 0.0) / 100 / 12; // Convertir tasa anual a mensual
+
+    if (_interestType == 'Simple') {
+      // Fórmula de interés simple: Monto total / cuotas + (Monto total * tasa de interés / 12)
+      // O una versión simplificada, asumiendo que el interés se paga con el principal
+      if (installments > 0) {
+        calculatedAmount = (amount + (amount * (rate ?? 0.0) / 100)) / installments;
+      }
+    } else { // Interés compuesto
+      // Fórmula de anualidad (cuota fija)
+      if (monthlyRate > 0) {
+        calculatedAmount = amount * (monthlyRate * (1 + monthlyRate) * installments) / ((1 + monthlyRate) * installments - 1);
+      } else {
+        // Si la tasa es 0, es solo el monto / cuotas
+        calculatedAmount = amount / installments;
+      }
+    }
+
+    // Actualizar el controlador de la cuota calculada con el resultado, redondeado a 2 decimales
+    _calculatedAmountController.text = calculatedAmount.toStringAsFixed(2);
+  }
 
   // Método para seleccionar la fecha
   Future<void> _selectDate() async {
@@ -361,6 +404,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               hint: 'S/.',
               controller: _amountController,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*')),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -370,6 +416,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               hint: '0.00%',
               controller: _interestRateController,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -377,6 +426,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             _buildRadioGroup('Tipo de interés:', ['Simple', 'Compuesto'], _interestType, (value) {
               setState(() {
                 _interestType = value!;
+                _calculateInstallmentAmount(); // <-- Llamar al cálculo aquí
+
               });
             }),
             const SizedBox(height: 16),
@@ -391,6 +442,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                     controller: _installmentsController,
                     keyboardType: TextInputType.number,
                     enabled: _selectedFrequencyText != 'Sin cuota',
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly, // <-- Solo números enteros
+                    ],
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -455,6 +509,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
     bool enabled = true, // <--- nuevo
+    List<TextInputFormatter>? inputFormatters, // <-- Nuevo parámetro
+
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,6 +528,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           controller: controller,
           keyboardType: keyboardType,
           enabled: enabled,
+          inputFormatters: inputFormatters, // <-- Usar el nuevo parámetro
+
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),
@@ -703,6 +761,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                   if (_selectedFrequencyText == 'Sin cuota') {
                     _installmentsController.text = '0'; // siempre 0
                   }
+                  _calculateInstallmentAmount(); // <-- Llamar al cálculo aquí
+
                 });
               },
             ),
@@ -783,8 +843,11 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   void dispose() {
     _nameController.dispose();
     _entityController.dispose();
+    _amountController.removeListener(_calculateInstallmentAmount); // <-- Remover listener
     _amountController.dispose();
+    _interestRateController.removeListener(_calculateInstallmentAmount); // <-- Remover listener
     _interestRateController.dispose();
+    _installmentsController.removeListener(_calculateInstallmentAmount); // <-- Remover listener
     _installmentsController.dispose();
     _calculatedAmountController.dispose();
     super.dispose();

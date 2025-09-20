@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_model.dart';
-
+import 'package:flutter/services.dart';
 const String apiUrl = 'http://10.0.2.2:8000/api';
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
@@ -277,30 +277,75 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       return;
     }
 
-    // Aquí iría la lógica para enviar los datos del presupuesto a la API.
-    _showSnackBar(
-      'Presupuesto asignado a ${_selectedCategory!.name} para $_selectedMonth con S/.${amount.toStringAsFixed(2)}',
-      Colors.green,
-    );
-
-    // Preparar los datos
-    final parts = _selectedMonth.split(' ');
-    final monthName = parts[0];
-    final year = parts[1];
-    final monthNumber = _getMonthNumber(monthName);
-    final mes = '$year-$monthNumber-01'; // Formato YYYY-MM-DD
-
-
-    final body = {
-      'idcuenta': _idCuenta,
-      'idcategoria': _selectedCategory!.id,
-      'mes': mes,
-      'monto': amount,
-    };
-
-    _sendBudgetToApi(body);
+    // Llama al diálogo de confirmación en lugar de enviar a la API
+    _showConfirmationDialog(amount);
   }
 
+  void _showConfirmationDialog(double amount) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar asignación de presupuesto'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                const Text(
+                  '¿Estás seguro de que quieres asignar este presupuesto?',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Categoría: ${_selectedCategory!.name}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Mes: $_selectedMonth',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Monto: S/.${amount.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                Navigator.of(context).pop(); // Cierra el diálogo
+                // Prepara los datos para la API
+                final parts = _selectedMonth.split(' ');
+                final monthName = parts[0];
+                final year = parts[1];
+                final monthNumber = _getMonthNumber(monthName);
+                final mes = '$year-$monthNumber-01';
+                final body = {
+                  'idcuenta': _idCuenta,
+                  'idcategoria': _selectedCategory!.id,
+                  'mes': mes,
+                  'monto': amount,
+                };
+                _sendBudgetToApi(body); // Envía los datos
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
   String _getMonthNumber(String monthName) {
     final months = {
       'Enero': '01', 'Febrero': '02', 'Marzo': '03', 'Abril': '04',
@@ -414,6 +459,10 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
           TextField(
             controller: _amountController,
             keyboardType: TextInputType.numberWithOptions(decimal: true),
+            // Agrega esta línea para la validación de entrada
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+            ],
             decoration: InputDecoration(
               hintText: 'S/.',
               hintStyle: TextStyle(color: Colors.grey[400]),
@@ -480,12 +529,26 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
             'Seleccione una categoría',
             style: TextStyle(color: Colors.grey[400]),
           ),
+          // Aquí está el cambio principal
           items: categories.map((CategoryModel category) {
             return DropdownMenuItem<CategoryModel>(
               value: category,
-              child: Text(
-                category.name,
-                style: const TextStyle(color: Colors.black),
+              child: Row(
+                children: [
+                  Text(
+                    category.name,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  const Spacer(), // Empuja el siguiente widget hacia la derecha
+                  Text(
+                    category.type,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: category.type.toLowerCase() == 'ingreso' ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
               ),
             );
           }).toList(),
