@@ -1,4 +1,3 @@
-// widgets/recent_movements.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -15,6 +14,7 @@ class Movement {
   final String tipo;
   final String nota;
   final String categoriaNombre;
+  final int idcuenta;
 
   Movement({
     required this.id,
@@ -23,6 +23,7 @@ class Movement {
     required this.tipo,
     required this.nota,
     required this.categoriaNombre,
+    required this.idcuenta,
   });
 
   factory Movement.fromJson(Map<String, dynamic> json) {
@@ -33,6 +34,7 @@ class Movement {
       tipo: json['tipo'] as String? ?? '',
       nota: json['nota'] as String? ?? '',
       categoriaNombre: json['categoria_nombre'] as String? ?? 'Sin Categoría',
+      idcuenta: json['idcuenta'] as int? ?? 0,
     );
   }
 }
@@ -45,9 +47,11 @@ class RecentMovements extends StatefulWidget {
 }
 
 class _RecentMovementsState extends State<RecentMovements> {
-  List<Movement> _movements = [];
+  List<Movement> _allMovements = [];
+  List<Movement> _filteredMovements = [];
   bool _isLoading = true;
   String? _accessToken;
+  int? _selectedAccountId;
 
   @override
   void initState() {
@@ -58,8 +62,9 @@ class _RecentMovementsState extends State<RecentMovements> {
   Future<void> _fetchMovements() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
+    _selectedAccountId = prefs.getInt('idCuenta');
 
-    if (_accessToken == null) {
+    if (_accessToken == null || _selectedAccountId == null) {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -80,8 +85,11 @@ class _RecentMovementsState extends State<RecentMovements> {
       if (mounted) {
         if (response.statusCode == 200) {
           final List<dynamic> data = json.decode(response.body);
+          _allMovements = data.map((json) => Movement.fromJson(json)).toList();
+
+          // Filtrar los movimientos localmente por idcuenta
           setState(() {
-            _movements = data.map((json) => Movement.fromJson(json)).toList();
+            _filteredMovements = _allMovements.where((movement) => movement.idcuenta == _selectedAccountId).toList();
           });
         } else {
           // Manejar el error de la API
@@ -134,7 +142,7 @@ class _RecentMovementsState extends State<RecentMovements> {
             padding: EdgeInsets.all(24.0),
             child: CircularProgressIndicator(color: Colors.purple),
           ))
-              : _movements.isEmpty
+              : _filteredMovements.isEmpty
               ? const Padding(
             padding: EdgeInsets.all(24.0),
             child: Center(
@@ -145,8 +153,8 @@ class _RecentMovementsState extends State<RecentMovements> {
             ),
           )
               : Column(
-            children: List.generate(_movements.length, (index) {
-              final movement = _movements[index];
+            children: List.generate(_filteredMovements.length > 5 ? 5 : _filteredMovements.length, (index) {
+              final movement = _filteredMovements[index];
               final isExpense = movement.tipo == 'gasto';
 
               return Column(
@@ -159,7 +167,7 @@ class _RecentMovementsState extends State<RecentMovements> {
                     amount: '${isExpense ? '-' : '+'}S/${movement.monto.toStringAsFixed(2)}',
                     amountColor: isExpense ? Colors.red : Colors.green,
                   ),
-                  if (index < _movements.length - 1) const Divider(height: 1),
+                  if (index < (_filteredMovements.length > 5 ? 5 : _filteredMovements.length) - 1) const Divider(height: 1),
                 ],
               );
             }),

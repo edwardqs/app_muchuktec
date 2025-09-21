@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_model.dart';
 import 'package:flutter/services.dart';
+
 const String apiUrl = 'http://10.0.2.2:8000/api';
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
@@ -22,22 +23,38 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   String _selectedMonth = 'Mes - Año';
   String? _profileImageUrl;
 
-  // Variables para la carga de datos
   List<CategoryModel> categories = [];
-  bool isLoading = true;
+  bool isLoading = true; // Renombrado de isLoading a _isLoading para evitar ambigüedad
   String? errorMessage;
   String? _accessToken;
   int? _idCuenta;
-  bool _isLoading = true;
+  bool _isLoading = true; // Mantenemos esta para el appbar
 
   List<String> months = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUserDataAndFetchCategories();
+    _loadAllData();
     _generateMonthsList();
-    _loadSelectedAccountAndFetchImage();
+  }
+
+  Future<void> _loadAllData() async {
+    setState(() {
+      _isLoading = true;
+      isLoading = true; // Para la vista principal
+      errorMessage = null;
+    });
+
+    await Future.wait([
+      _loadUserDataAndFetchCategories(),
+      _loadSelectedAccountAndFetchImage(),
+    ]);
+
+    setState(() {
+      _isLoading = false;
+      isLoading = false; // Para la vista principal
+    });
   }
 
   void _generateMonthsList() {
@@ -57,20 +74,13 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   }
 
   Future<void> _loadSelectedAccountAndFetchImage() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
-
-      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
         if (mounted) {
-          print('Token no encontrado, redirigiendo al login...');
           Navigator.of(context).pushReplacementNamed('/');
         }
         return;
@@ -78,19 +88,14 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
 
       if (selectedAccountId == null) {
         if (mounted) {
-          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
           setState(() {
             _profileImageUrl = null;
-            _isLoading = false;
           });
         }
         return;
       }
 
-      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
       final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
-      print('Fetching account details from URL: $url');
-
       final response = await http.get(
         url,
         headers: {
@@ -109,25 +114,14 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
-            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
-          _isLoading = false;
-        });
-      } else {
-        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
-        print('Body de la respuesta de error: ${response.body}');
-        setState(() {
-          _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         print('Excepción al obtener los detalles de la cuenta: $e');
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }
@@ -148,58 +142,42 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
     }
   }
 
-  // Método para obtener las categorías desde la API
   Future<void> _fetchCategories() async {
-    // Verificación de seguridad por si acaso
     if (_accessToken == null || _idCuenta == null) {
       setState(() {
         errorMessage = 'Token o ID de cuenta no disponibles.';
-        isLoading = false;
       });
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
     try {
-      // --- ESTE ES EL CAMBIO PRINCIPAL ---
-      // Construimos la URL con el query parameter 'idcuenta'
       final url = Uri.parse('$apiUrl/categorias').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
       );
-      // ------------------------------------
-
-      print('Llamando a la URL de categorías: $url'); // Para depurar
 
       final response = await http.get(
-        url, // Usamos la nueva URL
+        url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json', // Buena práctica
+          'Accept': 'application/json',
         },
       );
 
       if (!mounted) return;
       if (response.statusCode == 200) {
         final dynamic data = json.decode(response.body);
-
         if (data is List) {
           setState(() {
             categories = data.map((json) => CategoryModel.fromJson(json)).toList();
           });
         } else {
-          // Manejo por si la API devuelve algo que no es una lista
           setState(() {
             errorMessage = 'Formato de datos inesperado del servidor.';
           });
         }
-
       } else {
         setState(() {
           errorMessage = 'Error al cargar las categorías. Código: ${response.statusCode}';
@@ -207,21 +185,12 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      print('Excepción en _fetchCategories: $e'); // Ayuda a ver el error real
       setState(() {
         errorMessage = 'No se pudo conectar al servidor. Revise su conexión.';
       });
-    } finally {
-      // Este setState debe estar fuera de los if/else para ejecutarse siempre
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
     }
   }
 
-  // Nuevo método para enviar los datos del presupuesto a la API
   Future<void> _sendBudgetToApi(Map<String, dynamic> budgetData) async {
     try {
       final response = await http.post(
@@ -277,7 +246,6 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       return;
     }
 
-    // Llama al diálogo de confirmación en lugar de enviar a la API
     _showConfirmationDialog(amount);
   }
 
@@ -325,8 +293,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
               ),
               child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
               onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
-                // Prepara los datos para la API
+                Navigator.of(context).pop();
                 final parts = _selectedMonth.split(' ');
                 final monthName = parts[0];
                 final year = parts[1];
@@ -338,7 +305,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
                   'mes': mes,
                   'monto': amount,
                 };
-                _sendBudgetToApi(body); // Envía los datos
+                _sendBudgetToApi(body);
               },
             ),
           ],
@@ -346,6 +313,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       },
     );
   }
+
   String _getMonthNumber(String monthName) {
     final months = {
       'Enero': '01', 'Febrero': '02', 'Marzo': '03', 'Abril': '04',
@@ -372,10 +340,10 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Asignar Presupuesto',
           style: TextStyle(
             color: Colors.black,
@@ -386,15 +354,42 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
             onPressed: () {},
           ),
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.purple[100],
-              child: Icon(Icons.person, color: Colors.purple, size: 20),
+          InkWell(
+            onTap: () {
+              Navigator.pushNamed(context, '/accounts');
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.purple[100],
+                shape: BoxShape.circle,
+              ),
+              child: _isLoading
+                  ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.purple,
+                    strokeWidth: 2,
+                  ))
+                  : _profileImageUrl != null
+                  ? ClipOval(
+                child: Image.network(
+                  _profileImageUrl!,
+                  fit: BoxFit.cover,
+                  width: 40,
+                  height: 40,
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error al cargar la imagen de red: $error');
+                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                  },
+                ),
+              )
+                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
             ),
           ),
         ],
@@ -421,11 +416,11 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       );
     }
     return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Seleccionar categoría',
             style: TextStyle(
               fontSize: 16,
@@ -433,10 +428,10 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _buildCategoryDropdown(),
-          SizedBox(height: 24),
-          Text(
+          const SizedBox(height: 24),
+          const Text(
             'Mes',
             style: TextStyle(
               fontSize: 16,
@@ -444,10 +439,10 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _buildMonthDropdown(),
-          SizedBox(height: 24),
-          Text(
+          const SizedBox(height: 24),
+          const Text(
             'Monto del presupuesto',
             style: TextStyle(
               fontSize: 16,
@@ -455,11 +450,10 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           TextField(
             controller: _amountController,
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            // Agrega esta línea para la validación de entrada
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
             ],
@@ -478,25 +472,25 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.green, width: 2),
+                borderSide: const BorderSide(color: Colors.green, width: 2),
               ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
-          SizedBox(height: 40),
+          const SizedBox(height: 40),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _assignBudget,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
                 elevation: 0,
               ),
-              child: Text(
+              child: const Text(
                 'Asignar Presupuesto',
                 style: TextStyle(
                   color: Colors.white,
@@ -514,7 +508,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   Widget _buildCategoryDropdown() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey[300]!),
@@ -529,7 +523,6 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
             'Seleccione una categoría',
             style: TextStyle(color: Colors.grey[400]),
           ),
-          // Aquí está el cambio principal
           items: categories.map((CategoryModel category) {
             return DropdownMenuItem<CategoryModel>(
               value: category,
@@ -539,7 +532,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
                     category.name,
                     style: const TextStyle(color: Colors.black),
                   ),
-                  const Spacer(), // Empuja el siguiente widget hacia la derecha
+                  const Spacer(),
                   Text(
                     category.type,
                     style: TextStyle(
@@ -565,7 +558,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   Widget _buildMonthDropdown() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey[300]!),
@@ -608,7 +601,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 10,
-            offset: Offset(0, -2),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -619,8 +612,8 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        currentIndex: 2, // 'Presupuestos'
-        items: [
+        currentIndex: 2,
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             label: 'Inicio',
@@ -651,7 +644,6 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
               Navigator.pushReplacementNamed(context, '/reports');
               break;
             case 2:
-            // Ya estás en esta pantalla, no hagas nada
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/categories');

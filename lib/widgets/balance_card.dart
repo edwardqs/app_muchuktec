@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 const String apiUrl = 'http://10.0.2.2:8000/api';
 
@@ -14,10 +15,11 @@ class BalanceCard extends StatefulWidget {
 
 class _BalanceCardState extends State<BalanceCard> {
   double _saldoActual = 0.0;
-  double _ingresosMes = 0.0;
-  double _gastosMes = 0.0;
+  double _ingresosTotales = 0.0;
+  double _gastosTotales = 0.0;
   bool _isLoading = true;
   String? _accessToken;
+  int? _selectedAccountId;
 
   @override
   void initState() {
@@ -28,8 +30,9 @@ class _BalanceCardState extends State<BalanceCard> {
   Future<void> _fetchData() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
+    _selectedAccountId = prefs.getInt('idCuenta');
 
-    if (_accessToken == null) {
+    if (_accessToken == null || _selectedAccountId == null) {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -39,8 +42,10 @@ class _BalanceCardState extends State<BalanceCard> {
     }
 
     try {
+      // 1. Obtener la cuenta específica
+      final accountUrl = Uri.parse('$apiUrl/accounts/$_selectedAccountId');
       final accountsResponse = await http.get(
-        Uri.parse('$apiUrl/cuentas'),
+        accountUrl,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -48,8 +53,10 @@ class _BalanceCardState extends State<BalanceCard> {
         },
       );
 
+      // 2. Obtener TODOS los movimientos
+      final movementsUrl = Uri.parse('$apiUrl/movimientos');
       final movementsResponse = await http.get(
-        Uri.parse('$apiUrl/movimientos'),
+        movementsUrl,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -59,34 +66,36 @@ class _BalanceCardState extends State<BalanceCard> {
 
       if (mounted) {
         if (accountsResponse.statusCode == 200 && movementsResponse.statusCode == 200) {
-          final List<dynamic> accountsData = json.decode(accountsResponse.body);
-          final List<dynamic> movementsData = json.decode(movementsResponse.body);
-          double totalBalance = 0.0;
-          for (var account in accountsData) {
-            totalBalance += double.tryParse(account['saldo_actual'].toString()) ?? 0.0;
-          }
+          final accountData = json.decode(accountsResponse.body);
+          final List<dynamic> allMovementsData = json.decode(movementsResponse.body);
+
+          // Filtrar los movimientos por el idcuenta localmente
+          final filteredMovements = allMovementsData
+              .where((movement) => movement['idcuenta'] == _selectedAccountId)
+              .toList();
+
+          // El saldo actual es el de la única cuenta seleccionada
+          final totalBalance = double.tryParse(accountData['cuenta']['saldo_actual'].toString()) ?? 0.0;
 
           double totalIngresos = 0.0;
           double totalGastos = 0.0;
-          final now = DateTime.now();
-          for (var movement in movementsData) {
-            final movementDate = DateTime.tryParse(movement['fecha'].toString());
-            if (movementDate != null && movementDate.year == now.year && movementDate.month == now.month) {
-              if (movement['tipo'] == 'ingreso') {
-                totalIngresos += double.tryParse(movement['monto'].toString()) ?? 0.0;
-              } else if (movement['tipo'] == 'gasto') {
-                totalGastos += double.tryParse(movement['monto'].toString()) ?? 0.0;
-              }
+
+          // Recorrer solo los movimientos de la cuenta seleccionada
+          for (var movement in filteredMovements) {
+            if (movement['tipo'] == 'ingreso') {
+              totalIngresos += double.tryParse(movement['monto'].toString()) ?? 0.0;
+            } else if (movement['tipo'] == 'gasto') {
+              totalGastos += double.tryParse(movement['monto'].toString()) ?? 0.0;
             }
           }
 
           setState(() {
             _saldoActual = totalBalance;
-            _ingresosMes = totalIngresos;
-            _gastosMes = totalGastos;
+            _ingresosTotales = totalIngresos;
+            _gastosTotales = totalGastos;
           });
         } else {
-          print('Error al cargar datos. Códigos de estado: Cuentas(${accountsResponse.statusCode}), Movimientos(${movementsResponse.statusCode})');
+          print('Error al cargar datos. Códigos de estado: Cuenta(${accountsResponse.statusCode}), Movimientos(${movementsResponse.statusCode})');
         }
       }
     } catch (e) {
@@ -104,6 +113,8 @@ class _BalanceCardState extends State<BalanceCard> {
 
   @override
   Widget build(BuildContext context) {
+    final currencyFormatter = NumberFormat.currency(locale: 'es_ES', symbol: 'S/', decimalDigits: 2);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -135,7 +146,7 @@ class _BalanceCardState extends State<BalanceCard> {
           ),
           const SizedBox(height: 8),
           Text(
-            'S/. ${_saldoActual.toStringAsFixed(2)}',
+            currencyFormatter.format(_saldoActual),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
@@ -150,14 +161,14 @@ class _BalanceCardState extends State<BalanceCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Ingresos este mes',
+                      'Ingresos totales',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
                       ),
                     ),
                     Text(
-                      'S/. ${_ingresosMes.toStringAsFixed(2)}', // Mostrar ingresos dinámicos
+                      currencyFormatter.format(_ingresosTotales),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -172,14 +183,14 @@ class _BalanceCardState extends State<BalanceCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Gastos este mes',
+                      'Gastos totales',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
                       ),
                     ),
                     Text(
-                      'S/. ${_gastosMes.toStringAsFixed(2)}', // Mostrar gastos dinámicos
+                      currencyFormatter.format(_gastosTotales),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
