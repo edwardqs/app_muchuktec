@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'budgets_detail_screen.dart'; // Importa la vista de detalle
 
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 const String API_BASE_URL = 'http://10.0.2.2:8000/api';
@@ -105,7 +106,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
 
-      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
@@ -127,7 +127,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         return;
       }
 
-      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
       final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
@@ -197,12 +196,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        // Éxito: El presupuesto fue eliminado o desactivado en el backend
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Presupuesto eliminado con éxito.'), backgroundColor: Colors.green),
         );
       } else if (response.statusCode == 401) {
-        // Manejar token expirado
         await prefs.remove('accessToken');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,7 +207,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         );
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       } else {
-        // Manejar otros errores
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al eliminar: ${response.statusCode}'), backgroundColor: Colors.red),
         );
@@ -440,135 +436,146 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
     final monthName = getMonthName(budget.month);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withAlpha(26),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        // Navega a la vista de detalle y pasa el ID del presupuesto
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BudgetDetailScreen(budgetId: int.parse(budget.id)),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                budget.category,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'edit':
-                      break;
-                    case 'delete':
-                      _deleteBudget(budget);
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: const [
-                        Icon(Icons.edit, color: Colors.blue, size: 20),
-                        SizedBox(width: 8),
-                        Text('Editar'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: const [
-                        Icon(Icons.delete, color: Colors.red, size: 20),
-                        SizedBox(width: 8),
-                        Text('Eliminar'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            monthName,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withAlpha(26),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: (percentage / 100).clamp(0.0, 1.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: BorderRadius.circular(3),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  budget.category,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
                 ),
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'edit':
+                        break;
+                      case 'delete':
+                        _deleteBudget(budget);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.edit, color: Colors.blue, size: 20),
+                          SizedBox(width: 8),
+                          Text('Editar'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.delete, color: Colors.red, size: 20),
+                          SizedBox(width: 8),
+                          Text('Eliminar'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              monthName,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'S/.${budget.spentAmount.toStringAsFixed(2)} de S/.${budget.budgetAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: statusColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 12),
+            Container(
+              height: 6,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(3),
               ),
-              Text(
-                '${percentage.toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: statusColor,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: (percentage / 100).clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'S/.${budget.spentAmount.toStringAsFixed(2)} de S/.${budget.budgetAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: statusColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${percentage.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -665,9 +672,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context); // Cierra el diálogo
-              // Espera a que la eliminación en el servidor sea exitosa
               await _deleteBudgetOnServer(budget.id);
-              // Luego, elimina el elemento de la lista local para actualizar la UI
               if (mounted) {
                 setState(() {
                   budgets.removeWhere((b) => b.id == budget.id);
@@ -681,7 +686,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     );
   }
 }
-
 
 class Budget {
   final String id;
@@ -704,9 +708,7 @@ class Budget {
     final category = json['categoria_nombre'] as String? ?? 'Sin categoría';
 
     final budgetAmount = double.tryParse(json['monto'].toString()) ?? 0.0;
-    // NOTE: El monto gastado está hardcodeado, debes obtenerlo del backend
-    // Por ejemplo: final spentAmount = double.tryParse(json['monto_gastado'].toString()) ?? 0.0;
-    final spentAmount = 285.0;
+    final spentAmount = 285.0; // Valor de ejemplo
 
     return Budget(
       id: id,
