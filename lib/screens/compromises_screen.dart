@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+// Quité la importación de intl/intl.dart ya que solo se usaba en la clase de detalle movida.
 
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 const String API_BASE_URL = 'http://10.0.2.2:8000/api';
@@ -100,12 +101,12 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   Future<void> _loadAccessTokenAndFetchCompromises() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
-    _idCuenta = prefs.getInt('idCuenta'); // <-- AÑADIR ESTA LÍNEA
+    _idCuenta = prefs.getInt('idCuenta');
 
     // Imprime para verificar que se está leyendo bien
     print('Cargando compromisos para la cuenta con ID: $_idCuenta');
 
-    if (_accessToken != null && _idCuenta != null) { // <-- AÑADIR LA VERIFICACIÓN DE _idCuenta
+    if (_accessToken != null && _idCuenta != null) {
       _fetchCompromises();
     } else {
       if (!mounted) return;
@@ -128,13 +129,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     });
 
     try {
-      // ---- ESTE ES EL CAMBIO PRINCIPAL ----
       final url = Uri.parse('$API_BASE_URL/compromisos').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
       );
-      // ------------------------------------
 
       print('Llamando a la URL de compromisos: $url'); // Para depurar
 
@@ -268,6 +267,20 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     );
   }
 
+  // --- Método de Navegación a Detalles Actualizado ---
+  void _navigateToDetail(CompromiseModel compromise) {
+    // Usamos pushNamed, asumiendo que la ruta se llama '/compromises_detail'
+    Navigator.pushNamed(
+      context,
+      '/compromises_detail',
+      arguments: compromise, // Pasamos el objeto CompromiseModel como argumento
+    ).then((_) {
+      // Recargar la lista al volver, por si se realizó alguna edición/acción
+      _fetchCompromises();
+    });
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -339,7 +352,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/compromises_create');
+                  Navigator.pushNamed(context, '/compromises_create').then((_) => _fetchCompromises());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
@@ -444,7 +457,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Monto: S/ ${compromise.amount.toStringAsFixed(2)}',
+                  // Muestra el monto total en lugar de la cuota como resumen
+                  'Monto Total: S/ ${compromise.montoTotal?.toStringAsFixed(2) ?? compromise.amount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -453,13 +467,12 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               ],
             ),
           ),
-          Text(
-            compromise.date,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-            ),
+          // Botón para ver el detalle
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: Colors.purple),
+            onPressed: () => _navigateToDetail(compromise), // <-- Navegación por nombre
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -596,32 +609,33 @@ class CompromiseModel {
   });
 
   factory CompromiseModel.fromJson(Map<String, dynamic> json) {
-    final String amountString = json['monto_cuota']?.toString() ?? '0.0';
-    final double amount = double.tryParse(amountString) ?? 0.0;
+    // Helper para parsear de String o num a double
+    double? parseDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return double.tryParse(value);
+      if (value is num) return value.toDouble();
+      return null;
+    }
 
-    final double? montoTotal = (json['monto_total'] is String) ? double.tryParse(json['monto_total']) : (json['monto_total'] as num?)?.toDouble();
-    final double? montoCuota = (json['monto_cuota'] is String)
-        ? double.tryParse(json['monto_cuota'])
-        : (json['monto_cuota'] as num?)?.toDouble();
-    final double? tasaInteres = (json['tasa_interes'] is String)
-        ? double.tryParse(json['tasa_interes'])
-        : (json['tasa_interes'] as num?)?.toDouble();
+    final double montoCuotaParsed = parseDouble(json['monto_cuota']) ?? 0.0;
+    final double? montoTotalParsed = parseDouble(json['monto_total']);
+    final double? tasaInteresParsed = parseDouble(json['tasa_interes']);
 
     return CompromiseModel(
       id: json['id']?.toString() ?? '',
       name: json['nombre'] as String,
-      amount: amount, // <-- Aquí se usa el valor de 'monto_cuota'
+      amount: montoCuotaParsed, // <-- Aquí se usa el valor de 'monto_cuota' como fallback
       date: json['fecha_inicio'] as String,
       tipoCompromiso: json['tipo_compromiso'] as String?,
       idusuario: json['idusuario'] as int?,
       idcuenta: json['idcuenta'] as int?,
       idtercero: json['idtercero'] as int?,
       idfrecuencia: json['idfrecuencia'] as int?,
-      montoTotal: montoTotal,
+      montoTotal: montoTotalParsed, // Usar el valor parseado
       cantidadCuotas: json['cantidad_cuotas'] as int?,
-      montoCuota: montoCuota,
+      montoCuota: montoCuotaParsed,
       cuotasPagadas: json['cuotas_pagadas'] as int?,
-      tasaInteres: tasaInteres,
+      tasaInteres: tasaInteresParsed, // Usar el valor parseado
       tipoInteres: json['tipo_interes'] as String?,
       fechaTermino: json['fecha_termino'] as String?,
       estado: json['estado'] as String?,

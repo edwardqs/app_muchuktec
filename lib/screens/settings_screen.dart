@@ -299,9 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.notifications_active_outlined,
                     title: 'Notificaciones',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Notificaciones en desarrollo')),
-                      );
+                      Navigator.pushNamed(context, '/notifications');
                     },
                   ),
                   const Divider(height: 1, indent: 56),
