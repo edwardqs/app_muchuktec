@@ -55,6 +55,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        print('📄 Datos JSON: ${response.body}');
         final data = json.decode(response.body);
         setState(() {
           _compromise = CompromiseModel.fromJson(data);
@@ -73,6 +74,128 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
         _errorMessage = 'No se pudo conectar al servidor.';
       });
     }
+  }
+
+  // Método para enviar el pago a la API
+  Future<void> _submitPayment({
+    required double amount,
+    required String date,
+    String? note,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    // Asumo que tienes la cuenta activa guardada en SharedPreferences
+    final idCuenta = prefs.getInt('idCuenta');
+
+    if (token == null || idCuenta == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de autenticación o cuenta no seleccionada.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final url = Uri.parse('$API_BASE_URL/pagos-compromiso');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'idcompromiso': _compromise!.id,
+        'idcuenta': idCuenta,
+        'monto': amount,
+        'fecha_pago': date,
+        'nota': note,
+      }),
+    );
+
+    if (!mounted) return;
+
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pago registrado con éxito.'), backgroundColor: Colors.green),
+      );
+      _fetchCompromiseDetails();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al registrar el pago: ${response.statusCode}'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+// Método para mostrar el diálogo
+  void _showAddPaymentDialog() {
+    final formKey = GlobalKey<FormState>();
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    final dateController = TextEditingController(text: DateFormat('yyyy-MM-dd').format(DateTime.now()));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Registrar Nuevo Pago'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: amountController,
+                  decoration: const InputDecoration(labelText: 'Monto a Pagar', prefixText: 'S/ '),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (value) {
+                    if (value == null || value.isEmpty || double.tryParse(value) == null || double.parse(value) <= 0) {
+                      return 'Ingrese un monto válido.';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: dateController,
+                  decoration: const InputDecoration(labelText: 'Fecha de Pago'),
+                  readOnly: true,
+                  onTap: () async {
+                    DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (pickedDate != null) {
+                      dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate);
+                    }
+                  },
+                ),
+                TextFormField(
+                  controller: noteController,
+                  decoration: const InputDecoration(labelText: 'Nota (Opcional)'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                _submitPayment(
+                  amount: double.parse(amountController.text),
+                  date: dateController.text,
+                  note: noteController.text.isNotEmpty ? noteController.text : null,
+                );
+                Navigator.pop(context); // Cierra el diálogo
+              }
+            },
+            child: const Text('Guardar Pago'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatCurrency(double? value) {
@@ -148,15 +271,16 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          if (_compromise != null) // Solo muestra el botón si ya cargaron los datos
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blue),
-              onPressed: () {
-                // TODO: Implementar navegación a la pantalla de edición
-              },
-            ),
-        ],
+          actions: [
+            if (_compromise != null)
+              IconButton(
+                icon: const Icon(Icons.add_card_outlined, color: Colors.purple), // Icono más descriptivo
+                tooltip: 'Registrar Pago',
+                onPressed: () {
+                  _showAddPaymentDialog(); // Llamamos a la función que muestra la ventana
+                },
+              ),
+          ]
       ),
       // 6. El cuerpo de la pantalla ahora maneja los 3 estados posibles
       body: _isLoading
@@ -172,6 +296,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
   // Método que contiene la UI que ya tenías, para mantener el build() limpio
   Widget _buildDetailsView() {
     final compromise = _compromise!; // Sabemos que no es nulo aquí
+    // Obtenemos los datos directamente del modelo para los cálculos
+    final double montoTotalPagado = compromise.montoTotalPagado ?? 0.0;
+    final double montoTotal = compromise.montoTotal ?? 0.0;
+    final double progresoPago = (montoTotal > 0) ? (montoTotalPagado / montoTotal) : 0.0;
+
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -202,8 +331,10 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     _formatCurrency(compromise.montoTotal), Icons.money),
                 _buildDetailRow(
                     'Monto por Cuota',
-                    _formatCurrency(compromise.montoCuota),
-                    Icons.payment),
+                    _formatCurrency(compromise.montoCuota), Icons.payment),
+                _buildDetailRow(
+                  'Monto Total Pagado',
+                  _formatCurrency(montoTotalPagado), Icons.paid_outlined),
               ],
             ),
           ),
@@ -213,7 +344,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
           _buildSectionHeader('Fechas y Frecuencia'),
           _buildDetailRow('Fecha de Inicio', _formatDate(compromise.date), Icons.calendar_today),
           _buildDetailRow('Fecha de Término', _formatDate(compromise.fechaTermino), Icons.event_available),
-          _buildDetailRow('Frecuencia', (compromise.idfrecuencia ?? 'N/A').toString(), Icons.repeat),
+          _buildDetailRow('Frecuencia', (compromise.frecuencia?.nombre  ?? 'N/A').toString(), Icons.repeat),
           _buildSectionHeader('Intereses'),
           _buildDetailRow('Tasa de Interés', '${compromise.tasaInteres?.toStringAsFixed(2) ?? '0.00'}%', Icons.percent),
           _buildDetailRow('Tipo de Interés', compromise.tipoInteres ?? 'N/A', Icons.functions),
