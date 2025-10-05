@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-// Quité la importación de intl/intl.dart ya que solo se usaba en la clase de detalle movida.
 
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 const String API_BASE_URL = 'http://10.0.2.2:8000/api';
@@ -269,15 +268,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
   // --- Método de Navegación a Detalles Actualizado ---
   void _navigateToDetail(CompromiseModel compromise) {
-    // Usamos pushNamed, asumiendo que la ruta se llama '/compromises_detail'
     Navigator.pushNamed(
       context,
       '/compromises_detail',
-      arguments: compromise, // Pasamos el objeto CompromiseModel como argumento
-    ).then((_) {
-      // Recargar la lista al volver, por si se realizó alguna edición/acción
-      _fetchCompromises();
-    });
+      arguments: compromise.id, // <-- ERROR: Pasando el objeto completo
+    );
   }
 
 
