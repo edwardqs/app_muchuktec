@@ -16,12 +16,16 @@ dependencies:
     sdk: flutter
   http: ^1.1.0
   shared_preferences: ^2.2.0
-  intl: ^0.18.0
+  intl: ^0.20.2
   image_picker: ^1.1.0  # Add this line
   cached_network_image: ^3.3.1
+  fl_chart: ^0.65.0
+  flutter_localizations:
+    sdk: flutter
 
 
   cupertino_icons: ^1.0.8
+  month_year_picker: ^0.5.0+1
 
 dev_dependencies:
   flutter_test:
