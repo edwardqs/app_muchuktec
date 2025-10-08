@@ -68,7 +68,6 @@ final List<NotificationModel> dummyNotifications = [
   ),
 ];
 
-// ----------------------------------------------------------------------
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});

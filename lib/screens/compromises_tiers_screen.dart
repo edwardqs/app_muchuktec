@@ -323,7 +323,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
         title: const Text('Gestión de Terceros', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.black), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.black), onPressed: () {Navigator.pushNamed(context, '/notifications');}),
           InkWell(
             onTap: () => Navigator.pushNamed(context, '/accounts'),
             borderRadius: BorderRadius.circular(16),

@@ -347,7 +347,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications');
+            },
           ),
           InkWell(
             onTap: () {

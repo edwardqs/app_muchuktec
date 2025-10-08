@@ -406,7 +406,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications');
+            },
           ),
           InkWell(
             onTap: () => Navigator.pushNamed(context, '/accounts'),

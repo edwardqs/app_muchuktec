@@ -2,9 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Nuevo import
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/report_service.dart';
 import '../models/report_data.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 // Formateador de moneda
 final NumberFormat currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
@@ -23,12 +25,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   // Estado para el filtro de mes/año
   DateTime _selectedDate = DateTime.now();
-  String? _fatalError; // Para errores críticos (falta token/idCuenta)
+  String? _fatalError;
 
   @override
   void initState() {
     super.initState();
-    // Iniciar el proceso de carga, que primero valida la sesión
+    // Inicialización para evitar LateInitializationError
     _reportsFuture = Future.value(ReportData(summary: MonthlySummary(ingresos: 0, gastos: 0, balance: 0, mes: 'n/a', nombreMes: 'Cargando...'), trend: [], budgets: []));
 
     _checkAuthAndLoadReports();
@@ -40,7 +42,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final int? idCuenta = prefs.getInt('idCuenta');
 
     if (accessToken == null) {
-      // Redirigir si no hay token
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
@@ -48,7 +49,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
 
     if (idCuenta == null) {
-      // Error si no hay cuenta seleccionada
       if (mounted) {
         setState(() {
           _fatalError = 'ERROR: No se ha seleccionado una cuenta. Por favor, seleccione una en "Ajustes".';
@@ -57,7 +57,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       return;
     }
 
-    // Si todo está bien, cargamos los reportes
     _loadReports();
   }
 
@@ -72,7 +71,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
   }
 
-  // Lógica de navegación (se mantiene igual)
   void _onItemTapped(int index) {
     switch (index) {
       case 0:
@@ -92,31 +90,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  // Selector de Mes (se mantiene igual)
   Future<void> _selectMonth(BuildContext context) async {
-    // Volvemos a showDatePicker
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      // Esto asegura que el picker se muestre en español
       locale: const Locale('es', 'ES'),
-
-      // Opcional: Sugerir al picker que empiece en la vista de año para un recorrido más rápido.
       initialDatePickerMode: DatePickerMode.year,
     );
 
     if (picked != null && (picked.month != _selectedDate.month || picked.year != _selectedDate.year)) {
       setState(() {
-        // Solo nos importa el mes y el año del día seleccionado.
         _selectedDate = picked;
       });
-      _loadReports(); // Recargar los reportes con la nueva fecha
+      _loadReports();
     }
   }
 
-  // Menú de exportación (se mantiene igual)
   void _showExportOptions() {
     showModalBottomSheet(
       context: context,
@@ -152,14 +143,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
       SnackBar(content: Text('Generando reporte en $format...')),
     );
     try {
-      await _reportService.exportReports(format);
+      final String filePath = await _reportService.exportReports(format);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reporte en $format generado con éxito (descarga simulada).')),
+        SnackBar(
+          content: Text('Reporte en $format generado con éxito. Guardado en: ${filePath.split('/').last}'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(label: 'VER RUTA', onPressed: () => print('Ruta Completa: $filePath')),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al exportar: ${e.toString().replaceFirst('Exception: ', '')}')),
+        SnackBar(
+          content: Text('Error al exportar: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -169,7 +168,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        // ... (Tu AppBar se mantiene igual)
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -192,13 +190,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         ],
       ),
-      body: _buildBody(), // Usamos un método separado para el cuerpo
-      bottomNavigationBar: _buildBottomNavigationBar(), // Usamos tu widget de BNV
+      body: _buildBody(),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
   Widget _buildBody() {
-    // Si hay un error fatal (falta idCuenta), lo mostramos.
     if (_fatalError != null) {
       return Center(
         child: Padding(
@@ -208,14 +205,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
     }
 
-    // Si no hay error fatal, intentamos construir con FutureBuilder
     return FutureBuilder<ReportData>(
       future: _reportsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
-          // Extraemos el mensaje de error de la excepción
           final errorText = snapshot.error.toString().replaceFirst('Exception: ', '');
 
           return Center(
@@ -246,22 +241,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // Selector de Mes
                 _MonthSelector(
                   selectedDate: _selectedDate,
                   onTap: () => _selectMonth(context),
                 ),
                 const SizedBox(height: 20),
-
-                // Resumen Mensual
                 MonthlySummaryCard(summary: reportData.summary),
                 const SizedBox(height: 24),
-
-                // Gráfico de Tendencias (AQUÍ USAMOS LA VERSIÓN CORREGIDA)
                 MonthlyTrendChart(trendData: reportData.trend),
                 const SizedBox(height: 24),
-
-                // Cumplimiento de Presupuestos
                 BudgetComplianceCard(budgets: reportData.budgets),
               ],
             ),
@@ -273,7 +261,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // Tu BottomNavigationBar (extraído para claridad)
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -331,13 +318,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
 }
 
 // -----------------------------------------------------------------------------
-// WIDGETS AUXILIARES
+// WIDGETS AUXILIARES (Los he dejado igual ya que solo contienen UI/Chart Logic)
 // -----------------------------------------------------------------------------
 
-// Selector de Mes
 class _MonthSelector extends StatelessWidget {
   final DateTime selectedDate;
-  final VoidCallback onTap; // La lógica de selección está en el padre
+  final VoidCallback onTap;
 
   const _MonthSelector({required this.selectedDate, required this.onTap});
 
@@ -382,7 +368,6 @@ class _MonthSelector extends StatelessWidget {
   }
 }
 
-// Resumen Mensual (anterior SimpleMonthlySummary)
 class MonthlySummaryCard extends StatelessWidget {
   final MonthlySummary summary;
 
@@ -479,7 +464,7 @@ class _SummaryItem extends StatelessWidget {
     );
   }
 }
-// Gráfico de Tendencias
+
 class MonthlyTrendChart extends StatelessWidget {
   final List<TrendData> trendData;
 
@@ -487,7 +472,6 @@ class MonthlyTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calcular el valor máximo para el eje Y
     double maxY = 0;
     for (var data in trendData) {
       if (data.ingresos > maxY) maxY = data.ingresos;
@@ -497,13 +481,12 @@ class MonthlyTrendChart extends StatelessWidget {
     double interval = maxY / 4;
     if (maxY == 0) {
       maxY = 100.0;
-      interval = 25.0; // Asignar aquí
+      interval = 25.0;
     } else {
       maxY = maxY * 1.1;
-      interval = maxY / 4; // Asignar aquí
+      interval = maxY / 4;
     }
 
-    // Convertir los datos de Tendencia a datos de FlSpot
     final List<FlSpot> ingresosSpots = trendData.asMap().entries.map((entry) {
       return FlSpot(entry.key.toDouble(), entry.value.ingresos);
     }).toList();
@@ -548,13 +531,11 @@ class MonthlyTrendChart extends StatelessWidget {
               LineChartData(
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
-                  // Ejes ocultos (Top y Right)
                   topTitles: const AxisTitles(sideTitles: SideTitles(reservedSize: 0)),
                   rightTitles: const AxisTitles(sideTitles: SideTitles(reservedSize: 0)),
 
-                  // Títulos del Eje X (Bottom) - ¡CORRECCIÓN APLICADA!
                   bottomTitles: AxisTitles(
-                    sideTitles: SideTitles( // <--- Ya no necesita showTitle: true
+                    sideTitles: SideTitles(
                       reservedSize: 30,
                       getTitlesWidget: (value, meta) {
                         if (value.toInt() < 0 || value.toInt() >= trendData.length) {
@@ -572,9 +553,8 @@ class MonthlyTrendChart extends StatelessWidget {
                     ),
                   ),
 
-                  // Títulos del Eje Y (Left) - ¡CORRECCIÓN APLICADA!
                   leftTitles: AxisTitles(
-                    sideTitles: SideTitles( // <--- Ya no necesita showTitle: true
+                    sideTitles: SideTitles(
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
@@ -670,7 +650,6 @@ class _LegendItem extends StatelessWidget {
   }
 }
 
-// Cumplimiento de Presupuestos (anterior SimpleBudgetCompliance)
 class BudgetComplianceCard extends StatelessWidget {
   final List<BudgetCompliance> budgets;
 
