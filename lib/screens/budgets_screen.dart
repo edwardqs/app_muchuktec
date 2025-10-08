@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'budgets_detail_screen.dart'; // Importa la vista de detalle
+import 'budgets_detail_screen.dart';
 
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 const String API_BASE_URL = 'http://10.0.2.2:8000/api';

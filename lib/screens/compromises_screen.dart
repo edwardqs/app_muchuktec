@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-// Quité la importación de intl/intl.dart ya que solo se usaba en la clase de detalle movida.
 
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 const String API_BASE_URL = 'http://10.0.2.2:8000/api';
@@ -75,7 +74,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
-            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
@@ -102,9 +100,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
     _idCuenta = prefs.getInt('idCuenta');
-
-    // Imprime para verificar que se está leyendo bien
-    print('Cargando compromisos para la cuenta con ID: $_idCuenta');
 
     if (_accessToken != null && _idCuenta != null) {
       _fetchCompromises();
@@ -135,8 +130,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         },
       );
 
-      print('Llamando a la URL de compromisos: $url'); // Para depurar
-
       final response = await http.get(
         url, // Usar la nueva URL
         headers: {
@@ -145,8 +138,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
           'Authorization': 'Bearer $_accessToken',
         },
       );
-
-      print('Respuesta del servidor: ${response.statusCode} - ${response.body}'); // Para depurar
 
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -269,15 +260,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
   // --- Método de Navegación a Detalles Actualizado ---
   void _navigateToDetail(CompromiseModel compromise) {
-    // Usamos pushNamed, asumiendo que la ruta se llama '/compromises_detail'
     Navigator.pushNamed(
       context,
       '/compromises_detail',
-      arguments: compromise, // Pasamos el objeto CompromiseModel como argumento
-    ).then((_) {
-      // Recargar la lista al volver, por si se realizó alguna edición/acción
-      _fetchCompromises();
-    });
+      arguments: compromise.id, // <-- ERROR: Pasando el objeto completo
+    );
   }
 
 
@@ -568,6 +555,25 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   }
 }
 
+// Modelo para las frecuencias
+class FrecuenciaModel {
+  final int id;
+  final String nombre;
+
+  FrecuenciaModel({
+    required this.id,
+    required this.nombre,
+  });
+
+  factory FrecuenciaModel.fromJson(Map<String, dynamic> json) {
+    return FrecuenciaModel(
+      id: json['id'] ?? 0,
+      nombre: json['nombre'] ?? 'Sin Nombre',
+    );
+  }
+}
+
+
 // Modelo para los compromisos
 class CompromiseModel {
   final String id;
@@ -588,6 +594,8 @@ class CompromiseModel {
   final String? fechaTermino;
   final String? estado;
   final int? estadoEliminar;
+  final FrecuenciaModel? frecuencia;
+  final double? montoTotalPagado;
 
   CompromiseModel({
     required this.id,
@@ -608,40 +616,49 @@ class CompromiseModel {
     this.fechaTermino,
     this.estado,
     this.estadoEliminar,
+    this.frecuencia,
+    this.montoTotalPagado,
   });
 
+  // ✅ Código corregido
   factory CompromiseModel.fromJson(Map<String, dynamic> json) {
-    // Helper para parsear de String o num a double
-    double? parseDouble(dynamic value) {
+    // Definimos las funciones auxiliares aquí dentro
+    double? _toDouble(dynamic value) {
       if (value == null) return null;
       if (value is String) return double.tryParse(value);
       if (value is num) return value.toDouble();
       return null;
     }
 
-    final double montoCuotaParsed = parseDouble(json['monto_cuota']) ?? 0.0;
-    final double? montoTotalParsed = parseDouble(json['monto_total']);
-    final double? tasaInteresParsed = parseDouble(json['tasa_interes']);
+    int? _toInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      return int.tryParse(value.toString());
+    }
 
     return CompromiseModel(
       id: json['id']?.toString() ?? '',
-      name: json['nombre'] as String,
-      amount: montoCuotaParsed, // <-- Aquí se usa el valor de 'monto_cuota' como fallback
-      date: json['fecha_inicio'] as String,
+      name: json['nombre'] as String? ?? 'Sin Nombre',
+      amount: _toDouble(json['monto_cuota']) ?? 0.0,
+      date: json['fecha_inicio'] as String? ?? '',
       tipoCompromiso: json['tipo_compromiso'] as String?,
-      idusuario: json['idusuario'] as int?,
-      idcuenta: json['idcuenta'] as int?,
-      idtercero: json['idtercero'] as int?,
-      idfrecuencia: json['idfrecuencia'] as int?,
-      montoTotal: montoTotalParsed, // Usar el valor parseado
-      cantidadCuotas: json['cantidad_cuotas'] as int?,
-      montoCuota: montoCuotaParsed,
-      cuotasPagadas: json['cuotas_pagadas'] as int?,
-      tasaInteres: tasaInteresParsed, // Usar el valor parseado
+      idusuario: _toInt(json['idusuario']),
+      idcuenta: _toInt(json['idcuenta']),
+      idtercero: _toInt(json['idtercero']),
+      idfrecuencia: _toInt(json['idfrecuencia']),
+      montoTotal: _toDouble(json['monto_total']),
+      cantidadCuotas: _toInt(json['cantidad_cuotas']),
+      montoCuota: _toDouble(json['monto_cuota']),
+      cuotasPagadas: _toInt(json['cuotas_pagadas']),
+      montoTotalPagado: _toDouble(json['pagos_sum_monto']),
+      tasaInteres: _toDouble(json['tasa_interes']),
       tipoInteres: json['tipo_interes'] as String?,
       fechaTermino: json['fecha_termino'] as String?,
       estado: json['estado'] as String?,
-      estadoEliminar: json['estado_eliminar'] as int?,
+      estadoEliminar: _toInt(json['estado_eliminar']),
+      frecuencia: json['frecuencia'] != null
+          ? FrecuenciaModel.fromJson(json['frecuencia'])
+          : null,
     );
   }
 }

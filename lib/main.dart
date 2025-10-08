@@ -15,20 +15,15 @@ import 'screens/assign_budget_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/compromises_screen.dart';
 import 'screens/compromises_create_screen.dart';
+import 'screens/compromises_detail_screen.dart';
 import 'screens/accounts_screen.dart';
 import 'screens/compromises_tiers_screen.dart';
 import 'screens/movements_screen.dart';
-import 'screens/compromises_detail_screen.dart';
 import 'screens/notifications_screen.dart';
 
-// DEBES CAMBIAR main() a async para usar await en la inicialización
 void main() async {
-  // 1. Inicializar los Widgets de Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Inicializar la localización para español ('es').
-  // Esto resuelve la LocaleDataException.
-  // Usamos 'es' para cargar todos los datos de sus dialectos (como 'es_PE').
   await initializeDateFormatting('es');
 
   runApp(const EconoMuchikApp());
@@ -47,7 +42,7 @@ class EconoMuchikApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
 
-      locale: const Locale('es', 'ES'), // Forzar el locale a Español España (un dialecto conocido)
+      locale: const Locale('es', 'ES'), // Forzar el locale a Español España
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -57,12 +52,11 @@ class EconoMuchikApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', 'US'), // Inglés
         Locale('es', 'ES'), // Español estándar
-        Locale('es', 'PE'), // Español Perú (para tu formato de moneda es_PE)
+        Locale('es', 'PE'), // Español Perú
       ],
 
       home: const LoginScreen(),
       onGenerateRoute: (settings) {
-        // ... (Tu onGenerateRoute se mantiene igual)
         print('onGenerateRoute called with: ${settings.name}');
         switch (settings.name) {
           case '/login':
@@ -89,15 +83,21 @@ class EconoMuchikApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => const CompromisesScreen());
           case '/compromises_create':
             return MaterialPageRoute(builder: (context) => const CompromisesCreateScreen());
+          case '/compromises_detail':
+            if (settings.arguments is String) {
+              final String compromiseId = settings.arguments as String;
+              return MaterialPageRoute(
+                builder: (context) => CompromisesDetailScreen(compromiseId: compromiseId),
+              );
+            }
+            // Si los argumentos no son correctos, puedes ir a una pantalla de error.
+            return MaterialPageRoute(builder: (context) => const Text('Error: Ruta no válida'));
           case '/accounts':
             return MaterialPageRoute(builder: (context) => const AccountsScreen());
           case '/compromises_tiers':
-          // Asegúrate de usar el nombre de la clase correcto, que parece ser 'TercerosScreen'
             return MaterialPageRoute(builder: (context) => const TercerosScreen());
           case '/movements':
             return MaterialPageRoute(builder: (context) => const MovementsScreen());
-          case '/compromises_detail':
-            return MaterialPageRoute(builder: (context) => const CompromisesDetailScreen());
           case '/notifications':
             return MaterialPageRoute(builder: (context) => const NotificationsScreen());
           default:

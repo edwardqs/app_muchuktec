@@ -1,58 +1,207 @@
+// lib/screens/compromises_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
-// CompromiseModel (Asumo que esta clase está correctamente definida y accesible)
-class CompromiseModel {
-  final String id;
-  final String name;
-  final double amount;
-  final String date;
-  final String? tipoCompromiso;
-  final int? idusuario;
-  final int? idcuenta;
-  final int? idtercero;
-  final int? idfrecuencia;
-  final double? montoTotal;
-  final int? cantidadCuotas;
-  final double? montoCuota;
-  final int? cuotasPagadas;
-  final double? tasaInteres;
-  final String? tipoInteres;
-  final String? fechaTermino;
-  final String? estado;
-  final int? estadoEliminar;
+import 'compromises_screen.dart';
+const String API_BASE_URL = 'http://10.0.2.2:8000/api';
 
-  CompromiseModel({
-    required this.id,
-    required this.name,
-    required this.amount,
-    required this.date,
-    this.tipoCompromiso,
-    this.idusuario,
-    this.idcuenta,
-    this.idtercero,
-    this.idfrecuencia,
-    this.montoTotal,
-    this.cantidadCuotas,
-    this.montoCuota,
-    this.cuotasPagadas,
-    this.tasaInteres,
-    this.tipoInteres,
-    this.fechaTermino,
-    this.estado,
-    this.estadoEliminar,
-  });
+class CompromisesDetailScreen extends StatefulWidget {
+  final String compromiseId;
+
+  const CompromisesDetailScreen({super.key, required this.compromiseId});
+
+  @override
+  State<CompromisesDetailScreen> createState() => _CompromisesDetailScreenState();
 }
 
-// ----------------------------------------------------------------------------------
+class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  CompromiseModel? _compromise;
 
-class CompromisesDetailScreen extends StatelessWidget {
-  const CompromisesDetailScreen({super.key});
+  @override
+  void initState() {
+    super.initState();
+    _fetchCompromiseDetails();
+  }
 
-  // Funciones auxiliares (omito código por brevedad, el tuyo es correcto)
+  Future<void> _fetchCompromiseDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+
+    if (token == null) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error de autenticación. Por favor, inicie sesión de nuevo.';
+      });
+      return;
+    }
+
+    try {
+      final url = Uri.parse('$API_BASE_URL/compromisos/${widget.compromiseId}');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        print('📄 Datos JSON: ${response.body}');
+        final data = json.decode(response.body);
+        setState(() {
+          _compromise = CompromiseModel.fromJson(data);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error al cargar los detalles: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'No se pudo conectar al servidor.';
+      });
+    }
+  }
+
+  // Método para enviar el pago a la API
+  Future<void> _submitPayment({
+    required double amount,
+    required String date,
+    String? note,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    // Asumo que tienes la cuenta activa guardada en SharedPreferences
+    final idCuenta = prefs.getInt('idCuenta');
+
+    if (token == null || idCuenta == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de autenticación o cuenta no seleccionada.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final url = Uri.parse('$API_BASE_URL/pagos-compromiso');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'idcompromiso': _compromise!.id,
+        'idcuenta': idCuenta,
+        'monto': amount,
+        'fecha_pago': date,
+        'nota': note,
+      }),
+    );
+
+    if (!mounted) return;
+
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pago registrado con éxito.'), backgroundColor: Colors.green),
+      );
+      _fetchCompromiseDetails();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al registrar el pago: ${response.statusCode}'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+// Método para mostrar el diálogo
+  void _showAddPaymentDialog() {
+    final formKey = GlobalKey<FormState>();
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    final dateController = TextEditingController(text: DateFormat('yyyy-MM-dd').format(DateTime.now()));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Registrar Nuevo Pago'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: amountController,
+                  decoration: const InputDecoration(labelText: 'Monto a Pagar', prefixText: 'S/ '),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (value) {
+                    if (value == null || value.isEmpty || double.tryParse(value) == null || double.parse(value) <= 0) {
+                      return 'Ingrese un monto válido.';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: dateController,
+                  decoration: const InputDecoration(labelText: 'Fecha de Pago'),
+                  readOnly: true,
+                  onTap: () async {
+                    DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (pickedDate != null) {
+                      dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate);
+                    }
+                  },
+                ),
+                TextFormField(
+                  controller: noteController,
+                  decoration: const InputDecoration(labelText: 'Nota (Opcional)'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                _submitPayment(
+                  amount: double.parse(amountController.text),
+                  date: dateController.text,
+                  note: noteController.text.isNotEmpty ? noteController.text : null,
+                );
+                Navigator.pop(context); // Cierra el diálogo
+              }
+            },
+            child: const Text('Guardar Pago'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatCurrency(double? value) {
     if (value == null) return 'N/A';
-    return 'S/ ${value.toStringAsFixed(2)}';
+    final format = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
+    return format.format(value);
   }
 
   String _formatDate(String? date) {
@@ -104,26 +253,6 @@ class CompromisesDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Intentar recuperar el argumento de la ruta. El '?' evita el error si es null.
-    final CompromiseModel? receivedCompromise = ModalRoute.of(context)?.settings.arguments as CompromiseModel?;
-
-    // 2. Si es nulo, usar un objeto de ejemplo.
-    final CompromiseModel compromise = receivedCompromise ?? CompromiseModel(
-      id: 'DUMMY_ID',
-      name: 'Compromiso de Prueba (SIN DATOS REALES)',
-      amount: 50.0,
-      date: '2025-01-15',
-      tipoCompromiso: 'PRÉSTAMO',
-      montoTotal: 500.0,
-      cantidadCuotas: 10,
-      montoCuota: 50.0,
-      cuotasPagadas: 3,
-      tasaInteres: 8.5,
-      tipoInteres: 'FIJO',
-      fechaTermino: '2025-10-15',
-      estado: 'ACTIVO',
-    );
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -134,104 +263,96 @@ class CompromisesDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Detalle: ${compromise.name}',
+          // Muestra un título genérico mientras carga
+          _compromise == null ? 'Detalle de Compromiso' : 'Detalle: ${_compromise!.name}',
           style: const TextStyle(
             color: Colors.black,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.blue),
-            onPressed: () {
-              // TODO: Implementar navegación a la pantalla de edición
-            },
-          ),
-        ],
+          actions: [
+            if (_compromise != null)
+              IconButton(
+                icon: const Icon(Icons.add_card_outlined, color: Colors.purple), // Icono más descriptivo
+                tooltip: 'Registrar Pago',
+                onPressed: () {
+                  _showAddPaymentDialog(); // Llamamos a la función que muestra la ventana
+                },
+              ),
+          ]
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Indicador visual de que son datos de prueba
-            if (receivedCompromise == null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.red[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber, color: Colors.red[700]),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Mostrando datos de ejemplo. No se recibió el Compromiso real.',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      // 6. El cuerpo de la pantalla ahora maneja los 3 estados posibles
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
+          : _compromise == null
+          ? const Center(child: Text('No se encontró el compromiso.'))
+          : _buildDetailsView(), // Llama al método que construye la UI
+    );
+  }
 
-            // Sección de Resumen Principal
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.purple[50],
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.purple.withOpacity(0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    compromise.tipoCompromiso ?? 'COMPROMISO REGISTRADO',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.purple[700],
-                    ),
-                  ),
-                  const Divider(height: 20, color: Colors.purple),
-                  _buildDetailRow(
-                      'Monto Total',
-                      _formatCurrency(compromise.montoTotal),
-                      Icons.money),
-                  _buildDetailRow(
-                      'Monto por Cuota',
-                      _formatCurrency(compromise.montoCuota),
-                      Icons.payment),
-                ],
-              ),
+  // Método que contiene la UI que ya tenías, para mantener el build() limpio
+  Widget _buildDetailsView() {
+    final compromise = _compromise!; // Sabemos que no es nulo aquí
+    // Obtenemos los datos directamente del modelo para los cálculos
+    final double montoTotalPagado = compromise.montoTotalPagado ?? 0.0;
+    final double montoTotal = compromise.montoTotal ?? 0.0;
+    final double progresoPago = (montoTotal > 0) ? (montoTotalPagado / montoTotal) : 0.0;
+
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.purple[50],
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.purple.withOpacity(0.2)),
             ),
-
-            // Resto de las secciones...
-            _buildSectionHeader('Cuotas y Pagos'),
-            _buildDetailRow('Total de Cuotas', (compromise.cantidadCuotas ?? 0).toString(), Icons.format_list_numbered),
-            _buildDetailRow('Cuotas Pagadas', (compromise.cuotasPagadas ?? 0).toString(), Icons.check_circle_outline),
-
-            _buildSectionHeader('Fechas y Frecuencia'),
-            _buildDetailRow('Fecha de Inicio', _formatDate(compromise.date), Icons.calendar_today),
-            _buildDetailRow('Fecha de Término', _formatDate(compromise.fechaTermino), Icons.event_available),
-            _buildDetailRow('Frecuencia (ID)', (compromise.idfrecuencia ?? 'N/A').toString(), Icons.repeat),
-
-            _buildSectionHeader('Intereses'),
-            _buildDetailRow('Tasa de Interés', '${compromise.tasaInteres?.toStringAsFixed(2) ?? '0.00'}%', Icons.percent),
-            _buildDetailRow('Tipo de Interés', compromise.tipoInteres ?? 'N/A', Icons.functions),
-
-            _buildSectionHeader('Otros Datos'),
-            _buildDetailRow('Estado Actual', compromise.estado ?? 'N/A', Icons.info),
-            _buildDetailRow('ID del Tercero', (compromise.idtercero ?? 'N/A').toString(), Icons.people_alt),
-
-            const SizedBox(height: 50),
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  compromise.tipoCompromiso ?? 'COMPROMISO REGISTRADO',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple[700],
+                  ),
+                ),
+                const Divider(height: 20, color: Colors.purple),
+                _buildDetailRow(
+                    'Monto Total',
+                    _formatCurrency(compromise.montoTotal), Icons.money),
+                _buildDetailRow(
+                    'Monto por Cuota',
+                    _formatCurrency(compromise.montoCuota), Icons.payment),
+                _buildDetailRow(
+                  'Monto Total Pagado',
+                  _formatCurrency(montoTotalPagado), Icons.paid_outlined),
+              ],
+            ),
+          ),
+          _buildSectionHeader('Cuotas y Pagos'),
+          _buildDetailRow('Total de Cuotas', (compromise.cantidadCuotas ?? 0).toString(), Icons.format_list_numbered),
+          _buildDetailRow('Cuotas Pagadas', (compromise.cuotasPagadas ?? 0).toString(), Icons.check_circle_outline),
+          _buildSectionHeader('Fechas y Frecuencia'),
+          _buildDetailRow('Fecha de Inicio', _formatDate(compromise.date), Icons.calendar_today),
+          _buildDetailRow('Fecha de Término', _formatDate(compromise.fechaTermino), Icons.event_available),
+          _buildDetailRow('Frecuencia', (compromise.frecuencia?.nombre  ?? 'N/A').toString(), Icons.repeat),
+          _buildSectionHeader('Intereses'),
+          _buildDetailRow('Tasa de Interés', '${compromise.tasaInteres?.toStringAsFixed(2) ?? '0.00'}%', Icons.percent),
+          _buildDetailRow('Tipo de Interés', compromise.tipoInteres ?? 'N/A', Icons.functions),
+          _buildSectionHeader('Otros Datos'),
+          _buildDetailRow('Estado Actual', compromise.estado ?? 'N/A', Icons.info),
+          _buildDetailRow('ID del Tercero', (compromise.idtercero ?? 'N/A').toString(), Icons.people_alt),
+          const SizedBox(height: 50),
+        ],
       ),
     );
   }
