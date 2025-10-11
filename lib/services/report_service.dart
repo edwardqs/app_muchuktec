@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/report_data.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:async';
-import 'package:permission_handler/permission_handler.dart'; // Necesario para la carpeta pública
+import 'package:file_saver/file_saver.dart';
+import 'dart:typed_data'; // Necesario para los bytes
 
 const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 const String API_BASE_URL = 'http://10.0.2.2:8000/api';
@@ -30,52 +30,6 @@ class ReportService {
       'idCuenta': idCuenta.toString(),
     };
   }
-
-  // 🚨 NUEVO MÉTODO: Obtener la ruta de descarga pública y solicitar permisos
-  Future<String> _getDownloadPath(String fileName) async {
-
-    var status = await Permission.storage.status;
-
-    if (status.isDenied) {
-      // 1. Si está denegado, solicitarlo
-      status = await Permission.storage.request();
-    }
-
-    // 🚨 ÚLTIMO INTENTO: Si el permiso sigue sin concederse, forzar la apertura de Ajustes
-    if (status.isDenied || status.isPermanentlyDenied) {
-      openAppSettings();
-
-      throw Exception('Permiso de almacenamiento denegado. Conceda el permiso y reintente.');
-    }
-
-    Directory? directory;
-
-    if (Platform.isAndroid) {
-
-      final externalDir = await getExternalStorageDirectory();
-
-      if (externalDir != null) {
-        final externalRoot = externalDir.path.split('/Android').first;
-        final downloadPath = '$externalRoot/Download';
-        directory = Directory(downloadPath);
-
-        if (!await directory.exists()) {
-          await directory.create(recursive: true);
-        }
-      }
-    } else if (Platform.isIOS) {
-      // En iOS, el directorio de documentos es el mejor lugar accesible.
-      directory = await getApplicationDocumentsDirectory();
-    }
-
-    if (directory == null) {
-      throw Exception('No se pudo determinar la ruta de descarga.');
-    }
-
-    return '${directory.path}/$fileName';
-  }
-
-
 
   Future<ReportData> fetchReports({required int month, required int year}) async {
     final authData = await _getAuthData();
@@ -128,45 +82,38 @@ class ReportService {
     final uri = Uri.parse('$API_BASE_URL/reports/export/$format')
         .replace(queryParameters: {'idcuenta': idCuenta});
 
-    final Future<http.Response> responseFuture = http.get(
+    final response = await http.get(
       uri,
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-      },
+      headers: {'Authorization': 'Bearer $accessToken'},
     ).timeout(const Duration(seconds: 60),
-      onTimeout: () => throw TimeoutException('El servidor tardó demasiado en enviar el reporte. Intente de nuevo.'),
+      onTimeout: () => throw TimeoutException('El servidor tardó demasiado en responder.'),
     );
 
-    final response = await responseFuture;
-
     if (response.statusCode == 200) {
+      Uint8List fileBytes = response.bodyBytes;
+
       String extension = format == 'excel' ? 'xlsx' : 'pdf';
-      String fileName = 'reporte_financiero_${DateTime.now().year}${DateTime.now().month}.$extension';
+      String fullFileName = 'reporte_financiero_${DateTime.now().toIso8601String()}.$extension';
 
-      // 🚨 USAR EL MÉTODO DE RUTA PÚBLICA
-      final filePath = await _getDownloadPath(fileName);
+      String? filePath = await FileSaver.instance.saveFile(
+        name: fullFileName, // Usamos el nombre completo aquí
+        bytes: fileBytes,
+      );
 
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
+      if (filePath != null) {
+        return filePath;
+      } else {
+        throw Exception('No se pudo guardar el archivo.');
+      }
 
-      return filePath;
     } else {
-
       try {
         final errorData = json.decode(response.body);
         final errorMessage = errorData['error'] ?? 'Error desconocido del servidor';
         throw Exception('Error del Servidor (${response.statusCode}): $errorMessage');
       } catch (e) {
-
-        if (response.statusCode == 501) {
-          throw Exception('La exportación a PDF no está implementada en el servidor (Código 501).');
-        }
-
-        // Error de conexión o lectura del archivo.
-        throw Exception('Fallo de conexión o lectura del archivo. Código: ${response.statusCode}');
+        throw Exception('Fallo al descargar el reporte. Código: ${response.statusCode}');
       }
     }
   }
-
-
 }

@@ -139,24 +139,35 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _exportReport(String format) async {
+    // Muestra un indicador de que la descarga ha comenzado
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Generando reporte en $format...')),
+      SnackBar(content: Text('Descargando reporte en $format...')),
     );
     try {
+      // Llamamos a nuestro nuevo método que guarda el archivo
       final String filePath = await _reportService.exportReports(format);
 
+      // Si todo fue bien, mostramos un mensaje de éxito con la ubicación
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reporte en $format generado con éxito. Guardado en: ${filePath.split('/').last}'),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(label: 'VER RUTA', onPressed: () => print('Ruta Completa: $filePath')),
+          content: Text('Reporte guardado en la carpeta de Descargas.'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+              label: 'VER RUTA',
+              onPressed: () {
+                // Opcional: Imprime la ruta completa en la consola para depuración
+                print('Archivo guardado en: $filePath');
+              }
+          ),
         ),
       );
+
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al exportar: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text('Error al guardar: ${e.toString().replaceFirst('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
