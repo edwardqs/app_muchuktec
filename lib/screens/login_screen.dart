@@ -13,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final url = Uri.parse('$API_BASE_URL/login');
     final body = {
-      'correo': _emailController.text,
+      'login': _loginController.text,
       'password': _passwordController.text,
     };
 
@@ -127,11 +127,14 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         final errorData = json.decode(response.body);
-        if (errorData['errors'] != null) {
+        if (errorData['errors'] != null && errorData['errors']['login'] != null) {
+          _errorMessage.value = errorData['errors']['login'][0];
+        } else if (errorData['errors'] != null) {
+          // Fallback por si hay otro tipo de error
           final firstError = errorData['errors'].values.first[0];
           _errorMessage.value = firstError;
         } else {
-          _errorMessage.value = errorData['message'] ?? 'Error desconocido al iniciar sesión.';
+          _errorMessage.value = errorData['message'] ?? 'Error desconocido.';
         }
       }
     } catch (e) {
@@ -171,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _loginController.dispose();
     _passwordController.dispose();
     _isPasswordVisible.dispose();
     _rememberMe.dispose();
@@ -260,16 +263,13 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           ),
           _buildModernTextField(
-            controller: _emailController,
-            label: 'Correo Electrónico',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
+            controller: _loginController,
+            label: 'Correo o username',
+            icon: Icons.person_outline,
+            keyboardType: TextInputType.text,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu email';
-              }
-              if (!value.contains('@')) {
-                return 'Por favor ingresa un email válido';
+                return 'Por favor ingresa tu correo o username';
               }
               return null;
             },
