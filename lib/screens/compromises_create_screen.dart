@@ -5,9 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
-
-
-const String apiUrl = 'http://10.0.2.2:8000/api';
+import 'package:app_muchik/config/constants.dart';
 
 class CompromisesCreateScreen extends StatefulWidget {
   const CompromisesCreateScreen({super.key});
@@ -64,7 +62,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     if (_accessToken == null) return;
     try {
       final response = await http.get(
-        Uri.parse('$apiUrl/terceros'),
+        Uri.parse('$API_BASE_URL/terceros'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Accept': 'application/json',
@@ -278,7 +276,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/compromisos'),
+        Uri.parse('$API_BASE_URL/compromisos'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',

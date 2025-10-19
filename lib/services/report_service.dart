@@ -7,9 +7,8 @@ import '../models/report_data.dart';
 import 'dart:async';
 import 'package:file_saver/file_saver.dart';
 import 'dart:typed_data'; // Necesario para los bytes
+import 'package:app_muchik/config/constants.dart';
 
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
-const String API_BASE_URL = 'http://10.0.2.2:8000/api';
 
 class ReportService {
 

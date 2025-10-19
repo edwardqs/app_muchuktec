@@ -5,9 +5,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_model.dart';
 import 'package:flutter/services.dart';
+import 'package:app_muchik/config/constants.dart';
 
-const String apiUrl = 'http://10.0.2.2:8000/api';
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
 class AssignBudgetScreen extends StatefulWidget {
   const AssignBudgetScreen({super.key});
@@ -95,7 +94,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         return;
       }
 
-      final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
       final response = await http.get(
         url,
         headers: {
@@ -151,7 +150,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
     }
 
     try {
-      final url = Uri.parse('$apiUrl/categorias').replace(
+      final url = Uri.parse('$API_BASE_URL/categorias').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
@@ -194,7 +193,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   Future<void> _sendBudgetToApi(Map<String, dynamic> budgetData) async {
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/presupuestos'),
+        Uri.parse('$API_BASE_URL/presupuestos'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',

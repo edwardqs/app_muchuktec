@@ -20,10 +20,32 @@ import 'screens/accounts_screen.dart';
 import 'screens/compromises_tiers_screen.dart';
 import 'screens/movements_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // No necesitas inicializar Firebase aquí. La librería lo maneja.
+  print("🔔 Notificación recibida en segundo plano: ${message.messageId}");
+  if (message.notification != null) {
+    print("Título: ${message.notification!.title}");
+    print("Cuerpo: ${message.notification!.body}");
+  }
+}
 void main() async {
+  // Asegurar que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicializar Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // 👇 3. REGISTRA EL MANEJADOR DE SEGUNDO PLANO
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Inicializar localización para formatos de fecha
   await initializeDateFormatting('es');
 
   runApp(const EconoMuchikApp());
@@ -55,7 +77,7 @@ class EconoMuchikApp extends StatelessWidget {
         Locale('es', 'PE'), // Español Perú
       ],
 
-      home: const LoginScreen(),
+      home: const LoadingScreen(),
       onGenerateRoute: (settings) {
         print('onGenerateRoute called with: ${settings.name}');
         switch (settings.name) {

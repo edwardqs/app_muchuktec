@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_muchik/config/constants.dart';
 
-const String apiUrl = 'http://10.0.2.2:8000/api';
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -59,7 +58,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       return;
     }
 
-    final url = Uri.parse('$apiUrl/categorias/$categoryId');
+    final url = Uri.parse('$API_BASE_URL/categorias/$categoryId');
 
     setState(() {});
 
@@ -139,7 +138,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         return;
       }
 
-      final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
       final response = await http.get(
@@ -199,7 +198,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       return;
     }
 
-    final url = Uri.parse('$apiUrl/categorias/$categoryId');
+    final url = Uri.parse('$API_BASE_URL/categorias/$categoryId');
     final body = json.encode({'nombre': newName.trim()});
 
     try {
@@ -266,7 +265,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     });
 
     try {
-      final url = Uri.parse('$apiUrl/categorias/').replace(
+      final url = Uri.parse('$API_BASE_URL/categorias/').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
@@ -383,7 +382,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/categorias'),
+        Uri.parse('$API_BASE_URL/categorias'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',

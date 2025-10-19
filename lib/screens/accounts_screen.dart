@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
+import 'package:app_muchik/config/constants.dart';
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
 
@@ -15,9 +15,6 @@ class AccountsScreen extends StatefulWidget {
 }
 
 class _AccountsScreenState extends State<AccountsScreen> {
-  final String _baseUrl = 'http://10.0.2.2:8000/api';
-  final String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
-
   List<dynamic> _userProfiles = [];
   bool _isLoading = true;
   String? _accessToken;
@@ -88,7 +85,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/cuentas'),
+        Uri.parse('$API_BASE_URL/cuentas'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -176,7 +173,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/cuentas'),
+        Uri.parse('$API_BASE_URL/cuentas'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -236,7 +233,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     try {
       final response = await http.delete(
-        Uri.parse('$_baseUrl/cuentas/$id'),
+        Uri.parse('$API_BASE_URL/cuentas/$id'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
         },
@@ -386,7 +383,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
 
     try {
-      var request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/cuentas/$id'));
+      var request = http.MultipartRequest('POST', Uri.parse('$API_BASE_URL/cuentas/$id'));
       request.headers['Authorization'] = 'Bearer $_accessToken';
       request.fields['nombre'] = newName.trim();
       request.fields['descripcion'] = newDescription.trim();

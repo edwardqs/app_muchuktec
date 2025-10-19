@@ -5,8 +5,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/report_service.dart';
 import '../models/report_data.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 // Formateador de moneda
 final NumberFormat currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');

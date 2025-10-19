@@ -1,8 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-
-const String apiUrl = 'http://10.0.2.2:8000/api';
+import 'package:app_muchik/config/constants.dart';
 
 class AuthService {
 
@@ -15,7 +14,7 @@ class AuthService {
       return;
     }
 
-    final url = Uri.parse('$apiUrl/logout');
+    final url = Uri.parse('$API_BASE_URL/logout');
 
     try {
       final response = await http.post(

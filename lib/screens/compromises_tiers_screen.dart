@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
-const String apiUrl = 'http://10.0.2.2:8000/api';
+import 'package:app_muchik/config/constants.dart';
 
 class TercerosScreen extends StatefulWidget {
   const TercerosScreen({super.key});
@@ -62,7 +61,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('$apiUrl/terceros'),
+        Uri.parse('$API_BASE_URL/terceros'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -135,7 +134,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/terceros'),
+        Uri.parse('$API_BASE_URL/terceros'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -185,7 +184,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
 
     try {
       final response = await http.put(
-        Uri.parse('$apiUrl/terceros/$id'),
+        Uri.parse('$API_BASE_URL/terceros/$id'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
@@ -222,7 +221,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
 
     try {
       final response = await http.delete(
-        Uri.parse('$apiUrl/terceros/$id'),
+        Uri.parse('$API_BASE_URL/terceros/$id'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
         },

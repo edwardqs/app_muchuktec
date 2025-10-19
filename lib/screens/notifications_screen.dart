@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:app_muchik/config/constants.dart';
+
 // Modelo de datos simple para las notificaciones de prueba
 class NotificationModel {
   final String id;

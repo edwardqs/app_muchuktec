@@ -5,10 +5,8 @@ import '../widgets/balance_card.dart';
 import '../widgets/quick_actions.dart';
 import '../widgets/recent_movements.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_muchik/config/constants.dart';
 
-// Esta constante te la pasó el usuario, ahora la estamos usando.
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
-const String API_BASE_URL = 'http://10.0.2.2:8000/api';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

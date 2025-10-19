@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:app_muchik/services/auth_service.dart';
-import 'package:http/http.dart' as http; // Importa el paquete http
-import 'dart:convert'; // Importa para codificar/decodificar JSON
-import 'package:shared_preferences/shared_preferences.dart'; // Importa para manejar preferencias
-
-const String apiUrl = 'http://10.0.2.2:8000/api';
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_muchik/config/constants.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -69,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
-      final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
       final response = await http.get(

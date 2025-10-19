@@ -5,11 +5,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:app_muchik/config/constants.dart';
 
-const String apiUrl = 'http://10.0.2.2:8000/api';
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
-
-// --- Clases de modelos (puedes colocarlas en un archivo separado) ---
 class CategoryModel {
   final String id;
   final String name;
@@ -90,7 +87,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
 
     try {
-      final url = Uri.parse('$apiUrl/categorias').replace(
+      final url = Uri.parse('$API_BASE_URL/categorias').replace(
         queryParameters: {
           'idcuenta': _idCuenta.toString(),
         },
@@ -164,7 +161,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
         return;
       }
 
-      final url = Uri.parse('$apiUrl/accounts/${selectedAccountId.toString()}');
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
       final response = await http.get(
@@ -310,7 +307,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/movimientos'),
+        Uri.parse('$API_BASE_URL/movimientos'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

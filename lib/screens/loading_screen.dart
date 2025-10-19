@@ -4,11 +4,11 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import 'package:app_muchik/services/user_session.dart';
+import 'package:app_muchik/config/constants.dart';
 
-// rene
-const String apiUrl = 'http://10.0.2.2:8000/api';
+// 👇 1. IMPORTA TU NUEVO SERVICIO
+import 'package:app_muchik/services/firebase_api.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -19,6 +19,7 @@ class LoadingScreen extends StatefulWidget {
 
 class _LoadingScreenState extends State<LoadingScreen>
     with TickerProviderStateMixin {
+  // ... (Todos tus controladores de animación se quedan igual) ...
   late AnimationController _logoController;
   late AnimationController _progressController;
   late AnimationController _textController;
@@ -29,29 +30,24 @@ class _LoadingScreenState extends State<LoadingScreen>
   late Animation<double> _textOpacityAnimation;
   late Animation<Offset> _textSlideAnimation;
 
+
   @override
   void initState() {
     super.initState();
 
-    // Logo Animation Controller
+    // ... (Toda tu inicialización de animaciones se queda igual) ...
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-
-    // Progress Animation Controller
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-
-    // Text Animation Controller
     _textController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
-    // Logo Animations
     _logoScaleAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -59,7 +55,6 @@ class _LoadingScreenState extends State<LoadingScreen>
       parent: _logoController,
       curve: Curves.elasticOut,
     ));
-
     _logoOpacityAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -67,8 +62,6 @@ class _LoadingScreenState extends State<LoadingScreen>
       parent: _logoController,
       curve: const Interval(0.0, 0.6),
     ));
-
-    // Progress Animation
     _progressAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -76,8 +69,6 @@ class _LoadingScreenState extends State<LoadingScreen>
       parent: _progressController,
       curve: Curves.easeInOut,
     ));
-
-    // Text Animations
     _textOpacityAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -85,7 +76,6 @@ class _LoadingScreenState extends State<LoadingScreen>
       parent: _textController,
       curve: Curves.easeIn,
     ));
-
     _textSlideAnimation = Tween<Offset>(
       begin: const Offset(0.0, 0.5),
       end: Offset.zero,
@@ -94,45 +84,47 @@ class _LoadingScreenState extends State<LoadingScreen>
       curve: Curves.easeOut,
     ));
 
-    _startAnimations();
-    _checkLoginStatus();
+
+    // 👇 2. LLAMA A UNA ÚNICA FUNCIÓN DE INICIALIZACIÓN
+    _initializeAndNavigate();
   }
 
-  void _startAnimations() async {
-    if (!mounted) return;
+  Future<void> _initializeAndNavigate() async {
+    // Inicia todas las animaciones
     _logoController.forward();
+    Future.delayed(const Duration(milliseconds: 600), () => _textController.forward());
+    Future.delayed(const Duration(milliseconds: 1000), () => _progressController.forward());
 
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    _textController.forward();
-
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    _progressController.forward();
-
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/dashboard');
-  }
-
-  void _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
+    // Define el tiempo mínimo que la pantalla debe mostrarse
     final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
 
-    if (token != null) {
-      await _fetchUserData(token);
-    } else {
-      await animationFuture;
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
+    // Ejecuta la comprobación de sesión y el registro de FCM
+    final isLoggedIn = await _checkSessionAndSetup();
+
+    // Espera a que la animación MÍNIMA haya terminado
+    await animationFuture;
+
+    // Navega basado en el resultado de la comprobación
+    if (mounted) {
+      if (isLoggedIn) {
+        Navigator.of(context).pushReplacementNamed('/dashboard');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/login');
       }
     }
   }
 
-  Future<void> _fetchUserData(String token) async {
-    final url = Uri.parse('$apiUrl/getUser');
-    final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
+  // 👇 3. ESTA FUNCIÓN AHORA VALIDA Y REGISTRA EL TOKEN FCM
+  Future<bool> _checkSessionAndSetup() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+
+    if (token == null) {
+      print('🚫 No hay token, se redirige a login.');
+      return false; // No está logueado
+    }
+
+    final url = Uri.parse('$API_BASE_URL/getUser');
 
     try {
       final response = await http.get(
@@ -143,8 +135,6 @@ class _LoadingScreenState extends State<LoadingScreen>
         },
       );
 
-      await animationFuture;
-
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
         final userSession = UserSession();
@@ -153,26 +143,25 @@ class _LoadingScreenState extends State<LoadingScreen>
           token: token,
           name: userData['nombres_completos'] ?? 'Usuario',
         );
-        print(
-            '✅ Datos del usuario obtenidos y guardados: ${userData['nombres_completos']}');
+        print('✅ Datos del usuario obtenidos: ${userData['nombres_completos']}');
 
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/dashboard');
-        }
+        // 👇 4. ¡AQUÍ ESTÁ LA MAGIA!
+        // Después de validar al usuario, registra el token FCM
+        print('🔄 Registrando dispositivo para notificaciones...');
+        await FirebaseApi().initNotifications();
+
+        return true; // Está logueado
       } else {
-        final prefs = await SharedPreferences.getInstance();
+        // El token no es válido
+        print('❌ Token no válido, limpiando sesión.');
         await prefs.remove('accessToken');
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/');
-        }
+        return false; // No está logueado
       }
     } catch (e) {
-      final prefs = await SharedPreferences.getInstance();
+      // Error de red
+      print('❗ Error de red al validar sesión: $e');
       await prefs.remove('accessToken');
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
-      }
-      print('Error al obtener los datos del usuario: $e');
+      return false; // No está logueado
     }
   }
 
@@ -184,6 +173,8 @@ class _LoadingScreenState extends State<LoadingScreen>
     super.dispose();
   }
 
+  // ... (Todo tu método build() y el widget LoadingDots se quedan EXACTAMENTE IGUAL) ...
+  // ... (No es necesario copiarlos aquí de nuevo) ...
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -335,7 +326,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   }
 }
 
-// Loading Dots Animation Widget
+// ... (El widget LoadingDots se queda igual) ...
 class LoadingDots extends StatefulWidget {
   const LoadingDots({super.key});
 

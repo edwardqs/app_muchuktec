@@ -9,8 +9,8 @@ import 'package:app_muchik/services/user_session.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 
-const String apiUrl = 'http://10.0.2.2:8000/api';
-const String STORAGE_BASE_URL = 'http://10.0.2.2:8000/storage';
+import 'package:app_muchik/config/constants.dart';
+
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -67,7 +67,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
     try {
-      final url = Uri.parse('$apiUrl/getUser');
+      final url = Uri.parse('$API_BASE_URL/getUser');
       final response = await http.get(
         url,
         headers: {
@@ -170,7 +170,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     };
     print("Enviando al backend: ${json.encode(requestBody)}");
     try {
-      final url = Uri.parse('$apiUrl/datospersonales/update');
+      final url = Uri.parse('$API_BASE_URL/datospersonales/update');
       final response = await http.put(
         url,
         headers: {
@@ -249,7 +249,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       // Usa el método PUT para coincidir con la ruta de Laravel
-      final url = Uri.parse('$apiUrl/profile/password');
+      final url = Uri.parse('$API_BASE_URL/profile/password');
       final response = await http.put(
         url,
         headers: {
@@ -316,7 +316,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    final url = Uri.parse('$apiUrl/usuario/upload-photo');
+    final url = Uri.parse('$API_BASE_URL/usuario/upload-photo');
     final request = http.MultipartRequest('POST', url);
 
     request.headers['Authorization'] = 'Bearer $token';

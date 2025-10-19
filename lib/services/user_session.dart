@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:app_muchik/config/constants.dart';
 
-// Esta clase actuará como un "singleton" para mantener el estado de la sesión del usuario.
 class UserSession extends ChangeNotifier {
   // Patrón Singleton
   static final UserSession _instance = UserSession._internal();
