@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:app_muchik/config/constants.dart';
+import 'dart:convert';
 
-// Modelo de datos simple para las notificaciones de prueba
+import 'package:app_muchik/config/constants.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+// --- MODELO (Sin cambios) ---
 class NotificationModel {
-  final String id;
+  final int id;
   final String title;
   final String body;
   final DateTime date;
@@ -19,63 +23,223 @@ class NotificationModel {
     required this.type,
     this.isRead = false,
   });
+
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: json['id'] as int,
+      title: json['title'] ?? 'Sin Título',
+      body: json['body'] ?? 'Sin contenido.',
+      date: DateTime.parse(json['created_at']),
+      type: _mapStringToNotificationType(json['type']),
+      isRead: json['status'] == 1,
+    );
+  }
+
+  NotificationModel copyWith({bool? isRead}) {
+    return NotificationModel(
+      id: id,
+      title: title,
+      body: body,
+      date: date,
+      type: type,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+
+  static NotificationType _mapStringToNotificationType(String? type) {
+    switch (type) {
+      case 'budget_warning':
+        return NotificationType.payment;
+      case 'error':
+        return NotificationType.alert;
+      case 'success':
+        return NotificationType.success;
+      default:
+        return NotificationType.info;
+    }
+  }
 }
 
-// Tipos de notificación para asignar íconos y colores
 enum NotificationType {
-  payment,   // Pagos, vencimientos
-  alert,     // Errores, fallos de conexión
-  info,      // Actualizaciones generales, recordatorios
-  success,   // Registro exitoso, operación completada
+  payment,
+  alert,
+  info,
+  success,
 }
+// --- FIN DEL MODELO ---
 
-// Datos de prueba
-final List<NotificationModel> dummyNotifications = [
-  NotificationModel(
-    id: '1',
-    title: '¡Pago Pendiente! 🔔',
-    body: 'El compromiso "Préstamo Hipotecario" vence en 3 días. Monto: S/ 1,250.00',
-    date: DateTime.now().subtract(const Duration(minutes: 15)),
-    type: NotificationType.payment,
-  ),
-  NotificationModel(
-    id: '2',
-    title: 'Operación Exitosa ✅',
-    body: 'Tu registro de gasto en "Comida" por S/ 45.00 fue completado.',
-    date: DateTime.now().subtract(const Duration(hours: 2)),
-    type: NotificationType.success,
-    isRead: true,
-  ),
-  NotificationModel(
-    id: '3',
-    title: 'Actualización de Sistema',
-    body: 'Hemos lanzado nuevas funciones de reporte. ¡Echa un vistazo!',
-    date: DateTime.now().subtract(const Duration(days: 1)),
-    type: NotificationType.info,
-    isRead: true,
-  ),
-  NotificationModel(
-    id: '4',
-    title: 'Error de Sincronización ⚠️',
-    body: 'Fallo al conectar con la base de datos remota. Intenta recargar la aplicación.',
-    date: DateTime.now().subtract(const Duration(days: 3)),
-    type: NotificationType.alert,
-  ),
-  NotificationModel(
-    id: '5',
-    title: 'Vencimiento de Tarjeta',
-    body: 'La cuota de tu tarjeta "Visa Platinum" está programada para mañana.',
-    date: DateTime.now().subtract(const Duration(days: 5)),
-    type: NotificationType.payment,
-  ),
-];
-
-
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
-  // Método para obtener el color y el ícono basado en el tipo de notificación
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  List<NotificationModel> _notifications = [];
+  bool _isLoading = true;
+  String? _error;
+  String? _accessToken;
+  int? _idcuenta;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  // --- LÓGICA DE API ---
+
+  Future<void> _fetchNotifications() async {
+    // ... (Tu código de fetch es correcto, sin cambios) ...
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _accessToken = prefs.getString('accessToken');
+      _idcuenta = prefs.getInt('idCuenta');
+
+      if (_accessToken == null || _idcuenta == null) {
+        throw Exception('Usuario no autenticado o cuenta no seleccionada.');
+      }
+
+      final url = Uri.parse('$API_BASE_URL/notifications?idcuenta=$_idcuenta');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _notifications = data
+              .map((json) => NotificationModel.fromJson(json))
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Error al cargar notificaciones: ${response.body}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // --- ACTUALIZADO ---
+  /// Marca una notificación como leída (localmente y en el backend)
+  Future<void> _markAsRead(int notificationId) async {
+    // 1. Encontrar la notificación en la lista
+    final notification = _notifications.firstWhere((n) => n.id == notificationId);
+
+    // 2. Si ya está leída, no hacer nada
+    if (notification.isRead) return;
+
+    // 3. Actualizar la UI localmente (Optimistic Update)
+    // La notificación desaparecerá de "Sin leer" y se moverá a "Leídas"
+    setState(() {
+      _notifications = _notifications.map((n) {
+        return n.id == notificationId ? n.copyWith(isRead: true) : n;
+      }).toList();
+    });
+
+    // 4. Intentar actualizar en el backend
+    try {
+      final url = Uri.parse('$API_BASE_URL/notifications/$notificationId/read');
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+          // --- NUEVO --- Añadir Content-Type y un body vacío por robustez
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({}),
+      );
+
+      if (response.statusCode != 200) {
+        // 5. Si falla, revertir el cambio local y mostrar error
+        _showErrorSnackbar('No se pudo marcar como leída. ${response.body}');
+        setState(() {
+          _notifications = _notifications.map((n) {
+            return n.id == notificationId ? n.copyWith(isRead: false) : n;
+          }).toList();
+        });
+      }
+    } catch (e) {
+      // 6. Revertir si hay un error de conexión
+      _showErrorSnackbar('Error de red al marcar como leída.');
+      setState(() {
+        _notifications = _notifications.map((n) {
+          return n.id == notificationId ? n.copyWith(isRead: false) : n;
+        }).toList();
+      });
+    }
+  }
+
+  // --- ACTUALIZADO ---
+  /// Marca TODAS las notificaciones como leídas
+  Future<void> _markAllAsRead() async {
+    // Guardar estado anterior en caso de que falle
+    final originalNotifications = List<NotificationModel>.from(_notifications);
+
+    // --- NUEVO --- Solo actualiza si hay algo que marcar
+    final bool hasUnread = _notifications.any((n) => !n.isRead);
+    if (!hasUnread) return;
+
+    // Actualizar UI localmente
+    setState(() {
+      _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+    });
+
+    try {
+      // ... (Tu lógica de API era correcta, sin cambios) ...
+      final url = Uri.parse('$API_BASE_URL/notifications/read-all');
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'idcuenta': _idcuenta}),
+      );
+
+      if (response.statusCode != 200) {
+        setState(() => _notifications = originalNotifications);
+        _showErrorSnackbar('No se pudo marcar todas como leídas.');
+      }
+    } catch (e) {
+      setState(() => _notifications = originalNotifications);
+      _showErrorSnackbar('Error de red. Intente de nuevo.');
+    }
+  }
+
+  void _showErrorSnackbar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  // --- MÉTODOS DE LA VISTA ---
+
   Map<String, dynamic> _getStyle(NotificationType type) {
+    // ... (Tu código es correcto, sin cambios) ...
     switch (type) {
       case NotificationType.payment:
         return {'color': Colors.orange[700], 'icon': Icons.account_balance_wallet_rounded};
@@ -88,30 +252,103 @@ class NotificationsScreen extends StatelessWidget {
     }
   }
 
-  // Método para formatear la fecha a un formato amigable (ej: "Hace 15 minutos")
   String _formatTimeAgo(DateTime date) {
+    // ... (Tu código es correcto, sin cambios) ...
     final Duration diff = DateTime.now().difference(date);
-
-    if (diff.inSeconds < 60) {
-      return 'Hace ${diff.inSeconds} segundos';
-    } else if (diff.inMinutes < 60) {
-      return 'Hace ${diff.inMinutes} minutos';
-    } else if (diff.inHours < 24) {
-      return 'Hace ${diff.inHours} horas';
-    } else if (diff.inDays < 7) {
-      return 'Hace ${diff.inDays} días';
-    } else {
-      return DateFormat('dd/MM/yy, hh:mm a').format(date);
-    }
+    if (diff.inSeconds < 60) return 'Hace ${diff.inSeconds} segundos';
+    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} minutos';
+    if (diff.inHours < 24) return 'Hace ${diff.inHours} horas';
+    if (diff.inDays < 7) return 'Hace ${diff.inDays} días';
+    return DateFormat('dd/MM/yy, hh:mm a').format(date);
   }
 
-  // Widget para construir cada ítem de notificación
+  // --- NUEVO ---
+  /// Muestra el modal con el detalle de la notificación
+  void _showNotificationModal(BuildContext context, NotificationModel notification) {
+
+
+    // 2. Obtiene el estilo (ícono y color)
+    final style = _getStyle(notification.type);
+    final color = style['color'] as Color?;
+    final icon = style['icon'] as IconData?;
+
+    // 3. Muestra el diálogo
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color?.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                notification.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Para que el texto largo tenga scroll si es necesario
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.3,
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    notification.body,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _formatTimeAgo(notification.date),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar', style: TextStyle(fontSize: 16)),
+            )
+          ],
+          actionsAlignment: MainAxisAlignment.center,
+        );
+      },
+    );
+  }
+
+  // --- ACTUALIZADO ---
+  /// Widget para construir cada ítem de notificación
   Widget _buildNotificationItem(BuildContext context, NotificationModel notification) {
     final style = _getStyle(notification.type);
     final color = style['color'] as Color?;
     final icon = style['icon'] as IconData?;
 
-    // El color de fondo y del texto depende de si fue leída
     final bgColor = notification.isRead ? Colors.white : Colors.blueGrey[50];
     final titleColor = notification.isRead ? Colors.grey[700] : Colors.black;
     final fontWeight = notification.isRead ? FontWeight.w400 : FontWeight.w600;
@@ -171,21 +408,33 @@ class NotificationsScreen extends StatelessWidget {
             ),
           ],
         ),
+
+        // --- NUEVO --- Botón para marcar como leída
+        trailing: notification.isRead
+            ? Icon(Icons.check_circle, color: Colors.green[300], size: 24)
+            : IconButton(
+          icon: Icon(Icons.check_circle_outline, color: Colors.grey[400], size: 24),
+          tooltip: 'Marcar como leída',
+          onPressed: () {
+            // Llama a la función de marcar como leída
+            _markAsRead(notification.id);
+          },
+        ),
+
+        // --- ACTUALIZADO --- El onTap ahora muestra el modal
         onTap: () {
-          // TODO: Implementar navegación al detalle de la notificación
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Abriendo detalle de: ${notification.title}')),
-          );
+          _showNotificationModal(context, notification);
         },
       ),
     );
   }
 
+  // --- MÉTODO BUILD (ACTUALIZADO) ---
   @override
   Widget build(BuildContext context) {
-    // Primero, separamos las notificaciones leídas de las no leídas para mostrarlas ordenadas.
-    final unread = dummyNotifications.where((n) => !n.isRead).toList();
-    final read = dummyNotifications.where((n) => n.isRead).toList();
+    // Filtra las notificaciones leídas y no leídas
+    final unread = _notifications.where((n) => !n.isRead).toList();
+    final read = _notifications.where((n) => n.isRead).toList();
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -202,59 +451,77 @@ class NotificationsScreen extends StatelessWidget {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all, color: Colors.blue),
-            onPressed: () {
-              // TODO: Implementar marcar todas como leídas
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Función "Marcar todas como leídas" ejecutada.')),
-              );
-            },
-          ),
+          // El botón "Marcar todas" solo es visible si hay notificaciones sin leer
+          if (unread.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.done_all, color: Colors.blue),
+              tooltip: 'Marcar todas como leídas',
+              onPressed: _markAllAsRead,
+            ),
         ],
       ),
-      body: dummyNotifications.isEmpty
-          ? const Center(
+      body: _buildBody(unread, read), // Usamos un método auxiliar para el body
+    );
+  }
+
+  Widget _buildBody(List<NotificationModel> unread, List<NotificationModel> read) {
+    // ... (Tu código de _buildBody es correcto, sin cambios) ...
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            'Error al cargar: $_error',
+            style: const TextStyle(fontSize: 16, color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    if (_notifications.isEmpty) {
+      return const Center(
         child: Text(
           'No tienes notificaciones.',
           style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
-      )
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Sección NO LEÍDAS
-            if (unread.isNotEmpty) ...[
-              Text(
-                'Sin leer (${unread.length})',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+      );
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (unread.isNotEmpty) ...[
+            Text(
+              'Sin leer (${unread.length})',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
-              const SizedBox(height: 10),
-              ...unread.map((n) => _buildNotificationItem(context, n)).toList(),
-              const SizedBox(height: 20),
-            ],
-
-            // Sección LEÍDAS
-            if (read.isNotEmpty) ...[
-              Text(
-                'Leídas',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[500],
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...read.map((n) => _buildNotificationItem(context, n)).toList(),
-            ],
+            ),
+            const SizedBox(height: 10),
+            ...unread.map((n) => _buildNotificationItem(context, n)).toList(),
+            const SizedBox(height: 20),
           ],
-        ),
+          if (read.isNotEmpty) ...[
+            Text(
+              'Leídas',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...read.map((n) => _buildNotificationItem(context, n)).toList(),
+          ],
+        ],
       ),
     );
   }

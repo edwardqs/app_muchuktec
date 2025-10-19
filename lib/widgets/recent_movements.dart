@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:app_muchik/config/constants.dart';
 
-const String apiUrl = 'http://10.0.2.2:8000/api';
 
 // --- Clases de modelos para los datos ---
 class Movement {
@@ -75,7 +75,7 @@ class _RecentMovementsState extends State<RecentMovements> {
 
     try {
       final response = await http.get(
-        Uri.parse('$apiUrl/movimientos'),
+        Uri.parse('$API_BASE_URL/movimientos'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

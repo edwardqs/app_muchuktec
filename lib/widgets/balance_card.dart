@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-
-const String apiUrl = 'http://10.0.2.2:8000/api';
+import 'package:app_muchik/config/constants.dart';
 
 class BalanceCard extends StatefulWidget {
   const BalanceCard({super.key});
@@ -43,7 +42,7 @@ class _BalanceCardState extends State<BalanceCard> {
 
     try {
       // 1. Obtener la cuenta específica
-      final accountUrl = Uri.parse('$apiUrl/accounts/$_selectedAccountId');
+      final accountUrl = Uri.parse('$API_BASE_URL/accounts/$_selectedAccountId');
       final accountsResponse = await http.get(
         accountUrl,
         headers: {
@@ -54,7 +53,7 @@ class _BalanceCardState extends State<BalanceCard> {
       );
 
       // 2. Obtener TODOS los movimientos
-      final movementsUrl = Uri.parse('$apiUrl/movimientos');
+      final movementsUrl = Uri.parse('$API_BASE_URL/movimientos');
       final movementsResponse = await http.get(
         movementsUrl,
         headers: {
