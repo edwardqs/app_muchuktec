@@ -15,9 +15,9 @@ class BudgetDetailScreen extends StatefulWidget {
 }
 
 class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
-  final int _selectedIndex = 2; // Índice para 'Presupuestos'
+  final int _selectedIndex = 2;
   Map<String, dynamic>? _budget;
-  List<dynamic> _allMovements = [];
+  List<dynamic> _budgetMovements = []; // <-- Cambiado de _allMovements
   bool _isLoading = true;
   String? _errorMessage;
   String? _profileImageUrl;
@@ -33,16 +33,16 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-    await Future.wait([
-      _fetchBudgetDetails(),
-      _loadSelectedAccountAndFetchImage(),
-    ]);
+    // Ahora las llamadas son secuenciales, porque una depende de la otra
+    await _fetchBudgetDetailsAndMovements(); // <-- Función renombrada y combinada
+    await _loadSelectedAccountAndFetchImage();
     setState(() {
       _isLoading = false;
     });
   }
 
-  Future<void> _fetchBudgetDetails() async {
+  // ✅ --- FUNCIÓN DE BÚSQUEDA TOTALMENTE REHECHA ---
+  Future<void> _fetchBudgetDetailsAndMovements() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
 
@@ -55,59 +55,72 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       return;
     }
 
-    final budgetUrl = Uri.parse('$API_BASE_URL/presupuestos/${widget.budgetId}');
-    final movementsUrl = Uri.parse('$API_BASE_URL/movimientos');
-
     try {
-      final responses = await Future.wait([
-        http.get(
-          budgetUrl,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
+      // --- 1. Primero, obtenemos los detalles del presupuesto ---
+      final budgetUrl = Uri.parse('$API_BASE_URL/presupuestos/${widget.budgetId}');
+      final budgetResponse = await http.get(
+        budgetUrl,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (budgetResponse.statusCode == 200) {
+        final budgetData = json.decode(budgetResponse.body);
+
+        // --- 2. Si es exitoso, usamos sus datos para buscar los movimientos ---
+        final int idCategoria = budgetData['idcategoria'];
+        final int idCuenta = budgetData['idcuenta'];
+        final DateTime budgetDate = DateTime.parse(budgetData['mes']);
+        final String mes = budgetDate.month.toString();
+        final String anio = budgetDate.year.toString();
+
+        final movementsUrl = Uri.parse('$API_BASE_URL/movimientos').replace(
+          queryParameters: {
+            'idcuenta': idCuenta.toString(),
+            'idcategoria': idCategoria.toString(),
+            'mes': mes,
+            'anio': anio,
           },
-        ),
-        http.get(
+        );
+
+        final movementsResponse = await http.get(
           movementsUrl,
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ),
-      ]);
+        );
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (responses[0].statusCode == 200 && responses[1].statusCode == 200) {
-        final budgetData = json.decode(responses[0].body);
-        final movementsData = json.decode(responses[1].body);
-
-        if (budgetData['categoria_nombre'] == null && budgetData['idcategoria'] != null) {
-          final categoryName = await _fetchCategoryName(budgetData['idcategoria'], token);
-          budgetData['categoria_nombre'] = categoryName;
-        }
-
-        if (movementsData is List) {
+        if (movementsResponse.statusCode == 200) {
+          final movementsData = json.decode(movementsResponse.body);
           setState(() {
             _budget = budgetData;
-            _allMovements = movementsData;
+            _budgetMovements = movementsData as List;
           });
         } else {
+          // Si fallan los movimientos, al menos mostramos el presupuesto
           setState(() {
-            _errorMessage = 'Formato de datos de movimientos inesperado.';
+            _budget = budgetData;
+            _errorMessage = 'Error al cargar movimientos: ${movementsResponse.statusCode}';
           });
         }
-      } else if (responses[0].statusCode == 401 || responses[1].statusCode == 401) {
+
+      } else if (budgetResponse.statusCode == 401) {
         await prefs.remove('accessToken');
         if (mounted) {
           Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         }
       } else {
         setState(() {
-          _errorMessage =
-          'Error al cargar los datos: ${responses[0].statusCode}. ${responses[0].body}';
+          _errorMessage = 'Error al cargar el presupuesto: ${budgetResponse.statusCode}. ${budgetResponse.body}';
         });
       }
     } catch (e) {
@@ -119,44 +132,18 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     }
   }
 
-  Future<String> _fetchCategoryName(int categoryId, String token) async {
-    final url = Uri.parse('$API_BASE_URL/categorias/$categoryId');
-
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['nombre'] as String? ?? 'Sin categoría';
-      } else {
-        return 'Sin categoría';
-      }
-    } catch (e) {
-      print('Error fetching category: $e');
-      return 'Sin categoría';
-    }
-  }
-
   Future<void> _loadSelectedAccountAndFetchImage() async {
+    // ... (Esta función se queda exactamente igual que antes)
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
       final int? selectedAccountId = prefs.getInt('idCuenta');
-
       if (token == null) {
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/');
         }
         return;
       }
-
       if (selectedAccountId == null) {
         if (mounted) {
           setState(() {
@@ -165,9 +152,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         }
         return;
       }
-
       final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
-
       final response = await http.get(
         url,
         headers: {
@@ -175,14 +160,11 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           'Authorization': 'Bearer $token',
         },
       );
-
       if (!mounted) return;
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final accountData = data['cuenta'];
         final relativePath = accountData['ruta_imagen'] as String?;
-
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
@@ -203,12 +185,13 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
 
     final String budgetName = _budget!['categoria_nombre'] as String? ?? 'Sin categoría';
     final double plannedAmount = double.tryParse(_budget!['monto']?.toString() ?? '0.0') ?? 0.0;
-    final double spentAmount = double.tryParse(_budget!['saldo_actual']?.toString() ?? '0.0') ?? 0.0;
+    // ✅ ¡CORREGIDO! Leemos el monto_gastado que calcula la API
+    final double spentAmount = double.tryParse(_budget!['monto_gastado']?.toString() ?? '0.0') ?? 0.0;
 
     final double remainingAmount = plannedAmount - spentAmount;
     final double progress = plannedAmount > 0 ? spentAmount / plannedAmount : 0.0;
 
-    final currencyFormatter = NumberFormat.currency(locale: 'es_ES', symbol: 'S/', decimalDigits: 2);
+    final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
 
     return Card(
       elevation: 4,
@@ -276,11 +259,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     );
   }
 
+  // ✅ --- LISTA DE MOVIMIENTOS SIMPLIFICADA ---
   Widget _buildMovementsList() {
-    final movementsToShow = _allMovements.where((movement) {
-      return movement['idcuenta'] == _budget?['idcuenta'] &&
-          movement['categoria_nombre'] == _budget?['categoria_nombre'];
-    }).toList();
+    // Ya no necesitamos filtrar, la API ya lo hizo por nosotros.
+    final movementsToShow = _budgetMovements;
 
     if (movementsToShow.isEmpty) {
       return Center(
@@ -295,6 +277,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       );
     }
 
+    // El backend ya los debería mandar ordenados, pero por si acaso:
     movementsToShow.sort((a, b) => (b['fecha'] as String).compareTo(a['fecha'] as String));
 
     return Column(
@@ -317,7 +300,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           itemCount: movementsToShow.length,
           itemBuilder: (context, index) {
             final movement = movementsToShow[index];
-            final amount = NumberFormat.currency(locale: 'es_ES', symbol: 'S/', decimalDigits: 2).format(double.tryParse(movement['monto'].toString()) ?? 0.0);
+            final amount = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2).format(double.tryParse(movement['monto'].toString()) ?? 0.0);
             final bool isExpense = movement['tipo'] == 'gasto';
             final bool isIncome = movement['tipo'] == 'ingreso';
 
@@ -352,7 +335,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
                 subtitle: Text(
-                  'Fecha: ${movement['fecha']}',
+                  // Formateamos la fecha para que sea más legible
+                  'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(movement['fecha']))}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 trailing: Text(
@@ -372,6 +356,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
+    // ... (Esta función se queda exactamente igual que antes)
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -423,7 +408,6 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               Navigator.pushReplacementNamed(context, '/reports');
               break;
             case 2:
-            // Ya estamos en una vista de presupuestos, no hacemos nada
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/categories');
@@ -446,6 +430,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
+          // Hacemos pop para volver a la lista (que se recargará si es necesario)
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(

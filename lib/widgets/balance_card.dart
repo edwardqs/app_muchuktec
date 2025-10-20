@@ -35,13 +35,16 @@ class _BalanceCardState extends State<BalanceCard> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          // Podrías mostrar un mensaje aquí si no hay cuenta seleccionada
         });
       }
       return;
     }
 
+    setState(() { _isLoading = true; }); // Inicia la carga
+
     try {
-      // 1. Obtener la cuenta específica
+      // --- 1. Obtener la cuenta específica (sin cambios) ---
       final accountUrl = Uri.parse('$API_BASE_URL/accounts/$_selectedAccountId');
       final accountsResponse = await http.get(
         accountUrl,
@@ -52,10 +55,15 @@ class _BalanceCardState extends State<BalanceCard> {
         },
       );
 
-      // 2. Obtener TODOS los movimientos
-      final movementsUrl = Uri.parse('$API_BASE_URL/movimientos');
+      // --- 2. Obtener los movimientos DE ESA CUENTA ---
+      // ✅ ¡CAMBIO AQUÍ! Añadimos el query parameter 'idcuenta'
+      final movementsUrl = Uri.parse('$API_BASE_URL/movimientos').replace(
+        queryParameters: {
+          'idcuenta': _selectedAccountId.toString(),
+        },
+      );
       final movementsResponse = await http.get(
-        movementsUrl,
+        movementsUrl, // Usamos la nueva URL con el filtro
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -64,23 +72,19 @@ class _BalanceCardState extends State<BalanceCard> {
       );
 
       if (mounted) {
+        // Verificamos que AMBAS respuestas sean exitosas
         if (accountsResponse.statusCode == 200 && movementsResponse.statusCode == 200) {
           final accountData = json.decode(accountsResponse.body);
-          final List<dynamic> allMovementsData = json.decode(movementsResponse.body);
+          // Ahora SÍ recibimos solo los movimientos filtrados
+          final List<dynamic> accountMovementsData = json.decode(movementsResponse.body);
 
-          // Filtrar los movimientos por el idcuenta localmente
-          final filteredMovements = allMovementsData
-              .where((movement) => movement['idcuenta'] == _selectedAccountId)
-              .toList();
-
-          // El saldo actual es el de la única cuenta seleccionada
           final totalBalance = double.tryParse(accountData['cuenta']['saldo_actual'].toString()) ?? 0.0;
 
           double totalIngresos = 0.0;
           double totalGastos = 0.0;
 
-          // Recorrer solo los movimientos de la cuenta seleccionada
-          for (var movement in filteredMovements) {
+          // Ya no necesitamos filtrar localmente, la API lo hizo
+          for (var movement in accountMovementsData) {
             if (movement['tipo'] == 'ingreso') {
               totalIngresos += double.tryParse(movement['monto'].toString()) ?? 0.0;
             } else if (movement['tipo'] == 'gasto') {
@@ -94,12 +98,15 @@ class _BalanceCardState extends State<BalanceCard> {
             _gastosTotales = totalGastos;
           });
         } else {
-          print('Error al cargar datos. Códigos de estado: Cuenta(${accountsResponse.statusCode}), Movimientos(${movementsResponse.statusCode})');
+          // Imprimimos ambos códigos para saber cuál falló
+          print('Error al cargar datos. Códigos: Cuenta(${accountsResponse.statusCode}), Movimientos(${movementsResponse.statusCode})');
+          // Aquí podrías mostrar un error en la UI
         }
       }
     } catch (e) {
       if (mounted) {
         print('Excepción al cargar el saldo y movimientos: $e');
+        // Mostrar error de conexión en la UI
       }
     } finally {
       if (mounted) {

@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'budgets_detail_screen.dart';
 import 'package:app_muchik/config/constants.dart';
 
+// ✅ 1. Importamos tu modelo de categoría
+import '../models/category_model.dart';
 
 class BudgetsScreen extends StatefulWidget {
   const BudgetsScreen({super.key});
@@ -74,6 +76,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
       if (!mounted) return;
       if (response.statusCode == 200) {
+        // print('📄 JSON de Presupuestos: ${response.body}'); // <-- Para depurar
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           budgets = data.map((json) => Budget.fromJson(json)).toList();
@@ -109,7 +112,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
       if (token == null) {
         if (mounted) {
-          print('Token no encontrado, redirigiendo al login...');
           Navigator.of(context).pushReplacementNamed('/');
         }
         return;
@@ -117,7 +119,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
       if (selectedAccountId == null) {
         if (mounted) {
-          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
           setState(() {
             _profileImageUrl = null;
             _isLoading = false;
@@ -127,7 +128,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       }
 
       final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
-      print('Fetching account details from URL: $url');
 
       final response = await http.get(
         url,
@@ -147,28 +147,25 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
-            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
           _isLoading = false;
         });
       } else {
-        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
-        print('Body de la respuesta de error: ${response.body}');
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        print('Excepción al obtener los detalles de la cuenta: $e');
         setState(() {
           _isLoading = false;
         });
       }
     }
   }
+
   Future<void> _deleteBudgetOnServer(String budgetId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
@@ -201,9 +198,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       } else if (response.statusCode == 401) {
         await prefs.remove('accessToken');
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
-        );
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -218,20 +212,191 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     }
   }
 
+  /// 1. FUNCIÓN PARA BUSCAR LAS CATEGORÍAS (usando tu CategoryModel)
+  Future<List<CategoryModel>> _fetchCategoriesForDropdown() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    final idCuenta = prefs.getInt('idCuenta');
+
+    if (token == null || idCuenta == null) {
+      throw Exception('Token o ID de cuenta no encontrados');
+    }
+
+    final uri = Uri.parse('$API_BASE_URL/categorias').replace(
+      queryParameters: {'idcuenta': idCuenta.toString()},
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data
+          .map((json) => CategoryModel.fromJson(json)) // Usamos tu modelo
+          .where((cat) => cat.type == 'gasto')        // Filtramos por 'gasto'
+          .toList();
+    } else {
+      throw Exception('Error al cargar categorías');
+    }
+  }
+
+  Future<void> _updateBudget(String budgetId, int newCategoryId, double newMonto) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    final url = Uri.parse('$API_BASE_URL/presupuestos/$budgetId');
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'idcategoria': newCategoryId, // Enviamos el INT
+          'monto': newMonto,
+        }),
+      );
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Presupuesto actualizado con éxito.'), backgroundColor: Colors.green),
+        );
+        _fetchBudgets();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: ${response.statusCode}'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión al actualizar.'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showEditBudgetDialog(Budget budget) {
+    final formKey = GlobalKey<FormState>();
+    final montoController = TextEditingController(text: budget.budgetAmount.toStringAsFixed(2));
+    int? selectedCategoryId = budget.categoryId; // El ID es INT
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Editar Presupuesto de "${budget.category}"'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: montoController,
+                        decoration: const InputDecoration(labelText: 'Monto Presupuestado', prefixText: 'S/ '),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (value == null || value.isEmpty || double.tryParse(value) == null || double.parse(value) <= 0) {
+                            return 'Ingrese un monto válido.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      FutureBuilder<List<CategoryModel>>(
+                        future: _fetchCategoriesForDropdown(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                            return Text('No se pudieron cargar las categorías. ${snapshot.error}');
+                          }
+
+                          final categories = snapshot.data!;
+
+                          // Comparamos int (budget.categoryId) con String (category.id)
+                          if (!categories.any((cat) => int.parse(cat.id) == budget.categoryId)) {
+                            categories.insert(0, CategoryModel(id: budget.categoryId.toString(), name: budget.category, type: 'gasto'));
+                          }
+
+                          return DropdownButtonFormField<int>( // El valor del Dropdown es INT
+                            value: selectedCategoryId,
+                            decoration: const InputDecoration(labelText: 'Categoría'),
+                            items: categories.map((CategoryModel category) {
+                              return DropdownMenuItem<int>(
+                                value: int.parse(category.id), // Convertimos el ID String a INT
+                                child: Text(category.name),
+                              );
+                            }).toList(),
+                            onChanged: (int? newValue) { // Recibimos un INT
+                              setDialogState(() {
+                                selectedCategoryId = newValue;
+                              });
+                            },
+                            validator: (value) => value == null ? 'Seleccione una categoría.' : null,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate() && selectedCategoryId != null) {
+                      final newMonto = double.parse(montoController.text);
+                      _updateBudget(budget.id, selectedCategoryId!, newMonto);
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ✅ --- FIN DE CÓDIGO NUEVO ---
+
   List<Budget> _getBudgetsForCurrentMonth() {
     final now = DateTime.now();
     final currentYearMonth = DateFormat('yyyy-MM').format(now);
 
     return budgets.where((budget) {
-      final budgetYearMonth = DateFormat('yyyy-MM').format(DateTime.parse(budget.month));
-      return budgetYearMonth == currentYearMonth;
+      // Manejo de error si la fecha del presupuesto es inválida
+      try {
+        final budgetYearMonth = DateFormat('yyyy-MM').format(DateTime.parse(budget.month));
+        return budgetYearMonth == currentYearMonth;
+      } catch (e) {
+        return false;
+      }
     }).toList();
   }
 
   String _getCurrentMonthName() {
     final now = DateTime.now();
-    final formatter = DateFormat('MMMM yyyy');
-    return formatter.format(now);
+    final formatter = DateFormat('MMMM yyyy', 'es'); // Usar locale 'es'
+    return formatter.format(now).replaceRange(0, 1, formatter.format(now)[0].toUpperCase());
   }
 
   @override
@@ -290,7 +455,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   width: 40,
                   height: 40,
                   errorBuilder: (context, error, stackTrace) {
-                    print('Error al cargar la imagen de red: $error');
                     return Icon(Icons.person, size: 24, color: Colors.purple[700]);
                   },
                 ),
@@ -300,119 +464,130 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(child: Text(_errorMessage!))
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue[400]!, Colors.blue[600]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      body: RefreshIndicator(
+        onRefresh: _loadAllData,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? Center(child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red[700])),
+        ))
+            : SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue[400]!, Colors.blue[600]!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                borderRadius: BorderRadius.circular(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Resumen de Presupuestos -  ${_getCurrentMonthName()}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Total Presupuestado',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.budgetAmount).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text(
+                              'Total Gastado',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.spentAmount).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Resumen de Presupuestos -  ${_getCurrentMonthName()}',
+                  const Text(
+                    'Presupuestos por Categoría',
                     style: TextStyle(
-                      color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Total Presupuestado',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.budgetAmount).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            'Total Gastado',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.spentAmount).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/assign-budget');
+                    },
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Presupuestos por Categoría',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/assign-budget');
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            currentMonthBudgets.isEmpty
-                ? const Center(child: Text('No hay presupuestos asignados para este mes.'))
-                : ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: currentMonthBudgets.length,
-              itemBuilder: (context, index) {
-                final budget = currentMonthBudgets[index];
-                return _buildBudgetCard(budget);
-              },
-            ),
-          ],
+              const SizedBox(height: 16),
+              currentMonthBudgets.isEmpty
+                  ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32.0),
+                    child: Text('No hay presupuestos asignados para este mes.'),
+                  )
+              )
+                  : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: currentMonthBudgets.length,
+                itemBuilder: (context, index) {
+                  final budget = currentMonthBudgets[index];
+                  return _buildBudgetCard(budget);
+                },
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -427,7 +602,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     if (percentage >= 100) {
       statusColor = Colors.red;
       statusText = 'Excedido en S/.${(budget.spentAmount - budget.budgetAmount).toStringAsFixed(2)}';
-    } else if (percentage >= 90) {
+    } else if (percentage >= 75) {
       statusColor = Colors.orange;
       statusText = '${(100 - percentage).toStringAsFixed(0)}% disponible';
     } else {
@@ -439,7 +614,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
     return GestureDetector(
       onTap: () {
-        // Navega a la vista de detalle y pasa el ID del presupuesto
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -482,6 +656,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   onSelected: (value) {
                     switch (value) {
                       case 'edit':
+                      // ✅ 3. Conectamos el botón de editar
+                        _showEditBudgetDialog(budget);
                         break;
                       case 'delete':
                         _deleteBudget(budget);
@@ -584,11 +760,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   String getMonthName(String dateString) {
     try {
       final date = DateTime.parse(dateString);
-      final monthNames = [
-        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-      ];
-      return '${monthNames[date.month - 1]} ${date.year}';
+      // Usamos 'es' para español
+      return DateFormat('MMMM yyyy', 'es').format(date).replaceRange(0, 1, DateFormat('MMMM yyyy', 'es').format(date)[0].toUpperCase());
     } catch (e) {
       return 'Mes desconocido';
     }
@@ -672,9 +845,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Cierra el diálogo
-              await _deleteBudgetOnServer(budget.id);
+              Navigator.pop(context);
+                await _deleteBudgetOnServer(budget.id);
               if (mounted) {
+                // Actualizamos la UI localmente
                 setState(() {
                   budgets.removeWhere((b) => b.id == budget.id);
                 });
@@ -688,8 +862,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 }
 
+// ✅ 4. Modelo 'Budget' actualizado y al final del archivo
 class Budget {
   final String id;
+  final int categoryId;
   final String category;
   final String month;
   final double budgetAmount;
@@ -697,6 +873,7 @@ class Budget {
 
   Budget({
     required this.id,
+    required this.categoryId,
     required this.category,
     required this.month,
     required this.budgetAmount,
@@ -705,14 +882,17 @@ class Budget {
 
   factory Budget.fromJson(Map<String, dynamic> json) {
     final id = (json['id'] as int).toString();
+    final categoryId = json['idcategoria'] as int; // Leemos el ID de categoría
     final month = json['mes'] as String? ?? '';
     final category = json['categoria_nombre'] as String? ?? 'Sin categoría';
 
     final budgetAmount = double.tryParse(json['monto'].toString()) ?? 0.0;
-    final spentAmount = 285.0; // Valor de ejemplo
+    // Leemos el monto_gastado real
+    final spentAmount = double.tryParse(json['monto_gastado'].toString()) ?? 0.0;
 
     return Budget(
       id: id,
+      categoryId: categoryId,
       category: category,
       month: month,
       budgetAmount: budgetAmount,

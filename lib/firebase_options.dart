@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'muchik-tec-noti.firebasestorage.app',
     measurementId: 'G-F5RS26M665',
   );
+
 }

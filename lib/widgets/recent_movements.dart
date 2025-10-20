@@ -47,7 +47,6 @@ class RecentMovements extends StatefulWidget {
 }
 
 class _RecentMovementsState extends State<RecentMovements> {
-  List<Movement> _allMovements = [];
   List<Movement> _filteredMovements = [];
   bool _isLoading = true;
   String? _accessToken;
@@ -68,14 +67,23 @@ class _RecentMovementsState extends State<RecentMovements> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          // Podrías mostrar un mensaje aquí indicando que no hay cuenta seleccionada
         });
       }
       return;
     }
 
+    // ✅ 1. Construimos la URL CON el filtro idcuenta y un límite
+    final uri = Uri.parse('$API_BASE_URL/movimientos').replace(
+      queryParameters: {
+        'idcuenta': _selectedAccountId.toString(),
+        'limit': '5', // Pedimos solo los últimos 5 al backend
+      },
+    );
+
     try {
       final response = await http.get(
-        Uri.parse('$API_BASE_URL/movimientos'),
+        uri, // Usamos la nueva URI con filtros
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -85,21 +93,19 @@ class _RecentMovementsState extends State<RecentMovements> {
       if (mounted) {
         if (response.statusCode == 200) {
           final List<dynamic> data = json.decode(response.body);
-          _allMovements = data.map((json) => Movement.fromJson(json)).toList();
-
-          // Filtrar los movimientos localmente por idcuenta
+          // ✅ 2. Asignamos directamente a _filteredMovements.
           setState(() {
-            _filteredMovements = _allMovements.where((movement) => movement.idcuenta == _selectedAccountId).toList();
+            _filteredMovements = data.map((json) => Movement.fromJson(json)).toList();
           });
         } else {
-          // Manejar el error de la API
-          print('Error al cargar movimientos: ${response.statusCode}');
+          print('Error al cargar movimientos: ${response.statusCode} - ${response.body}');
+          // Aquí podrías actualizar el estado para mostrar un mensaje de error en la UI
         }
       }
     } catch (e) {
       if (mounted) {
         print('Excepción al cargar movimientos: $e');
-        // Mostrar un mensaje al usuario en caso de error de conexión
+        // Mostrar mensaje de error de conexión en la UI
       }
     } finally {
       if (mounted) {
