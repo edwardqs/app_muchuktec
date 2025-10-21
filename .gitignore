@@ -1,4 +1,6 @@
 # Miscellaneous
+# Ignorar el archivo de configuración con claves de API y URLs
+lib/config/constants.dart
 *.class
 *.log
 *.pyc
