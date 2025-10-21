@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../models/cuota_compromiso_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
 
@@ -572,12 +573,11 @@ class FrecuenciaModel {
   }
 }
 
-
 // Modelo para los compromisos
 class CompromiseModel {
   final String id;
   final String name;
-  final double amount; // <-- Se espera un double
+  final double amount;
   final String date;
   final String? tipoCompromiso;
   final int? idusuario;
@@ -595,6 +595,7 @@ class CompromiseModel {
   final int? estadoEliminar;
   final FrecuenciaModel? frecuencia;
   final double? montoTotalPagado;
+  final List<CuotaCompromisoModel> cuotas;
 
   CompromiseModel({
     required this.id,
@@ -617,6 +618,7 @@ class CompromiseModel {
     this.estadoEliminar,
     this.frecuencia,
     this.montoTotalPagado,
+    this.cuotas = const [],
   });
 
   // ✅ Código corregido
@@ -633,6 +635,13 @@ class CompromiseModel {
       if (value == null) return null;
       if (value is int) return value;
       return int.tryParse(value.toString());
+    }
+
+    List<CuotaCompromisoModel> parsedCuotas = [];
+    if (json['cuotas'] != null && json['cuotas'] is List) {
+      parsedCuotas = (json['cuotas'] as List)
+          .map((cuotaJson) => CuotaCompromisoModel.fromJson(cuotaJson))
+          .toList();
     }
 
     return CompromiseModel(
@@ -658,6 +667,7 @@ class CompromiseModel {
       frecuencia: json['frecuencia'] != null
           ? FrecuenciaModel.fromJson(json['frecuencia'])
           : null,
+      cuotas: parsedCuotas,
     );
   }
 }
