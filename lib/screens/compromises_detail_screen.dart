@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
+import 'payment_history_screen.dart';
 import 'compromises_screen.dart';
 import '../models/cuota_compromiso_model.dart';
 import 'package:app_muchik/config/constants.dart';
@@ -408,6 +409,24 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
           ),
         ),
           actions: [
+            // Botón para ver historial (NUEVO)
+            if (_compromise != null) // Solo mostrar si ya cargó el compromiso
+              IconButton(
+                icon: const Icon(Icons.history, color: Colors.blueGrey),
+                tooltip: 'Ver Historial de Pagos',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PaymentHistoryScreen(
+                        compromiseId: _compromise!.id,
+                        compromiseName: _compromise!.name,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            // Boton para agregar pago
             if (_compromise != null)
               IconButton(
                 icon: const Icon(Icons.add_card_outlined, color: Colors.purple), // Icono más descriptivo
@@ -437,8 +456,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     final double montoTotalPagado = compromise.montoTotalPagado ?? 0.0;
     final double montoTotal = compromise.montoTotal ?? 0.0;
     final double progresoPago = (montoTotal > 0) ? (montoTotalPagado / montoTotal) : 0.0;
-
-    final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
 
     // --- Logic for showing installments ---
     final List<CuotaCompromisoModel> allCuotas = compromise.cuotas;
@@ -581,7 +598,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     return DataRow(
                       cells: [
                         DataCell(Text(cuota.numeroCuota.toString())),
-                        DataCell(Text(currencyFormatter.format(cuota.monto))),
+                        DataCell(Text(cuota.montoFormateado)),
                         DataCell(
                           Text(
                             cuota.statusText,

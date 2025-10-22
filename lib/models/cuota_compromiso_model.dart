@@ -38,4 +38,11 @@ class CuotaCompromisoModel {
       return 'Cuota $numeroCuota - S/${monto.toStringAsFixed(2)}';
     }
   }
+
+  // ✅ NUEVO O REEMPLAZADO: Formateador manual de monto
+  String get montoFormateado {
+    final numberFormatter = NumberFormat("#,##0.00", "es_PE"); // Formato numérico peruano
+    String numeroFormateado = numberFormatter.format(monto);
+    return 'S/ $numeroFormateado'; // Añadir símbolo al principio
+  }
 }
