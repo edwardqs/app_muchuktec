@@ -265,18 +265,40 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        decoration: const InputDecoration(labelText: 'Fecha de Pago'),
+                        controller: dateController,
+                        decoration: const InputDecoration(
+                            labelText: 'Fecha de Pago',
+                            suffixIcon: Icon(Icons.calendar_today),
+                        ),
                         readOnly: true,
                         onTap: () async {
+                          DateTime initial = DateTime.now();
+                          // Intenta usar la fecha actual del campo como fecha inicial
+                          try {
+                            if (dateController.text.isNotEmpty) {
+                              initial = DateFormat('yyyy-MM-dd').parse(dateController.text);
+                            }
+                          } catch (e) {
+                            // Si hay error al parsear, usa la fecha actual
+                          }
+
                           DateTime? pickedDate = await showDatePicker(
                             context: context,
                             initialDate: DateTime.now(),
                             firstDate: DateTime(2000),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                              lastDate: DateTime(2101),
                           );
                           if (pickedDate != null) {
-                            dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate);
+                            setDialogState(() {
+                              dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate);
+                            });
                           }
+                        },
+                        validator: (value) { // Validación opcional
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione una fecha.';
+                          }
+                          return null;
                         },
                       ),
                       const SizedBox(height: 16),
@@ -297,7 +319,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                         amount: double.parse(amountController.text),
                         date: dateController.text,
                         note: noteController.text.isNotEmpty ? noteController.text : null,
-                        // ✅ Pass the selected installment ID
                         idcuota_compromiso: selectedCuotaId,
                       );
                       Navigator.pop(context);

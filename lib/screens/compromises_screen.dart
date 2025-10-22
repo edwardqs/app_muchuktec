@@ -33,6 +33,122 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     _loadAccessTokenAndFetchCompromises();
   }
 
+  /// Función para enviar la actualización a la API
+  Future<void> _updateCompromise(String id, String newName, double newAmount) async {
+    if (_accessToken == null) return; // Ya tienes _accessToken cargado
+
+    setState(() {
+      isLoading = true; // Muestra indicador general mientras guarda
+    });
+
+    try {
+      final url = Uri.parse('$API_BASE_URL/compromisos/$id');
+      final response = await http.put( // Usamos PUT
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+        },
+        body: json.encode({
+          'nombre': newName,
+          'monto_total': newAmount,
+          // Aquí NO enviamos otros campos para no cambiarlos accidentalmente
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Compromiso actualizado'), backgroundColor: Colors.green),
+        );
+        // Actualizamos la lista después de guardar exitosamente
+        _fetchCompromises();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: ${response.body}'), backgroundColor: Colors.red),
+        );
+        setState(() { isLoading = false; }); // Detener carga si hay error
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e'), backgroundColor: Colors.red),
+      );
+      setState(() { isLoading = false; }); // Detener carga si hay error
+    }
+    // No necesitamos 'finally' para isLoading aquí porque _fetchCompromises() lo manejará al éxito
+  }
+
+
+  /// Función para mostrar el diálogo de edición
+  void _showEditDialog(CompromiseModel compromise) {
+    final formKey = GlobalKey<FormState>();
+    // Controladores pre-llenados con datos actuales
+    final nameController = TextEditingController(text: compromise.name);
+    final amountController = TextEditingController(text: compromise.montoTotal?.toStringAsFixed(2) ?? '0.00');
+
+    showDialog(
+      context: context,
+      // barrierDismissible: false, // Opcional: Evita cerrar tocando fuera
+      builder: (context) {
+        // No necesitamos StatefulBuilder si no hay cambios complejos dentro del diálogo
+        return AlertDialog(
+          title: Text('Editar "${compromise.name}"'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView( // Para evitar overflow si el teclado aparece
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // Para que el diálogo no sea gigante
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nuevo Nombre'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'El nombre no puede estar vacío';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: amountController,
+                    decoration: const InputDecoration(labelText: 'Nuevo Monto Total', prefixText: 'S/ '),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.isEmpty || (double.tryParse(value) ?? -1) < 0) {
+                        return 'Ingrese un monto válido';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Simplemente cierra
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  final newName = nameController.text;
+                  final newAmount = double.tryParse(amountController.text) ?? 0.0;
+                  Navigator.pop(context); // Cierra el diálogo ANTES de llamar a la API
+                  _updateCompromise(compromise.id, newName, newAmount); // Llama a la función de guardado
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _loadSelectedAccountAndFetchImage() async {
     setState(() {
@@ -467,7 +583,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: Colors.blue),
             onPressed: () {
-              // TODO: Navegar a la pantalla de edición de compromiso
+              _showEditDialog(compromise);
             },
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),

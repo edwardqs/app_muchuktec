@@ -38,6 +38,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedFrequencyId = frequencyMap[_selectedFrequencyText];
     _loadAccessToken().then((_) {
       _loadTerceros();
     });

@@ -59,55 +59,74 @@ class _RecentMovementsState extends State<RecentMovements> {
   }
 
   Future<void> _fetchMovements() async {
+    // 1. Get access token and selected account ID from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
     _selectedAccountId = prefs.getInt('idCuenta');
 
+    // 2. Check if token or account ID are missing
     if (_accessToken == null || _selectedAccountId == null) {
-      if (mounted) {
+      if (mounted) { // Check if the widget is still in the tree
         setState(() {
           _isLoading = false;
-          // Podrías mostrar un mensaje aquí indicando que no hay cuenta seleccionada
+          // Optionally, set an error message here to display in the UI
+          print("RecentMovements: Token or Account ID not found.");
         });
       }
-      return;
+      return; // Stop execution if data is missing
     }
 
-    // ✅ 1. Construimos la URL CON el filtro idcuenta y un límite
+    // 3. Set loading state to true before making the API call
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    // 4. Construct the correct URL with query parameters
     final uri = Uri.parse('$API_BASE_URL/movimientos').replace(
       queryParameters: {
         'idcuenta': _selectedAccountId.toString(),
-        'limit': '5', // Pedimos solo los últimos 5 al backend
+        'limit': '5', // Request the last 5 items
       },
     );
 
+    // 5. Make the API call within a try-catch block
     try {
       final response = await http.get(
-        uri, // Usamos la nueva URI con filtros
+        uri, // Use the URI with query parameters
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $_accessToken',
         },
       );
+
+      // 6. Process the response if the widget is still mounted
       if (mounted) {
         if (response.statusCode == 200) {
+          // Decode the JSON response (which is a list)
           final List<dynamic> data = json.decode(response.body);
-          // ✅ 2. Asignamos directamente a _filteredMovements.
+          // Map the JSON list to a list of Movement objects and update state
           setState(() {
             _filteredMovements = data.map((json) => Movement.fromJson(json)).toList();
           });
         } else {
-          print('Error al cargar movimientos: ${response.statusCode} - ${response.body}');
-          // Aquí podrías actualizar el estado para mostrar un mensaje de error en la UI
+          // Handle API errors (like 4xx or 5xx responses)
+          print('Error loading recent movements: ${response.statusCode} - ${response.body}');
+          // Optionally, set an error message state variable to show in the UI
+          // setState(() { _errorMessage = 'Failed to load movements.'; });
         }
       }
     } catch (e) {
+      // 7. Handle network exceptions (e.g., no internet connection)
       if (mounted) {
-        print('Excepción al cargar movimientos: $e');
-        // Mostrar mensaje de error de conexión en la UI
+        print('Exception loading recent movements: $e');
+        // Optionally, set an error message state variable
+        // setState(() { _errorMessage = 'Connection error.'; });
       }
     } finally {
+      // 8. Ensure loading state is set to false after the call completes or fails
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -115,7 +134,7 @@ class _RecentMovementsState extends State<RecentMovements> {
       }
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Column(
