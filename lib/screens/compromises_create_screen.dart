@@ -27,25 +27,37 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   String _interestType = 'Simple'; // "Simple" o "Compuesto"
   String _selectedFrequency = 'Sin cuota'; // Frecuencia de la cuota
 
-  bool isLoading = false;
+  bool _isLoading = true; // Mantenemos esta para el appbar
+  bool isLoading = true; // Renombrado de isLoading a _isLoading para evitar ambigüedad
+
   String? _accessToken;
   int? _idCuenta;
+  String? _profileImageUrl;
 
   List<Map<String, dynamic>> _terceros = [];
   int? _selectedTerceroId;
 
-
   @override
   void initState() {
     super.initState();
+    setState(() {
+      _isLoading = false;
+      isLoading = false; // Para la vista principal
+    });
     _selectedFrequencyId = frequencyMap[_selectedFrequencyText];
     _loadAccessToken().then((_) {
-      _loadTerceros();
+      // Solo intenta cargar la imagen y los terceros si el token existe
+      if (_accessToken != null) {
+        _loadSelectedAccountAndFetchImage(); // <-- ¡Llama a la función!
+        _loadTerceros();
+      }
     });
     _amountController.addListener(_calculateInstallmentAmount);
     _interestRateController.addListener(_calculateInstallmentAmount);
     _installmentsController.addListener(_calculateInstallmentAmount);
   }
+
+
 
   Future<void> _loadAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -56,6 +68,59 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se encontró un token de sesión. Por favor, inicie sesión.'), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  Future<void> _loadSelectedAccountAndFetchImage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+      final int? selectedAccountId = prefs.getInt('idCuenta');
+
+      if (token == null) {
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/');
+        }
+        return;
+      }
+
+      if (selectedAccountId == null) {
+        if (mounted) {
+          setState(() {
+            _profileImageUrl = null;
+          });
+        }
+        return;
+      }
+
+      final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final accountData = data['cuenta'];
+        final relativePath = accountData['ruta_imagen'] as String?;
+
+        setState(() {
+          if (relativePath != null) {
+            _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
+          } else {
+            _profileImageUrl = null;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print('Excepción al obtener los detalles de la cuenta: $e');
+      }
     }
   }
 
@@ -352,23 +417,37 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           ),
           InkWell(
             onTap: () {
-              print('Navigating to accounts_screen');
               Navigator.pushNamed(context, '/accounts');
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: Colors.purple[100],
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.person,
-                size: 20,
-                color: Colors.purple[700],
-              ),
+              child: _isLoading
+                  ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.purple,
+                    strokeWidth: 2,
+                  ))
+                  : _profileImageUrl != null
+                  ? ClipOval(
+                child: Image.network(
+                  _profileImageUrl!,
+                  fit: BoxFit.cover,
+                  width: 40,
+                  height: 40,
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error al cargar la imagen de red: $error');
+                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                  },
+                ),
+              )
+                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
             ),
           ),
         ],
