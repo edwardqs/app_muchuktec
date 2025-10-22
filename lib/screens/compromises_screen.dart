@@ -24,6 +24,9 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   String? _profileImageUrl;
   bool _isLoadingImage = true;
 
+  String? _selectedStatus; // Ej: 'Pendiente', 'Pagado', 'Vencido'
+
+
 
   @override
   void initState() {
@@ -240,10 +243,19 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     });
 
     try {
+
+      // --- CONSTRUIR PARÁMETROS ---
+      Map<String, String> queryParams = {
+        'idcuenta': _idCuenta.toString(),
+      };
+      // Solo añadir el estado si está seleccionado y no es 'Todos'
+      if (_selectedStatus != null && _selectedStatus != 'Todos') {
+        queryParams['estado'] = _selectedStatus!;
+      }
+      // --- NO HAY FECHAS AQUÍ ---
+
       final url = Uri.parse('$API_BASE_URL/compromisos').replace(
-        queryParameters: {
-          'idcuenta': _idCuenta.toString(),
-        },
+        queryParameters: queryParams,
       );
 
       final response = await http.get(
@@ -385,6 +397,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
 
   @override
+
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -504,7 +517,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             const Text(
               'Mis compromisos',
               style: TextStyle(
@@ -514,6 +527,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            _buildFiltersSection(),
+            const SizedBox(height: 24),
             if (isLoading)
               const Center(child: CircularProgressIndicator())
             else if (errorMessage != null)
@@ -536,7 +551,54 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
+  Widget _buildFiltersSection() {
+    final List<String> statusOptions = ['Todos', 'Pendiente', 'Pagado'];
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8.0, // Espacio horizontal
+          runSpacing: 4.0, // Espacio vertical
+          children: statusOptions.map((status) {
+            final bool isSelected = (_selectedStatus == null && status == 'Todos') || (_selectedStatus == status);
+
+            return ChoiceChip(
+              label: Text(status),
+              selected: isSelected,
+              onSelected: (bool selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedStatus = (status == 'Todos') ? null : status;
+                    _fetchCompromises();
+                  });
+                }
+              },
+              // --- ✅ 2. Ajustes de Estilo ---
+              backgroundColor: Colors.grey[100],
+              selectedColor: Colors.purple[100],
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.purple[800] : Colors.black87,
+                fontSize: 12, // <-- Tamaño de fuente más pequeño
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16), // <-- Bordes un poco más redondeados
+                side: BorderSide(
+                  color: isSelected ? Colors.purple[200]! : Colors.grey[300]!,
+                ),
+              ),
+              // Padding más compacto
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), // <-- Padding reducido
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduce el área táctil extra
+              showCheckmark: false,
+              // --- Fin Ajustes de Estilo ---
+            );
+          }).toList(),
+        ),
+        // Puedes quitar el botón Limpiar si ya no lo necesitas
+      ],
+    );
+  }
   Widget _buildCompromiseItem(CompromiseModel compromise) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
