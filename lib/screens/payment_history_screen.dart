@@ -4,11 +4,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
-import '../models/pago_compromiso_model.dart'; // Importa el modelo
+import '../models/pago_compromiso_model.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   final String compromiseId;
-  final String compromiseName; // Pasar el nombre para el título
+  final String compromiseName;
 
   const PaymentHistoryScreen({
     super.key,
@@ -30,6 +30,62 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   void initState() {
     super.initState();
     _fetchPaymentHistory();
+  }
+
+  void _showPaymentDetailsDialog(PagoCompromisoModel payment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Detalle del Pago'),
+        content: SingleChildScrollView( // Por si la nota es muy larga
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Ajustar tamaño al contenido
+            crossAxisAlignment: CrossAxisAlignment.start, // Alinear texto a la izquierda
+            children: [
+              // Mostrar Monto
+              Text(
+                'Monto Pagado:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+              ),
+              Text(
+                payment.montoFormateado, // Usamos el formateador del modelo
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+
+              // Mostrar Fecha
+              Text(
+                'Fecha de Pago:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+              ),
+              Text(
+                payment.fechaFormateada, // Usamos el formateador del modelo
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+
+              // Mostrar Nota (solo si existe)
+              if (payment.nota != null && payment.nota!.isNotEmpty) ...[
+                Text(
+                  'Nota:',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                ),
+                Text(
+                  payment.nota!,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Botón para cerrar
+            child: const Text('Cerrar'),
+          )
+        ],
+      ),
+    );
   }
 
   Future<void> _fetchPaymentHistory() async {
@@ -100,9 +156,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
 
           // Construir el texto del TÍTULO
           String titleText = payment.montoFormateado;
-          // ✅ Usar el nuevo campo String?
           if (payment.numeroCuotaDisplay != null) {
-            // Determina si es un número o la palabra "Flexible"
             bool isNumeric = int.tryParse(payment.numeroCuotaDisplay!) != null;
             if (isNumeric) {
               titleText = 'Cuota ${payment.numeroCuotaDisplay} - ' + titleText;
@@ -111,13 +165,13 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
             }
           }
 
-          // Construir el texto del SUBTÍTULO (sin cambios)
+          // Construir el texto del SUBTÍTULO
           String subtitleText = 'Fecha: ${payment.fechaFormateada}';
           if (payment.nota != null && payment.nota!.isNotEmpty) {
             subtitleText += '\nNota: ${payment.nota}';
           }
 
-          return Card( // Usamos Card para un mejor diseño
+          return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             elevation: 2,
             child: ListTile(
@@ -128,6 +182,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               title: Text(titleText, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(subtitleText),
               isThreeLine: payment.nota != null && payment.nota!.isNotEmpty,
+              onTap: () {
+                _showPaymentDetailsDialog(payment);
+              },
             ),
           );
         },

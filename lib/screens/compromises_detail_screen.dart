@@ -337,8 +337,9 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
 
   String _formatCurrency(double? value) {
     if (value == null) return 'N/A';
-    final format = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
-    return format.format(value);
+    final numberFormatter = NumberFormat("#,##0.00", "es_PE");
+    String numeroFormateado = numberFormatter.format(value);
+    return 'S/ $numeroFormateado';
   }
 
   String _formatDate(String? date) {
@@ -448,8 +449,31 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     );
   }
 
-  // Metodo que contiene la UI que ya tenías, para mantener el build() limpio
-  // lib/screens/compromises_detail_screen.dart (inside _CompromisesDetailScreenState)
+  Widget _buildSummaryItem({required IconData icon, required String label, required String value}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: Colors.purple[400], size: 20),
+        const SizedBox(width: 8), // Menos espacio horizontal
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: Colors.grey[700]), // Tamaño ajustado
+                overflow: TextOverflow.ellipsis, // Evitar overflow si es largo
+              ),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87), // Tamaño ajustado
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildDetailsView() {
     final compromise = _compromise!;
@@ -457,12 +481,21 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     final double montoTotal = compromise.montoTotal ?? 0.0;
     final double progresoPago = (montoTotal > 0) ? (montoTotalPagado / montoTotal) : 0.0;
 
+    // CALCULO DEL MONTO A PAGAR TOTAL
+    final double montoCuotaCalc = compromise.montoCuota ?? 0.0;
+    final int cantidadCuotasCalc = compromise.cantidadCuotas ?? 0;
+    // Monto final = Monto de cuota * Cantidad de cuotas (si hay cuotas)
+    // Si no hay cuotas, usamos el monto total original como fallback.
+    final double montoFinalCalculado = (cantidadCuotasCalc > 0 && montoCuotaCalc > 0)
+        ? (montoCuotaCalc * cantidadCuotasCalc)
+        : compromise.montoTotal ?? 0.0;
+
     // --- Logic for showing installments ---
     final List<CuotaCompromisoModel> allCuotas = compromise.cuotas;
+    final bool hasInstallments = allCuotas.isNotEmpty;
     final bool hasMoreThanThree = allCuotas.length > 3;
-    // Determine which installments to show based on the state variable _showAllInstallments
     final List<CuotaCompromisoModel> cuotasToShow = _showAllInstallments
-        ? allCuotas // Show all if flag is true
+        ? allCuotas
         : (hasMoreThanThree ? allCuotas.sublist(0, 3) : allCuotas); // Show first 3 or all if less than 3
 
     return SingleChildScrollView(
@@ -490,156 +523,194 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                   ),
                 ),
                 const Divider(height: 20, color: Colors.purple),
-                _buildDetailRow(
-                    'Monto Total', // Changed label slightly
-                    _formatCurrency(compromise.montoTotal),
-                    Icons.request_quote_outlined), // Changed Icon
-                _buildDetailRow(
-                    'Monto por Cuota',
-                    _formatCurrency(compromise.montoCuota),
-                    Icons.payment_outlined), // Changed Icon
-                _buildDetailRow(
-                    'Monto Total Pagado',
-                    _formatCurrency(montoTotalPagado), Icons.paid_outlined),
-              ],
-            ),
-          ),
-          _buildSectionHeader('Cuotas y Pagos'),
-          // Inside _buildDetailsView, after _buildSectionHeader('Cuotas y Pagos')
 
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12.0), // Consistent padding
-            child: Row(
-              children: [
-                // --- Total de Cuotas Section ---
-                Expanded( // Takes up half the available space
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.format_list_numbered, color: Colors.purple[400], size: 20),
-                      const SizedBox(width: 12),
-                      Expanded( // Prevents overflow if label/value is long
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Total de Cuotas',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]), // Label style from _buildDetailRow
-                            ),
-                            Text(
-                              (compromise.cantidadCuotas ?? 0).toString(),
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87), // Value style from _buildDetailRow
-                            ),
-                          ],
-                        ),
+                // --- Fila 1 (Monto Total y Monto Final) ---
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryItem( // Usamos un widget auxiliar
+                        icon: Icons.request_quote_outlined,
+                        label: 'Monto Original', // Etiqueta más clara
+                        value: _formatCurrency(compromise.montoTotal),
                       ),
-                    ],
-                  ),
-                ),
-
-                // Optional: Add some space between the two items if needed
-                const SizedBox(width: 16),
-
-                // --- Cuotas Pagadas Section ---
-                Expanded( // Takes up the other half
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.check_circle_outline, color: Colors.purple[400], size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Cuotas Pagadas',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]), // Label style
-                            ),
-                            Text(
-                              (compromise.cuotasPagadas ?? 0).toString(),
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87), // Value style
-                            ),
-                          ],
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        icon: Icons.monetization_on_outlined, // Icono diferente
+                        label: 'Monto Final', // Nueva etiqueta
+                        value: _formatCurrency(montoFinalCalculado), // Valor calculado
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          allCuotas.isEmpty
-              ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Center(child: Text('Este compromiso no tiene cuotas definidas.', style: TextStyle(color: Colors.grey))),
-          )
-              : Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch, // Make button full width if desired
-            children: [
-              // --- The DataTable ---
-              SizedBox(
-                width: double.infinity,
-                child: DataTable(
-                  columnSpacing: 16,
-                  headingRowHeight: 40,
-                  dataRowMinHeight: 48,
-                  dataRowMaxHeight: 60,
-                  headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
-                  dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
-                  columns: const [
-                    DataColumn(label: Text('N°')),
-                    DataColumn(label: Text('Monto'), numeric: true),
-                    DataColumn(label: Text('Estado')),
-                    DataColumn(label: Text('Fecha Prog.')),
+                    ),
                   ],
-                  // ✅ Use cuotasToShow (the potentially shorter list)
-                  rows: cuotasToShow.map((cuota) {
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(cuota.numeroCuota.toString())),
-                        DataCell(Text(cuota.montoFormateado)),
-                        DataCell(
-                          Text(
-                            cuota.statusText,
-                            style: TextStyle(
-                              color: cuota.pagado ? Colors.green.shade700 : Colors.orange.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
+                ),
+                const SizedBox(height: 10), // Espacio entre filas
+
+                // --- Fila 2 (Monto Cuota y Monto Pagado) ---
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryItem(
+                        icon: Icons.paid_outlined,
+                        label: 'Monto Pagado',
+                        value: _formatCurrency(montoTotalPagado),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      // Ocultar si no hay cuotas
+                      child: (compromise.cantidadCuotas ?? 0) > 0
+                          ? _buildSummaryItem(
+                        icon: Icons.payment_outlined,
+                        label: 'Monto por Cuota',
+                        value: _formatCurrency(compromise.montoCuota),
+                      )
+                          : const SizedBox(), // Espacio vacío si no hay cuotas
+                    ),
+                  ],
+                ),
+
+              ],
+            ),
+          ),
+          // --- SECCIÓN DE CUOTAS Y PAGOS ---
+          if (hasInstallments) ...[
+            _buildSectionHeader('Cuotas y Pagos'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0), // Consistent padding
+              child: Row(
+                children: [
+                  // --- Total de Cuotas Section ---
+                  Expanded( // Takes up half the available space
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.format_list_numbered, color: Colors.purple[400], size: 20),
+                        const SizedBox(width: 12),
+                        Expanded( // Prevents overflow if label/value is long
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total de Cuotas',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]), // Label style from _buildDetailRow
+                              ),
+                              Text(
+                                (compromise.cantidadCuotas ?? 0).toString(),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87), // Value style from _buildDetailRow
+                              ),
+                            ],
                           ),
                         ),
-                        DataCell(Text(_formatDate(cuota.fechaPagoProgramada))),
                       ],
-                    );
-                  }).toList(),
-                ),
-              ),
-              // --- "View More" / "View Less" Button ---
-              // ✅ Show button only if there are more than 3 installments
-              if (hasMoreThanThree)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Center( // Center the button
-                    child: TextButton.icon(
-                      icon: Icon(
-                        _showAllInstallments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                        color: Colors.purple[700],
-                      ),
-                      label: Text(
-                        _showAllInstallments ? 'Ver Menos Cuotas' : 'Ver ${allCuotas.length - 3} Cuotas Más',
-                        style: TextStyle(color: Colors.purple[700]),
-                      ),
-                      onPressed: () {
-                        // Toggle the state and rebuild
-                        setState(() {
-                          _showAllInstallments = !_showAllInstallments;
-                        });
-                      },
                     ),
                   ),
+
+                  // Optional: Add some space between the two items if needed
+                  const SizedBox(width: 16),
+
+                  // --- Cuotas Pagadas Section ---
+                  Expanded( // Takes up the other half
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.check_circle_outline, color: Colors.purple[400], size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cuotas Pagadas',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]), // Label style
+                              ),
+                              Text(
+                                (compromise.cuotasPagadas ?? 0).toString(),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87), // Value style
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+            allCuotas.isEmpty
+                ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Center(child: Text('Este compromiso no tiene cuotas definidas.', style: TextStyle(color: Colors.grey))),
+            )
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch, // Make button full width if desired
+              children: [
+                // --- The DataTable ---
+                SizedBox(
+                  width: double.infinity,
+                  child: DataTable(
+                    columnSpacing: 16,
+                    headingRowHeight: 40,
+                    dataRowMinHeight: 48,
+                    dataRowMaxHeight: 60,
+                    headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+                    dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+                    columns: const [
+                      DataColumn(label: Text('N°')),
+                      DataColumn(label: Text('Monto'), numeric: true),
+                      DataColumn(label: Text('Estado')),
+                      DataColumn(label: Text('Fecha Prog.')),
+                    ],
+                    // ✅ Use cuotasToShow (the potentially shorter list)
+                    rows: cuotasToShow.map((cuota) {
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(cuota.numeroCuota.toString())),
+                          DataCell(Text(cuota.montoFormateado)),
+                          DataCell(
+                            Text(
+                              cuota.statusText,
+                              style: TextStyle(
+                                color: cuota.pagado ? Colors.green.shade700 : Colors.orange.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          DataCell(Text(_formatDate(cuota.fechaPagoProgramada))),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 ),
-            ],
-          ),
+                // --- "View More" / "View Less" Button ---
+                // ✅ Show button only if there are more than 3 installments
+                if (hasMoreThanThree)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Center( // Center the button
+                      child: TextButton.icon(
+                        icon: Icon(
+                          _showAllInstallments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          color: Colors.purple[700],
+                        ),
+                        label: Text(
+                          _showAllInstallments ? 'Ver Menos Cuotas' : 'Ver ${allCuotas.length - 3} Cuotas Más',
+                          style: TextStyle(color: Colors.purple[700]),
+                        ),
+                        onPressed: () {
+                          // Toggle the state and rebuild
+                          setState(() {
+                            _showAllInstallments = !_showAllInstallments;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
           // --- FIN DE SECCIÓN DETALLE DE CUOTAS ---
 
           // --- SECCIÓN DE FECHAS Y FRECUENCIA ---
