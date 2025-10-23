@@ -1,7 +1,7 @@
-// lib/screens/compromises_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import '../models/cuota_compromiso_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
@@ -25,8 +25,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   bool _isLoadingImage = true;
 
   String? _selectedStatus; // Ej: 'Pendiente', 'Pagado', 'Vencido'
-
-
+  int? _selectedMonth;
+  int? _selectedYear;
 
   @override
   void initState() {
@@ -37,7 +37,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   }
 
   /// Función para enviar la actualización a la API
-  Future<void> _updateCompromise(String id, String newName, double newAmount) async {
+  Future<void> _updateCompromise(String id, String newName) async {
     if (_accessToken == null) return; // Ya tienes _accessToken cargado
 
     setState(() {
@@ -55,8 +55,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         },
         body: json.encode({
           'nombre': newName,
-          'monto_total': newAmount,
-          // Aquí NO enviamos otros campos para no cambiarlos accidentalmente
         }),
       );
 
@@ -72,38 +70,34 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al actualizar: ${response.body}'), backgroundColor: Colors.red),
         );
-        setState(() { isLoading = false; }); // Detener carga si hay error
+        setState(() { isLoading = false; });
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error de conexión: $e'), backgroundColor: Colors.red),
       );
-      setState(() { isLoading = false; }); // Detener carga si hay error
+      setState(() { isLoading = false; });
     }
-    // No necesitamos 'finally' para isLoading aquí porque _fetchCompromises() lo manejará al éxito
   }
 
 
   /// Función para mostrar el diálogo de edición
   void _showEditDialog(CompromiseModel compromise) {
     final formKey = GlobalKey<FormState>();
-    // Controladores pre-llenados con datos actuales
     final nameController = TextEditingController(text: compromise.name);
     final amountController = TextEditingController(text: compromise.montoTotal?.toStringAsFixed(2) ?? '0.00');
 
     showDialog(
       context: context,
-      // barrierDismissible: false, // Opcional: Evita cerrar tocando fuera
       builder: (context) {
-        // No necesitamos StatefulBuilder si no hay cambios complejos dentro del diálogo
         return AlertDialog(
           title: Text('Editar "${compromise.name}"'),
           content: Form(
             key: formKey,
-            child: SingleChildScrollView( // Para evitar overflow si el teclado aparece
+            child: SingleChildScrollView(
               child: Column(
-                mainAxisSize: MainAxisSize.min, // Para que el diálogo no sea gigante
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
                     controller: nameController,
@@ -115,25 +109,13 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: amountController,
-                    decoration: const InputDecoration(labelText: 'Nuevo Monto Total', prefixText: 'S/ '),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.isEmpty || (double.tryParse(value) ?? -1) < 0) {
-                        return 'Ingrese un monto válido';
-                      }
-                      return null;
-                    },
-                  ),
                 ],
               ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context), // Simplemente cierra
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
@@ -141,8 +123,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 if (formKey.currentState!.validate()) {
                   final newName = nameController.text;
                   final newAmount = double.tryParse(amountController.text) ?? 0.0;
-                  Navigator.pop(context); // Cierra el diálogo ANTES de llamar a la API
-                  _updateCompromise(compromise.id, newName, newAmount); // Llama a la función de guardado
+                  Navigator.pop(context);
+                  _updateCompromise(compromise.id, newName);
                 }
               },
               child: const Text('Guardar'),
@@ -232,18 +214,10 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   }
 
   Future<void> _fetchCompromises() async {
-    // La validación ahora está en el método anterior, pero mantenemos esta por seguridad
-    if (!mounted || _accessToken == null || _idCuenta == null) {
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+    if (!mounted || _accessToken == null || _idCuenta == null) return;
+    setState(() { isLoading = true; errorMessage = null; });
 
     try {
-
       // --- CONSTRUIR PARÁMETROS ---
       Map<String, String> queryParams = {
         'idcuenta': _idCuenta.toString(),
@@ -252,7 +226,12 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       if (_selectedStatus != null && _selectedStatus != 'Todos') {
         queryParams['estado'] = _selectedStatus!;
       }
-      // --- NO HAY FECHAS AQUÍ ---
+      if (_selectedMonth != null) {
+        queryParams['mes'] = _selectedMonth.toString();
+      }
+      if (_selectedYear != null) {
+        queryParams['anio'] = _selectedYear.toString();
+      }
 
       final url = Uri.parse('$API_BASE_URL/compromisos').replace(
         queryParameters: queryParams,
@@ -280,7 +259,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      print('Excepción en _fetchCompromises: $e'); // Imprime la excepción real
+      print('Excepción en _fetchCompromises: $e');
       setState(() {
         errorMessage = 'No se pudo conectar al servidor. Revise su conexión.';
       });
@@ -470,32 +449,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/compromises_create').then((_) => _fetchCompromises());
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
-                icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-                label: const Text(
-                  'Registrar Nuevo Compromiso',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
                   Navigator.pushNamed(context, '/compromises_tiers');
                 },
                 style: ElevatedButton.styleFrom(
@@ -518,14 +471,30 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Mis compromisos',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes items apart
+              crossAxisAlignment: CrossAxisAlignment.center, // Vertically align items
+              children: [
+                const Text(
+                  'Mis compromisos',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87, // Slightly softer black
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                  tooltip: 'Registrar Nuevo Compromiso', // Accessibility
+                  onPressed: () {
+                    // Same action as the old button
+                    Navigator.pushNamed(context, '/compromises_create')
+                        .then((_) => _fetchCompromises()); // Refresh list on return
+                  },
+                ),
+              ],
             ),
+
             const SizedBox(height: 16),
             _buildFiltersSection(),
             const SizedBox(height: 24),
@@ -551,54 +520,153 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
+  // Coloca esta función dentro de tu clase _CompromisesScreenState
+
   Widget _buildFiltersSection() {
     final List<String> statusOptions = ['Todos', 'Pendiente', 'Pagado'];
+    final Map<int, String> monthOptions = {
+      0: 'Todos',
+      for (var i = 1; i <= 12; i++) i: DateFormat('MMMM', 'es').format(DateTime(0, i))
+    };
+    final currentYear = DateTime.now().year;
+    final List<int> yearOptions = [0] + List<int>.generate(7, (i) => currentYear - 5 + i);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8.0, // Espacio horizontal
-          runSpacing: 4.0, // Espacio vertical
-          children: statusOptions.map((status) {
-            final bool isSelected = (_selectedStatus == null && status == 'Todos') || (_selectedStatus == status);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [ // Sombra sutil
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8.0, // Espacio horizontal
+            runSpacing: 4.0, // Espacio vertical
+            children: statusOptions.map((status) {
+              final bool isSelected = (_selectedStatus == null && status == 'Todos') || (_selectedStatus == status);
+              return ChoiceChip(
+                label: Text(status),
+                selected: isSelected,
+                onSelected: (bool selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedStatus = (status == 'Todos') ? null : status;
+                      _fetchCompromises();
+                    });
+                  }
+                },
+                backgroundColor: Colors.grey[100],
+                selectedColor: Colors.purple[100],
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.purple[800] : Colors.black87,
+                  fontSize: 14, // Ligeramente más grande que antes
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: isSelected ? Colors.purple[200]! : Colors.grey[300]!,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                showCheckmark: false,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16), // Espacio antes de Mes/Año
 
-            return ChoiceChip(
-              label: Text(status),
-              selected: isSelected,
-              onSelected: (bool selected) {
-                if (selected) {
-                  setState(() {
-                    _selectedStatus = (status == 'Todos') ? null : status;
-                    _fetchCompromises();
-                  });
-                }
-              },
-              // --- ✅ 2. Ajustes de Estilo ---
-              backgroundColor: Colors.grey[100],
-              selectedColor: Colors.purple[100],
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.purple[800] : Colors.black87,
-                fontSize: 12, // <-- Tamaño de fuente más pequeño
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16), // <-- Bordes un poco más redondeados
-                side: BorderSide(
-                  color: isSelected ? Colors.purple[200]! : Colors.grey[300]!,
+          // --- Fila para Mes y Año ---
+          Row(
+            children: [
+              // --- Dropdown Mes ---
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: _selectedMonth ?? 0, // 0 representa 'Todos'
+                  decoration: InputDecoration(
+                    labelText: 'Mes Creación',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    isDense: true,
+                  ),
+                  items: monthOptions.entries.map((entry) {
+                    // Capitalizar nombre del mes
+                    String monthName = entry.value;
+                    if (monthName != 'Todos') {
+                      monthName = monthName[0].toUpperCase() + monthName.substring(1);
+                    }
+                    return DropdownMenuItem<int>(
+                      value: entry.key, // El valor es el número (0 para 'Todos')
+                      child: Text(monthName, overflow: TextOverflow.ellipsis), // Muestra el nombre, previene overflow
+                    );
+                  }).toList(),
+                  onChanged: (int? newValue) {
+                    setState(() {
+                      _selectedMonth = (newValue == 0) ? null : newValue; // null si selecciona 'Todos'
+                      _fetchCompromises();
+                    });
+                  },
                 ),
               ),
-              // Padding más compacto
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), // <-- Padding reducido
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduce el área táctil extra
-              showCheckmark: false,
-              // --- Fin Ajustes de Estilo ---
-            );
-          }).toList(),
-        ),
-        // Puedes quitar el botón Limpiar si ya no lo necesitas
-      ],
+              const SizedBox(width: 16), // Espacio entre dropdowns
+
+              // --- Dropdown Año ---
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: _selectedYear ?? 0, // 0 representa 'Todos'
+                  decoration: InputDecoration(
+                    labelText: 'Año Creación',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    isDense: true,
+                  ),
+                  items: yearOptions.map((year) {
+                    return DropdownMenuItem<int>(
+                      value: year,
+                      child: Text(year == 0 ? 'Todos' : year.toString()),
+                    );
+                  }).toList(),
+                  onChanged: (int? newValue) {
+                    setState(() {
+                      _selectedYear = (newValue == 0) ? null : newValue;
+                      _fetchCompromises();
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // --- Botón Limpiar Filtros ---
+          if (_selectedStatus != null || _selectedMonth != null || _selectedYear != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedStatus = null;
+                    _selectedMonth = null;
+                    _selectedYear = null;
+                    _fetchCompromises(); // Buscar sin filtros
+                  });
+                },
+                child: const Text('Limpiar Filtros', style: TextStyle(color: Colors.blueAccent)),
+              ),
+            ),
+        ],
+      ),
     );
   }
+
   Widget _buildCompromiseItem(CompromiseModel compromise) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

@@ -376,14 +376,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     );
   }
 
-  // ✅ --- FIN DE CÓDIGO NUEVO ---
-
   List<Budget> _getBudgetsForCurrentMonth() {
     final now = DateTime.now();
     final currentYearMonth = DateFormat('yyyy-MM').format(now);
 
     return budgets.where((budget) {
-      // Manejo de error si la fecha del presupuesto es inválida
       try {
         final budgetYearMonth = DateFormat('yyyy-MM').format(DateTime.parse(budget.month));
         return budgetYearMonth == currentYearMonth;
