@@ -15,15 +15,162 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final int _selectedIndex = 0;
   String? _profileImageUrl;
   bool _isLoading = true;
 
+  // --- NUEVAS VARIABLES ---
+  bool _isUserVerified = true;
+  bool _isLoadingVerificationStatus = true;
+  bool _isSendingVerification = false;
+  String? _userEmail;
+  String? _accessToken;
+  // --- FIN NUEVAS VARIABLES ---
+
   @override
   void initState() {
     super.initState();
-    _loadSelectedAccountAndFetchImage();
+    _loadInitialData();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // <-- Add this
+    super.dispose();
+  }
+
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // When the app comes back into view
+    if (state == AppLifecycleState.resumed) {
+      print("App resumed. Refreshing user data...");
+      _refreshUserData(); // Check the verification status again
+    }
+  }
+
+  Future<void> _refreshUserData() async {
+    // Only refresh if we have a token
+    if (_accessToken == null) {
+      // Maybe try reloading initial data just in case
+      _loadInitialData();
+      return;
+    }
+
+    final url = Uri.parse('$API_BASE_URL/getUser');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Accept': 'application/json', 'Authorization': 'Bearer $_accessToken'},
+      ).timeout(const Duration(seconds: 10)); // Add a timeout
+
+      if (mounted && response.statusCode == 200) {
+        final userData = json.decode(response.body);
+        final String? emailVerifiedAt = userData['email_verified_at'] as String?;
+        final bool isVerifiedNow = emailVerifiedAt != null;
+
+        // Update SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isUserVerified', isVerifiedNow);
+
+        // Update the screen state ONLY if the verification status changed
+        if (_isUserVerified != isVerifiedNow) {
+          print("Verification status changed to: $isVerifiedNow. Hiding prompt.");
+          setState(() {
+            _isUserVerified = isVerifiedNow;
+            // Optionally update other user details like name if needed
+          });
+        } else {
+          print("Verification status remains: $_isUserVerified.");
+        }
+      } else if (mounted) {
+        print("Could not refresh user data from API: ${response.statusCode}. Using local data.");
+        // Fallback: Reload from SharedPreferences if API fails
+        _loadInitialData();
+      }
+    } catch (e) {
+      print("Network error refreshing user data: $e. Using local data.");
+      if (mounted) _loadInitialData(); // Fallback to local data on error
+    }
+  }
+
+  // NUEVA FUNCIÓN PARA CARGAR
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true; // Carga imagen
+      _isLoadingVerificationStatus = true;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString('accessToken');
+
+    // Leemos el estado de verificación guardado por LoadingScreen
+    _isUserVerified = prefs.getBool('isUserVerified') ?? false;
+    // Opcional: leer email si lo guardaste
+    // _userEmail = prefs.getString('userEmail');
+
+    // Marcamos que ya leímos el estado
+    setState(() { _isLoadingVerificationStatus = false; });
+
+    // Continuamos cargando la imagen (tu lógica existente)
+    await _loadSelectedAccountAndFetchImage();
+
+    // Ya no necesitas _isLoading para la imagen aquí si _loadSelected... lo maneja
+    // setState(() { _isLoading = false; }); // _loadSelected... ya pone _isLoading = false
+  }
+
+  Future<void> _resendVerificationEmail() async {
+    print("🚀 Botón Reenviar Correo presionado."); // <-- PRINT 1
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    _accessToken = token;
+
+    if (_accessToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: No autenticado.'), backgroundColor: Colors.red));
+      return;
+    }
+
+    setState(() { _isSendingVerification = true; });
+
+    final url = Uri.parse('$API_BASE_URL/email/verification-notification');
+    print("📡 Llamando a API: $url con Token: Bearer $_accessToken");
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+        },
+      ).timeout(const Duration(seconds: 15));
+      print("🚦 Respuesta API recibida: ${response.statusCode}");
+
+      if (!mounted) return;
+
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Correo de verificación enviado. Revisa tu bandeja de entrada y spam.'), backgroundColor: Colors.green),
+        );
+      } else if (response.statusCode == 429) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demasiados intentos. Intenta más tarde.'), backgroundColor: Colors.orange),
+        );
+      } else {
+        print("Error reenviando email: ${response.statusCode} ${response.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar correo: ${response.statusCode}'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      print("🔥 Excepción en llamada API: $e");
+      if (!mounted) return;
+      print("Excepción reenviando email: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión.'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() { _isSendingVerification = false; });
+    }
   }
 
   void _onItemTapped(int index) {
@@ -192,11 +339,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: _isLoadingVerificationStatus // Primero espera a saber si está verificado
+          ? const Center(child: CircularProgressIndicator())
+          :SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (!_isUserVerified)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24.0), // Espacio debajo del aviso
+                child: Card(
+                  color: Colors.orange[50],
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Colors.orange[200]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Verifica tu correo electrónico',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800], fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Hemos enviado un enlace a tu correo. Por favor, haz clic en él para activar tu cuenta completamente.',
+                          // O usa _userEmail si lo guardaste: 'Revisa tu bandeja de entrada ($_userEmail)...'
+                          style: TextStyle(color: Colors.orange[700], fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _isSendingVerification ? null : _resendVerificationEmail,
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                          child: _isSendingVerification
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text('Reenviar Correo', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            // --- FIN AVISO ---
             const BalanceCard(),
             const SizedBox(height: 24),
             const QuickActions(),

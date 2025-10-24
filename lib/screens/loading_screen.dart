@@ -1,4 +1,3 @@
-// screens/loading_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,8 +5,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:app_muchik/services/user_session.dart';
 import 'package:app_muchik/config/constants.dart';
-
-// 👇 1. IMPORTA TU NUEVO SERVICIO
 import 'package:app_muchik/services/firebase_api.dart';
 
 class LoadingScreen extends StatefulWidget {
@@ -19,7 +16,6 @@ class LoadingScreen extends StatefulWidget {
 
 class _LoadingScreenState extends State<LoadingScreen>
     with TickerProviderStateMixin {
-  // ... (Todos tus controladores de animación se quedan igual) ...
   late AnimationController _logoController;
   late AnimationController _progressController;
   late AnimationController _textController;
@@ -35,7 +31,6 @@ class _LoadingScreenState extends State<LoadingScreen>
   void initState() {
     super.initState();
 
-    // ... (Toda tu inicialización de animaciones se queda igual) ...
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -84,8 +79,6 @@ class _LoadingScreenState extends State<LoadingScreen>
       curve: Curves.easeOut,
     ));
 
-
-    // 👇 2. LLAMA A UNA ÚNICA FUNCIÓN DE INICIALIZACIÓN
     _initializeAndNavigate();
   }
 
@@ -114,7 +107,6 @@ class _LoadingScreenState extends State<LoadingScreen>
     }
   }
 
-  // 👇 3. ESTA FUNCIÓN AHORA VALIDA Y REGISTRA EL TOKEN FCM
   Future<bool> _checkSessionAndSetup() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
@@ -132,21 +124,23 @@ class _LoadingScreenState extends State<LoadingScreen>
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
         },
       );
 
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
-        final userSession = UserSession();
+        final String? emailVerifiedAt = userData['email_verified_at'] as String?;
+        final bool isVerified = emailVerifiedAt != null;
 
+        await prefs.setBool('isUserVerified', isVerified);
+        final userSession = UserSession();
         userSession.setUserData(
           token: token,
           name: userData['nombres_completos'] ?? 'Usuario',
         );
-        print('✅ Datos del usuario obtenidos: ${userData['nombres_completos']}');
+        await prefs.setInt('idUsuario', userData['id'] as int? ?? 0);
 
-        // 👇 4. ¡AQUÍ ESTÁ LA MAGIA!
-        // Después de validar al usuario, registra el token FCM
         print('🔄 Registrando dispositivo para notificaciones...');
         await FirebaseApi().initNotifications();
 
@@ -155,12 +149,16 @@ class _LoadingScreenState extends State<LoadingScreen>
         // El token no es válido
         print('❌ Token no válido, limpiando sesión.');
         await prefs.remove('accessToken');
+        await prefs.remove('idCuenta');
+        await prefs.remove('isUserVerified');
         return false; // No está logueado
       }
     } catch (e) {
       // Error de red
       print('❗ Error de red al validar sesión: $e');
       await prefs.remove('accessToken');
+      await prefs.remove('idCuenta');
+      await prefs.remove('isUserVerified');
       return false; // No está logueado
     }
   }
@@ -173,8 +171,6 @@ class _LoadingScreenState extends State<LoadingScreen>
     super.dispose();
   }
 
-  // ... (Todo tu método build() y el widget LoadingDots se quedan EXACTAMENTE IGUAL) ...
-  // ... (No es necesario copiarlos aquí de nuevo) ...
   @override
   Widget build(BuildContext context) {
     return Scaffold(

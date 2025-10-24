@@ -64,7 +64,7 @@ class EconoMuchikApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
 
-      locale: const Locale('es', 'ES'), // Forzar el locale a Español España
+      locale: const Locale('es', 'ES'),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -112,7 +112,6 @@ class EconoMuchikApp extends StatelessWidget {
                 builder: (context) => CompromisesDetailScreen(compromiseId: compromiseId),
               );
             }
-            // Si los argumentos no son correctos, puedes ir a una pantalla de error.
             return MaterialPageRoute(builder: (context) => const Text('Error: Ruta no válida'));
           case '/accounts':
             return MaterialPageRoute(builder: (context) => const AccountsScreen());
