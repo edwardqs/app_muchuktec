@@ -55,28 +55,31 @@ class TrendData {
 class BudgetCompliance {
   final int id;
   final String categoriaNombre;
+  final String categoriaTipo; // <-- NUEVO: 'gasto' o 'ingreso'
   final double presupuestoMonto;
-  final double gastoMonto;
+  final double montoAlcanzado; // <-- CAMBIO DE NOMBRE (era gastoMonto)
+  final double porcentajeAlcanzado; // <-- CAMBIO DE NOMBRE (era porcentajeUsado)
   final double restante;
-  final double porcentajeUsado;
 
   BudgetCompliance({
     required this.id,
     required this.categoriaNombre,
+    required this.categoriaTipo, // <-- NUEVO
     required this.presupuestoMonto,
-    required this.gastoMonto,
+    required this.montoAlcanzado, // <-- CAMBIO
+    required this.porcentajeAlcanzado, // <-- CAMBIO
     required this.restante,
-    required this.porcentajeUsado,
   });
 
   factory BudgetCompliance.fromJson(Map<String, dynamic> json) {
     return BudgetCompliance(
-      id: json['id'] as int,
-      categoriaNombre: json['categoria_nombre'] as String,
-      presupuestoMonto: (json['presupuesto_monto'] as num).toDouble(),
-      gastoMonto: (json['gasto_monto'] as num).toDouble(),
-      restante: (json['restante'] as num).toDouble(),
-      porcentajeUsado: (json['porcentaje_usado'] as num).toDouble(),
+      id: json['id'],
+      categoriaNombre: json['categoria_nombre'] ?? 'Sin Categoría',
+      categoriaTipo: json['categoria_tipo'] ?? 'gasto', // <-- NUEVO (default a gasto si falta)
+      presupuestoMonto: (json['presupuesto_monto'] as num?)?.toDouble() ?? 0.0,
+      montoAlcanzado: (json['monto_alcanzado'] as num?)?.toDouble() ?? 0.0, // <-- CAMBIO
+      porcentajeAlcanzado: (json['porcentaje_alcanzado'] as num?)?.toDouble() ?? 0.0, // <-- CAMBIO
+      restante: (json['restante'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

@@ -713,12 +713,46 @@ class _DynamicBudgetItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isOverBudget = budget.restante < 0;
-    final Color spentColor = isOverBudget ? Colors.red.shade600! : Colors.green.shade600!;
-    final Color progressColor = isOverBudget ? Colors.red.shade600! : Colors.purple.shade700!;
-    final String remainingText = isOverBudget
-        ? 'Excedido en ${currencyFormat.format(budget.restante.abs())}'
-        : '${(budget.restante * 100 / budget.presupuestoMonto).toStringAsFixed(0)}% restante (${currencyFormat.format(budget.restante)})';
+    final bool isIncome = budget.categoriaTipo == 'ingreso'; // <-- Checkea el tipo
+
+    // --- Lógica condicional para colores y textos ---
+    Color amountColor;
+    Color progressColor;
+    String amountLabel;
+    String remainingLabel;
+    double progressValue = budget.presupuestoMonto > 0 ? (budget.montoAlcanzado / budget.presupuestoMonto) : 0;
+
+    if (isIncome) {
+      // Lógica para Ingresos
+      amountLabel = 'Alcanzado:';
+      amountColor = Colors.green.shade600; // Verde si se alcanza/supera
+      progressColor = Colors.green.shade600;
+      if (budget.montoAlcanzado >= budget.presupuestoMonto) {
+        remainingLabel = 'Meta superada en ${currencyFormat.format(budget.montoAlcanzado - budget.presupuestoMonto)}';
+      } else {
+        remainingLabel = '${(budget.porcentajeAlcanzado).toStringAsFixed(0)}% alcanzado (${currencyFormat.format(budget.restante)} restantes)';
+      }
+      // Aseguramos que el progreso no pase de 1.0 para la barra visual
+      progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
+
+    } else {
+      // Lógica para Gastos (la que ya tenías, ajustada)
+      amountLabel = 'Gastado:';
+      final bool isOverBudget = budget.restante < 0;
+      amountColor = isOverBudget ? Colors.red.shade600 : Colors.orange.shade700; // Naranja/Rojo para gastos
+      progressColor = isOverBudget ? Colors.red.shade600 : Colors.orange.shade700;
+      if (isOverBudget) {
+        remainingLabel = 'Excedido en ${currencyFormat.format(budget.restante.abs())}';
+      } else {
+        // Calculamos % restante basado en el monto restante
+        double remainingPercentage = budget.presupuestoMonto > 0 ? (budget.restante / budget.presupuestoMonto * 100) : 0;
+        remainingLabel = '${remainingPercentage.toStringAsFixed(0)}% restante (${currencyFormat.format(budget.restante)})';
+      }
+      // Aseguramos que el progreso no pase de 1.0 para la barra visual
+      progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
+    }
+    // --- Fin lógica condicional ---
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,12 +768,13 @@ class _DynamicBudgetItem extends StatelessWidget {
                 color: Colors.black87,
               ),
             ),
+            // Muestra Monto Alcanzado (sea ingreso o gasto)
             Text(
-              currencyFormat.format(budget.gastoMonto),
+              currencyFormat.format(budget.montoAlcanzado), // Usa el nuevo nombre
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: spentColor,
+                color: amountColor, // Color dinámico
               ),
             ),
           ],
@@ -748,6 +783,7 @@ class _DynamicBudgetItem extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Muestra el Monto del Presupuesto
             Text(
               'Presupuesto: ${currencyFormat.format(budget.presupuestoMonto)}',
               style: TextStyle(
@@ -755,12 +791,13 @@ class _DynamicBudgetItem extends StatelessWidget {
                 color: Colors.grey[600],
               ),
             ),
+            // Muestra el texto de 'restante' dinámico
             Text(
-              remainingText,
+              remainingLabel,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: isOverBudget ? Colors.red.shade600 : Colors.green.shade600,
+                color: amountColor, // Usa el mismo color dinámico
               ),
             ),
           ],
@@ -768,9 +805,9 @@ class _DynamicBudgetItem extends StatelessWidget {
         const SizedBox(height: 8),
         // Barra de progreso
         LinearProgressIndicator(
-          value: budget.porcentajeUsado / 100.0,
+          value: progressValue, // Usa el valor calculado
           backgroundColor: Colors.grey.shade200,
-          color: progressColor,
+          color: progressColor, // Color dinámico
           minHeight: 8,
           borderRadius: BorderRadius.circular(4),
         ),
