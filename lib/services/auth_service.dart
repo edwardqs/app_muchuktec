@@ -26,7 +26,7 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        print('Cierre de sesión exitoso en el backend.');
+        print('Cierre de sesión exitoso en el backend. FCM Token eliminado');
       } else {
         print('Error en el cierre de sesión en el backend: ${response.body}');
       }

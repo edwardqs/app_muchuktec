@@ -6,7 +6,7 @@ import 'package:app_muchik/config/constants.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-// --- MODELO (Sin cambios) ---
+// --- MODELO ---
 class NotificationModel {
   final int id;
   final String title;
@@ -46,25 +46,27 @@ class NotificationModel {
     );
   }
 
+  // --- CAMBIO --- Agregamos el mapeo para 'commitment_due'
   static NotificationType _mapStringToNotificationType(String? type) {
     switch (type) {
       case 'budget_warning':
+      case 'commitment_due': // <-- Lo tratamos igual que budget_warning
         return NotificationType.payment;
       case 'error':
         return NotificationType.alert;
       case 'success':
         return NotificationType.success;
-      default:
+      default: // Cualquier otro tipo será 'info'
         return NotificationType.info;
     }
   }
 }
 
 enum NotificationType {
-  payment,
-  alert,
-  info,
-  success,
+  payment, // Para alertas de presupuesto y vencimientos de compromiso
+  alert,   // Errores
+  info,    // General
+  success, // Éxito
 }
 // --- FIN DEL MODELO ---
 
@@ -88,10 +90,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _fetchNotifications();
   }
 
-  // --- LÓGICA DE API ---
+  // --- LÓGICA DE API (Sin cambios, ya era genérica) ---
 
   Future<void> _fetchNotifications() async {
-    // ... (Tu código de fetch es correcto, sin cambios) ...
+    // ... Tu código _fetchNotifications existente ...
     setState(() {
       _isLoading = true;
       _error = null;
@@ -106,6 +108,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         throw Exception('Usuario no autenticado o cuenta no seleccionada.');
       }
 
+      // La URL ya pide todas las notificaciones para la cuenta
       final url = Uri.parse('$API_BASE_URL/notifications?idcuenta=$_idcuenta');
       final response = await http.get(
         url,
@@ -120,6 +123,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
+          // El 'fromJson' ya usa el mapeo actualizado
           _notifications = data
               .map((json) => NotificationModel.fromJson(json))
               .toList();
@@ -137,21 +141,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // --- ACTUALIZADO ---
-  /// Marca una notificación como leída (localmente y en el backend)
   Future<void> _markAsRead(int notificationId) async {
+    // ... Tu código _markAsRead existente ...
     // 1. Encontrar la notificación en la lista
-    final notification = _notifications.firstWhere((n) => n.id == notificationId);
+    final notificationIndex = _notifications.indexWhere((n) => n.id == notificationId);
+    if (notificationIndex == -1) return; // Si no se encuentra, salir
+
+    final notification = _notifications[notificationIndex];
+
 
     // 2. Si ya está leída, no hacer nada
     if (notification.isRead) return;
 
+    // Guardar el estado original por si falla la API
+    final originalNotification = _notifications[notificationIndex];
+    final originalNotificationsList = List<NotificationModel>.from(_notifications);
+
+
     // 3. Actualizar la UI localmente (Optimistic Update)
-    // La notificación desaparecerá de "Sin leer" y se moverá a "Leídas"
     setState(() {
-      _notifications = _notifications.map((n) {
-        return n.id == notificationId ? n.copyWith(isRead: true) : n;
-      }).toList();
+      _notifications[notificationIndex] = notification.copyWith(isRead: true);
+      // Reordenar la lista para moverla visualmente si es necesario
+      _notifications.sort((a, b) {
+        if (a.isRead != b.isRead) {
+          return a.isRead ? 1 : -1; // No leídas primero
+        }
+        return b.date.compareTo(a.date); // Luego por fecha descendente
+      });
     });
 
     // 4. Intentar actualizar en el backend
@@ -162,7 +178,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Accept': 'application/json',
-          // --- NUEVO --- Añadir Content-Type y un body vacío por robustez
           'Content-Type': 'application/json',
         },
         body: json.encode({}),
@@ -172,25 +187,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         // 5. Si falla, revertir el cambio local y mostrar error
         _showErrorSnackbar('No se pudo marcar como leída. ${response.body}');
         setState(() {
-          _notifications = _notifications.map((n) {
-            return n.id == notificationId ? n.copyWith(isRead: false) : n;
-          }).toList();
+          _notifications = originalNotificationsList; // Restaurar lista original
         });
       }
+      // Si tiene éxito, la UI ya está actualizada
     } catch (e) {
       // 6. Revertir si hay un error de conexión
       _showErrorSnackbar('Error de red al marcar como leída.');
       setState(() {
-        _notifications = _notifications.map((n) {
-          return n.id == notificationId ? n.copyWith(isRead: false) : n;
-        }).toList();
+        _notifications = originalNotificationsList; // Restaurar lista original
       });
     }
   }
 
-  // --- ACTUALIZADO ---
-  /// Marca TODAS las notificaciones como leídas
   Future<void> _markAllAsRead() async {
+    // ... Tu código _markAllAsRead existente ...
     // Guardar estado anterior en caso de que falle
     final originalNotifications = List<NotificationModel>.from(_notifications);
 
@@ -227,6 +238,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _showErrorSnackbar(String message) {
+    // ... Tu código _showErrorSnackbar existente ...
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -238,10 +250,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   // --- MÉTODOS DE LA VISTA ---
 
+  // --- CAMBIO --- Aseguramos que 'payment' tenga estilo
   Map<String, dynamic> _getStyle(NotificationType type) {
-    // ... (Tu código es correcto, sin cambios) ...
     switch (type) {
-      case NotificationType.payment:
+      case NotificationType.payment: // <-- Este cubre 'budget_warning' Y 'commitment_due'
         return {'color': Colors.orange[700], 'icon': Icons.account_balance_wallet_rounded};
       case NotificationType.alert:
         return {'color': Colors.red[700], 'icon': Icons.error_outline_rounded};
@@ -253,7 +265,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   String _formatTimeAgo(DateTime date) {
-    // ... (Tu código es correcto, sin cambios) ...
+    // ... Tu código _formatTimeAgo existente ...
     final Duration diff = DateTime.now().difference(date);
     if (diff.inSeconds < 60) return 'Hace ${diff.inSeconds} segundos';
     if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} minutos';
@@ -262,11 +274,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return DateFormat('dd/MM/yy, hh:mm a').format(date);
   }
 
-  // --- NUEVO ---
-  /// Muestra el modal con el detalle de la notificación
   void _showNotificationModal(BuildContext context, NotificationModel notification) {
-
-
+    // ... Tu código _showNotificationModal existente (sin el _markAsRead) ...
     // 2. Obtiene el estilo (ícono y color)
     final style = _getStyle(notification.type);
     final color = style['color'] as Color?;
@@ -342,9 +351,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  // --- ACTUALIZADO ---
-  /// Widget para construir cada ítem de notificación
   Widget _buildNotificationItem(BuildContext context, NotificationModel notification) {
+    // ... Tu código _buildNotificationItem existente ...
     final style = _getStyle(notification.type);
     final color = style['color'] as Color?;
     final icon = style['icon'] as IconData?;
@@ -409,7 +417,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
 
-        // --- NUEVO --- Botón para marcar como leída
+        // --- Botón para marcar como leída ---
         trailing: notification.isRead
             ? Icon(Icons.check_circle, color: Colors.green[300], size: 24)
             : IconButton(
@@ -421,7 +429,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           },
         ),
 
-        // --- ACTUALIZADO --- El onTap ahora muestra el modal
+        // --- El onTap ahora muestra el modal ---
         onTap: () {
           _showNotificationModal(context, notification);
         },
@@ -429,9 +437,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  // --- MÉTODO BUILD (ACTUALIZADO) ---
+  // --- MÉTODO BUILD (Sin cambios) ---
   @override
   Widget build(BuildContext context) {
+    // ... Tu código build existente ...
     // Filtra las notificaciones leídas y no leídas
     final unread = _notifications.where((n) => !n.isRead).toList();
     final read = _notifications.where((n) => n.isRead).toList();
@@ -465,7 +474,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildBody(List<NotificationModel> unread, List<NotificationModel> read) {
-    // ... (Tu código de _buildBody es correcto, sin cambios) ...
+    // ... Tu código _buildBody existente ...
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -525,4 +534,4 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-}
+} // Fin de _NotificationsScreenState

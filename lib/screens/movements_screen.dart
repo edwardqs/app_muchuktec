@@ -322,13 +322,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Movimiento guardado con éxito.'), backgroundColor: Colors.green),
         );
-        _amountController.clear();
-        _noteController.clear();
-        setState(() {
-          _selectedCategory = null;
-          _selectedDate = DateTime.now();
-          _selectedMovementType = 'Gasto';
-        });
+        Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
         final responseBody = json.decode(response.body);
         final errorMessage = responseBody['message'] ?? 'Error al guardar el movimiento.';

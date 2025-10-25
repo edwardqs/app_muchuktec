@@ -356,19 +356,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Compromiso guardado exitosamente'), backgroundColor: Colors.green),
         );
-        // Limpiar los campos después de guardar
-        _nameController.clear();
-        _entityController.clear();
-        _amountController.clear();
-        _interestRateController.clear();
-        _installmentsController.clear();
-        _calculatedAmountController.clear();
-        setState(() {
-          _startDate = null;
-          _selectedType = 'Deuda';
-          _interestType = 'Simple';
-          _selectedFrequency = 'Sin cuota';
-        });
+        Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al guardar: ${response.body}'), backgroundColor: Colors.red),
