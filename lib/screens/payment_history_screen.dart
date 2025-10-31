@@ -159,9 +159,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           if (payment.numeroCuotaDisplay != null) {
             bool isNumeric = int.tryParse(payment.numeroCuotaDisplay!) != null;
             if (isNumeric) {
-              titleText = 'Cuota ${payment.numeroCuotaDisplay} - ' + titleText;
+              titleText = 'Pago ${payment.numeroCuotaDisplay} - ' + titleText;
             } else {
-              titleText = 'Cuota ${payment.numeroCuotaDisplay} - ' + titleText; // Ej: "(Flexible)"
+              titleText = 'Pago ${payment.numeroCuotaDisplay} - ' + titleText; // Ej: "(Flexible)"
             }
           }
 
