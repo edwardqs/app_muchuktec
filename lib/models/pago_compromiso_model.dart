@@ -43,7 +43,7 @@ class PagoCompromisoModel {
   // Helper para mostrar fecha formateada
   String get cuotaDisplayText {
     if (numeroCuota == null || fechaPagoProgramada == null) {
-      return 'Flexible';
+      return 'Pago Anticipado';
     }
 
     try {

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'payment_history_screen.dart';
 import 'compromises_screen.dart';
 import '../models/cuota_compromiso_model.dart';
+import '../models/pago_compromiso_model.dart';
 import 'package:app_muchik/config/constants.dart';
 
 class CompromisesDetailScreen extends StatefulWidget {
@@ -23,8 +24,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   CompromiseModel? _compromise;
+
   bool _showAllInstallments = false;
   bool _showAllPayments = false;
+
+  bool _isOpeningPaymentDialog = false;
 
   @override
   void initState() {
@@ -481,6 +485,13 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
         ? allCuotas
         : (hasMoreThanThree ? allCuotas.sublist(0, 3) : allCuotas); // Show first 3 or all if less than 3
 
+    // --- ✅ Lógica para Pagos (NUEVA) ---
+    final List<PagoCompromisoModel> allPayments = compromise.pagos;
+    final bool hasMoreThanThreePayments = allPayments.length > 3; // Nueva variable
+    final List<PagoCompromisoModel> paymentsToShow = _showAllPayments // Usa el nuevo flag
+        ? allPayments
+        : (hasMoreThanThreePayments ? allPayments.sublist(0, 3) : allPayments); // Muestra solo 3
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -556,42 +567,65 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
               ],
             ),
           ),
+
           // --- SECCIÓN DE PAGOS ---
             _buildSectionHeader('Pagos'),
-            compromise.pagos.isEmpty
+            allPayments.isEmpty
                 ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Center(child: Text('Aún no se han registrado pagos.', style: TextStyle(color: Colors.grey))),
-            )
-                : SizedBox(
-              width: double.infinity,
-              child: DataTable(
-                columnSpacing: 16,
-                headingRowHeight: 40,
-                dataRowMinHeight: 48,
-                headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
-                dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
-                columns: const [
-                  DataColumn(label: Text('Fecha')), // N° es menos útil que la Fecha
-                  DataColumn(label: Text('Cuota')),
-                  DataColumn(label: Text('Monto'), numeric: true),
-                ],
-                rows: compromise.pagos.map((pago) {
-                  // Texto para la columna 'Cuota'
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(_formatDate(pago.fechaPago))), // Columna Fecha
-
-                      // ✅ Celda "Cuota" actualizada
-                      DataCell(Text(pago.cuotaDisplayText)), // Usa el nuevo helper
-
-                      DataCell(Text(pago.montoFormateado)), // Columna Monto
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(child: Text('Aún no se han registrado pagos.', style: TextStyle(color: Colors.grey))),
+                )
+            : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch, // Make button full width if desired
+              children: [
+                // --- The DataTable ---
+                SizedBox(
+                  width: double.infinity,
+                  child: DataTable(
+                    columnSpacing: 16,
+                    headingRowHeight: 40,
+                    dataRowMinHeight: 48,
+                    headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+                    dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+                    columns: const [
+                      DataColumn(label: Text('Fecha')), // N° es menos útil que la Fecha
+                      DataColumn(label: Text('Cuota')),
+                      DataColumn(label: Text('Monto'), numeric: true),
                     ],
-                  );
-                }).toList(),
-              ),
+                    rows: paymentsToShow.map((pago) {
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(_formatDate(pago.fechaPago))),
+                          DataCell(Text(pago.cuotaDisplayText)),
+                          DataCell(Text(pago.montoFormateado)),
+                        ],
+                      );
+                    }).toList(),
+                ),
+                ),
+                if (hasMoreThanThreePayments) // <-- Usa el flag de pagos
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Center(
+                      child: TextButton.icon(
+                        icon: Icon(
+                          _showAllPayments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, // <-- Usa el flag de pagos
+                          color: Colors.purple[700],
+                        ),
+                        label: Text(
+                          _showAllPayments ? 'Ver Menos Pagos' : 'Ver ${allPayments.length - 3} Pagos Más', // <-- Texto dinámico
+                          style: TextStyle(color: Colors.purple[700]),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _showAllPayments = !_showAllPayments; // <-- Actualiza el flag de pagos
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          // --- FIN DE LA SECCIÓN DE PAGOS ---
 
           // --- SECCIÓN DETALLE DE CUOTAS ---
           if (hasInstallments) ...[
@@ -608,30 +642,28 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: DataTable(
-                    columnSpacing: 14, // Reducir espacio entre columnas
+                    columnSpacing: 14,
                     headingRowHeight: 40,
                     dataRowMinHeight: 48,
                     dataRowMaxHeight: 60,
                     headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
                     dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
 
-                    // ✅ --- COLUMNAS ACTUALIZADAS ---
+                    // --- COLUMNAS  ---
                     columns: const [
                       DataColumn(label: Text('N°')),
                       DataColumn(label: Text('Monto'), numeric: true),
-                      DataColumn(label: Text('Por'), numeric: true), // <-- NUEVA COLUMNA
+                      DataColumn(label: Text('Por'), numeric: true),
                       DataColumn(label: Text('Estado')),
                       DataColumn(label: Text('Fecha')),
                     ],
 
-                    // ✅ --- FILAS ACTUALIZADAS ---
+                    // --- FILAS ---
                     rows: cuotasToShow.map((cuota) {
                       return DataRow(
                         cells: [
                           DataCell(Text(cuota.numeroCuota.toString())),
-                          // Usa el formateador de monto TOTAL
                           DataCell(Text(cuota.montoTotalFormateado)),
-                          // Usa el formateador de SALDO RESTANTE
                           DataCell(Text(
                             cuota.saldoRestanteFormateado,
                             style: TextStyle(fontWeight: FontWeight.bold, color: cuota.pagado ? Colors.grey : Colors.black),
@@ -651,12 +683,10 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     }).toList(),
                   ),
                 ),
-                // --- "View More" / "View Less" Button ---
-                // ✅ Show button only if there are more than 3 installments
                 if (hasMoreThanThree)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: Center( // Center the button
+                    child: Center(
                       child: TextButton.icon(
                         icon: Icon(
                           _showAllInstallments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
@@ -667,7 +697,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                           style: TextStyle(color: Colors.purple[700]),
                         ),
                         onPressed: () {
-                          // Toggle the state and rebuild
                           setState(() {
                             _showAllInstallments = !_showAllInstallments;
                           });
@@ -678,7 +707,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
               ],
             ),
           ],
-          // --- FIN DE SECCIÓN DETALLE DE CUOTAS ---
 
           // --- SECCIÓN DE FECHAS Y FRECUENCIA ---
           _buildSectionHeader('Fechas y Frecuencia'),
