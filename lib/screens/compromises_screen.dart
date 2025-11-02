@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../models/cuota_compromiso_model.dart';
+import '../models/pago_compromiso_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
 
@@ -842,6 +843,7 @@ class CompromiseModel {
   final FrecuenciaModel? frecuencia;
   final double? montoTotalPagado;
   final List<CuotaCompromisoModel> cuotas;
+  final List<PagoCompromisoModel> pagos;
 
   CompromiseModel({
     required this.id,
@@ -865,6 +867,7 @@ class CompromiseModel {
     this.frecuencia,
     this.montoTotalPagado,
     this.cuotas = const [],
+    this.pagos = const [],
   });
 
   // ✅ Código corregido
@@ -887,6 +890,13 @@ class CompromiseModel {
     if (json['cuotas'] != null && json['cuotas'] is List) {
       parsedCuotas = (json['cuotas'] as List)
           .map((cuotaJson) => CuotaCompromisoModel.fromJson(cuotaJson))
+          .toList();
+    }
+
+    List<PagoCompromisoModel> parsedPagos = [];
+    if (json['pagos'] != null && json['pagos'] is List) {
+      parsedPagos = (json['pagos'] as List)
+          .map((pagoJson) => PagoCompromisoModel.fromJson(pagoJson))
           .toList();
     }
 
@@ -914,6 +924,7 @@ class CompromiseModel {
           ? FrecuenciaModel.fromJson(json['frecuencia'])
           : null,
       cuotas: parsedCuotas,
+      pagos: parsedPagos,
     );
   }
 }

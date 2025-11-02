@@ -24,8 +24,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
   String? _errorMessage;
   CompromiseModel? _compromise;
   bool _showAllInstallments = false;
-
-  bool _isOpeningPaymentDialog = false;
+  bool _showAllPayments = false;
 
   @override
   void initState() {
@@ -212,9 +211,12 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration( /* ... estilos ... */ ),
+                            decoration: BoxDecoration(
+                              color: Colors.purple[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.purple[100]!),
+                            ),
                             child: Text(
-                              // ✅ Usa el 'displayText' del modelo (que muestra saldo restante)
                               "Pagando ${preselectedInstallment.displayText}",
                               style: TextStyle(color: Colors.purple[800], fontWeight: FontWeight.w500),
                             ),
@@ -465,8 +467,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     // CALCULO DEL MONTO A PAGAR TOTAL
     final double montoCuotaCalc = compromise.montoCuota ?? 0.0;
     final int cantidadCuotasCalc = compromise.cantidadCuotas ?? 0;
-    // Monto final = Monto de cuota * Cantidad de cuotas (si hay cuotas)
-    // Si no hay cuotas, usamos el monto total original como fallback.
     final double montoFinalCalculado = (cantidadCuotasCalc > 0 && montoCuotaCalc > 0)
         ? (montoCuotaCalc * cantidadCuotasCalc)
         : compromise.montoTotal ?? 0.0;
@@ -556,6 +556,44 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
               ],
             ),
           ),
+          // --- SECCIÓN DE PAGOS ---
+            _buildSectionHeader('Pagos'),
+            compromise.pagos.isEmpty
+                ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Center(child: Text('Aún no se han registrado pagos.', style: TextStyle(color: Colors.grey))),
+            )
+                : SizedBox(
+              width: double.infinity,
+              child: DataTable(
+                columnSpacing: 16,
+                headingRowHeight: 40,
+                dataRowMinHeight: 48,
+                headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+                dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+                columns: const [
+                  DataColumn(label: Text('Fecha')), // N° es menos útil que la Fecha
+                  DataColumn(label: Text('Cuota')),
+                  DataColumn(label: Text('Monto'), numeric: true),
+                ],
+                rows: compromise.pagos.map((pago) {
+                  // Texto para la columna 'Cuota'
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(_formatDate(pago.fechaPago))), // Columna Fecha
+
+                      // ✅ Celda "Cuota" actualizada
+                      DataCell(Text(pago.cuotaDisplayText)), // Usa el nuevo helper
+
+                      DataCell(Text(pago.montoFormateado)), // Columna Monto
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          // --- FIN DE LA SECCIÓN DE PAGOS ---
+
+          // --- SECCIÓN DETALLE DE CUOTAS ---
           if (hasInstallments) ...[
             _buildSectionHeader('Cuotas'),
             allCuotas.isEmpty

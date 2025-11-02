@@ -155,17 +155,8 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           final payment = _payments[index];
 
           // Construir el texto del TÍTULO
-          String titleText = payment.montoFormateado;
-          if (payment.numeroCuotaDisplay != null) {
-            bool isNumeric = int.tryParse(payment.numeroCuotaDisplay!) != null;
-            if (isNumeric) {
-              titleText = 'Pago ${payment.numeroCuotaDisplay} - ' + titleText;
-            } else {
-              titleText = 'Pago ${payment.numeroCuotaDisplay} - ' + titleText; // Ej: "(Flexible)"
-            }
-          }
-
-          // Construir el texto del SUBTÍTULO
+          String titleText = '${payment.cuotaDisplayText} - ${payment.montoFormateado}';
+          // --- LÓGICA DE SUBTÍTULO (sin cambios) ---
           String subtitleText = 'Fecha: ${payment.fechaFormateada}';
           if (payment.nota != null && payment.nota!.isNotEmpty) {
             subtitleText += '\nNota: ${payment.nota}';
