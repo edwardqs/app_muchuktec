@@ -73,13 +73,26 @@ class ReportService {
     }
   }
 
-  Future<String> exportReports(String format) async {
+  Future<String> exportReports(String format, {int? month, int? year}) async {
     final authData = await _getAuthData();
     final accessToken = authData['accessToken'];
     final idCuenta = authData['idCuenta'];
 
+    // 1. Crear el mapa de parámetros de consulta (queryParams)
+    final queryParams = {
+      'idcuenta': idCuenta,
+    };
+    if (month != null) {
+      queryParams['month'] = month.toString();
+    }
+    if (year != null) {
+      queryParams['year'] = year.toString();
+    }
+    // --- Fin del Cambio 1 ---
+
+    // 2. Usar 'queryParams' en la URI (¡ESTA ES LA CORRECCIÓN CLAVE!)
     final uri = Uri.parse('$API_BASE_URL/reports/export/$format')
-        .replace(queryParameters: {'idcuenta': idCuenta});
+        .replace(queryParameters: queryParams); // <-- ANTES: {'idcuenta': idCuenta}
 
     final response = await http.get(
       uri,
@@ -92,12 +105,19 @@ class ReportService {
       Uint8List fileBytes = response.bodyBytes;
 
       String extension = format == 'excel' ? 'xlsx' : 'pdf';
-      String fullFileName = 'reporte_financiero_${DateTime.now().toIso8601String()}.$extension';
+      // 3. CORRECCIÓN DEL NOMBRE DE ARCHIVO (quita el punto extra)
+      String baseFileName = 'reporte_financiero_${DateTime.now().toIso8601String()}';
+
+      // 4. CORRECCIÓN DEL TIPO MIME (para que PDF funcione)
+      MimeType mimeType = format == 'excel' ? MimeType.microsoftExcel : MimeType.pdf;
 
       String? filePath = await FileSaver.instance.saveFile(
-        name: fullFileName, // Usamos el nombre completo aquí
-        bytes: fileBytes,
+          name: baseFileName,  // <-- Nombre base SIN extensión
+          bytes: fileBytes,
+          fileExtension: extension, // <-- Extensión separada
+          mimeType: mimeType        // <-- MimeType dinámico
       );
+      // --- Fin del Cambio 3 y 4 ---
 
       if (filePath != null) {
         return filePath;

@@ -143,7 +143,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
     try {
       // Llamamos a nuestro nuevo método que guarda el archivo
-      final String filePath = await _reportService.exportReports(format);
+      final String filePath = await _reportService.exportReports(
+        format,
+        month: _selectedDate.month,
+        year: _selectedDate.year,
+      );
 
       // Si todo fue bien, mostramos un mensaje de éxito con la ubicación
       if (!mounted) return;
