@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'payment_history_screen.dart';
 import 'compromises_screen.dart';
 import '../models/cuota_compromiso_model.dart';
+import '../models/pago_compromiso_model.dart';
 import 'package:app_muchik/config/constants.dart';
 
 class CompromisesDetailScreen extends StatefulWidget {
@@ -23,7 +24,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   CompromiseModel? _compromise;
+
   bool _showAllInstallments = false;
+  bool _showAllPayments = false;
+
+  bool _isOpeningPaymentDialog = false;
 
   @override
   void initState() {
@@ -78,7 +83,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     }
   }
 
-  // Método para enviar el pago a la API
+  // Metodo para enviar el pago a la API
   Future<void> _submitPayment({
     required double amount,
     required String date,
@@ -152,40 +157,41 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     }
   }
 
-// Metodo para listar las cuotas pendientes
-  Future<List<CuotaCompromisoModel>> _fetchPendingInstallments() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
-    if (token == null || _compromise == null) {
-      throw Exception('Token o compromiso no disponible');
+  /// Esta función se llama al presionar el botón de añadir pago
+  Future<void> _onAddPaymentPressed() async {
+    // 1. Obtener la lista COMPLETA de cuotas desde el compromiso ya cargado
+    final List<CuotaCompromisoModel> allCuotas = _compromise?.cuotas ?? [];
+
+    // 2. Filtrar para encontrar las pendientes (no pagadas Y con saldo > 0)
+    //    Tu modelo CuotaCompromisoModel ya calcula 'pagado' y 'saldoRestante'
+    final List<CuotaCompromisoModel> pendingInstallments = allCuotas
+        .where((cuota) => !cuota.pagado && cuota.saldoRestante > 0.01)
+        .toList();
+    // (Asumimos que la lista ya viene ordenada por numero_cuota desde el backend)
+
+    CuotaCompromisoModel? preselectedInstallment;
+    if (pendingInstallments.isNotEmpty) {
+      // 3. Pre-seleccionar la primera de la lista de pendientes
+      preselectedInstallment = pendingInstallments.first;
     }
 
-    final url = Uri.parse('$API_BASE_URL/compromisos/${_compromise!.id}/cuotas-pendientes');
-    final response = await http.get(
-      url,
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => CuotaCompromisoModel.fromJson(json)).toList();
-    } else {
-      throw Exception('Error al cargar cuotas: ${response.statusCode}');
+    // 4. Mostrar el diálogo, pasando la cuota preseleccionada (o null)
+    if (mounted) {
+      _showAddPaymentDialog(preselectedInstallment);
     }
+    // No necesitamos _isOpeningPaymentDialog porque la operación es instantánea
   }
 
 // Metodo para mostrar el diálogo
-  void _showAddPaymentDialog() {
+  void _showAddPaymentDialog(CuotaCompromisoModel? preselectedInstallment) {
     final formKey = GlobalKey<FormState>();
-    final amountController = TextEditingController();
+
+    final amountController = TextEditingController(text: preselectedInstallment?.saldoRestante.toStringAsFixed(2) ?? '');
     final noteController = TextEditingController();
     final dateController = TextEditingController(text: DateFormat('yyyy-MM-dd').format(DateTime.now()));
 
-    int? selectedCuotaId; // To store the selected installment ID
-    List<CuotaCompromisoModel> pendingInstallments = []; // To store fetched installments
+    final int? selectedCuotaId = preselectedInstallment?.id;
+    final double maxAmountPayable = preselectedInstallment?.saldoRestante ?? double.infinity;
 
     showDialog(
       context: context,
@@ -200,66 +206,48 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- Dropdown for Pending Installments ---
-                      FutureBuilder<List<CuotaCompromisoModel>>(
-                        future: _fetchPendingInstallments(),
-                        builder: (context, snapshot) {
-                          // Loading state
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20.0),
-                              child: CircularProgressIndicator(),
-                            ));
-                          }
-                          // Error state
-                          if (snapshot.hasError) {
-                            return Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red));
-                          }
-                          // No data or empty list state
-                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            // Allow manual payment even if no installments found
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text('No hay cuotas específicas pendientes.', style: TextStyle(color: Colors.grey)),
-                            );
-                          }
-
-                          // Success state - build the dropdown
-                          pendingInstallments = snapshot.data!;
-                          return DropdownButtonFormField<int>(
-                            value: selectedCuotaId,
-                            hint: const Text('Seleccionar cuota (opcional)'),
-                            isExpanded: true,
-                            decoration: const InputDecoration(labelText: 'Cuota Específica'),
-                            items: pendingInstallments.map((cuota) {
-                              return DropdownMenuItem<int>(
-                                value: cuota.id,
-                                child: Text(cuota.displayText, overflow: TextOverflow.ellipsis),
-                              );
-                            }).toList(),
-                            onChanged: (int? newValue) {
-                              setDialogState(() {
-                                selectedCuotaId = newValue;
-                                if (newValue != null) {
-                                  final selectedCuota = pendingInstallments.firstWhere((c) => c.id == newValue);
-                                  amountController.text = selectedCuota.monto.toStringAsFixed(2);
-                                } else {
-                                  amountController.clear();
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
+                      // --- Muestra texto informativo ---
+                      if (preselectedInstallment != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.purple[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.purple[100]!),
+                            ),
+                            child: Text(
+                              "Pagando ${preselectedInstallment.displayText}",
+                              style: TextStyle(color: Colors.purple[800], fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        )
+                      else
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 16.0),
+                          child: Text(
+                            "Pago flexible (sin cuota específica).",
+                            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                          ),
+                        ),
                       const SizedBox(height: 16),
+                      // --- Campo de Monto (con validación de maxAmountPayable) ---
                       TextFormField(
                         controller: amountController,
                         decoration: const InputDecoration(labelText: 'Monto a Pagar', prefixText: 'S/ '),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: (value) {
-                          if (value == null || value.isEmpty || double.tryParse(value) == null || double.parse(value) <= 0) {
-                            return 'Ingrese un monto válido.';
+                          if (value == null || value.isEmpty) return 'Ingrese un monto.';
+                          final double? amount = double.tryParse(value);
+                          if (amount == null || amount <= 0) return 'Ingrese un monto válido.';
+
+                          // Validación de monto máximo
+                          if (amount > (maxAmountPayable + 0.001)) {
+                            return 'Monto excede el saldo restante (S/ ${maxAmountPayable.toStringAsFixed(2)}).';
                           }
                           return null;
                         },
@@ -430,11 +418,10 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
             // Boton para agregar pago
             if (_compromise != null)
               IconButton(
-                icon: const Icon(Icons.add_card_outlined, color: Colors.purple), // Icono más descriptivo
+                // ✅ Ya no necesita _isOpeningPaymentDialog porque ahora es instantáneo
+                icon: const Icon(Icons.add_card_outlined, color: Colors.purple),
                 tooltip: 'Registrar Pago',
-                onPressed: () {
-                  _showAddPaymentDialog(); // Llamamos a la función que muestra la ventana
-                },
+                onPressed: _onAddPaymentPressed, // Llama a la función local
               ),
           ]
       ),
@@ -484,11 +471,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     // CALCULO DEL MONTO A PAGAR TOTAL
     final double montoCuotaCalc = compromise.montoCuota ?? 0.0;
     final int cantidadCuotasCalc = compromise.cantidadCuotas ?? 0;
-    // Monto final = Monto de cuota * Cantidad de cuotas (si hay cuotas)
-    // Si no hay cuotas, usamos el monto total original como fallback.
     final double montoFinalCalculado = (cantidadCuotasCalc > 0 && montoCuotaCalc > 0)
         ? (montoCuotaCalc * cantidadCuotasCalc)
         : compromise.montoTotal ?? 0.0;
+
+    final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
 
     // --- Logic for showing installments ---
     final List<CuotaCompromisoModel> allCuotas = compromise.cuotas;
@@ -497,6 +484,13 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     final List<CuotaCompromisoModel> cuotasToShow = _showAllInstallments
         ? allCuotas
         : (hasMoreThanThree ? allCuotas.sublist(0, 3) : allCuotas); // Show first 3 or all if less than 3
+
+    // --- ✅ Lógica para Pagos (NUEVA) ---
+    final List<PagoCompromisoModel> allPayments = compromise.pagos;
+    final bool hasMoreThanThreePayments = allPayments.length > 3; // Nueva variable
+    final List<PagoCompromisoModel> paymentsToShow = _showAllPayments // Usa el nuevo flag
+        ? allPayments
+        : (hasMoreThanThreePayments ? allPayments.sublist(0, 3) : allPayments); // Muestra solo 3
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -573,72 +567,69 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
               ],
             ),
           ),
-          // --- SECCIÓN DE CUOTAS Y PAGOS ---
-          if (hasInstallments) ...[
-            _buildSectionHeader('Cuotas y Pagos'),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12.0), // Consistent padding
-              child: Row(
-                children: [
-                  // --- Total de Cuotas Section ---
-                  Expanded( // Takes up half the available space
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.format_list_numbered, color: Colors.purple[400], size: 20),
-                        const SizedBox(width: 12),
-                        Expanded( // Prevents overflow if label/value is long
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Total de Cuotas',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]), // Label style from _buildDetailRow
-                              ),
-                              Text(
-                                (compromise.cantidadCuotas ?? 0).toString(),
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87), // Value style from _buildDetailRow
-                              ),
-                            ],
-                          ),
+
+          // --- SECCIÓN DE PAGOS ---
+            _buildSectionHeader('Pagos'),
+            allPayments.isEmpty
+                ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(child: Text('Aún no se han registrado pagos.', style: TextStyle(color: Colors.grey))),
+                )
+            : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch, // Make button full width if desired
+              children: [
+                // --- The DataTable ---
+                SizedBox(
+                  width: double.infinity,
+                  child: DataTable(
+                    columnSpacing: 16,
+                    headingRowHeight: 40,
+                    dataRowMinHeight: 48,
+                    headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+                    dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+                    columns: const [
+                      DataColumn(label: Text('Fecha')), // N° es menos útil que la Fecha
+                      DataColumn(label: Text('Cuota')),
+                      DataColumn(label: Text('Monto'), numeric: true),
+                    ],
+                    rows: paymentsToShow.map((pago) {
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(_formatDate(pago.fechaPago))),
+                          DataCell(Text(pago.cuotaDisplayText)),
+                          DataCell(Text(pago.montoFormateado)),
+                        ],
+                      );
+                    }).toList(),
+                ),
+                ),
+                if (hasMoreThanThreePayments) // <-- Usa el flag de pagos
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Center(
+                      child: TextButton.icon(
+                        icon: Icon(
+                          _showAllPayments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, // <-- Usa el flag de pagos
+                          color: Colors.purple[700],
                         ),
-                      ],
+                        label: Text(
+                          _showAllPayments ? 'Ver Menos Pagos' : 'Ver ${allPayments.length - 3} Pagos Más', // <-- Texto dinámico
+                          style: TextStyle(color: Colors.purple[700]),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _showAllPayments = !_showAllPayments; // <-- Actualiza el flag de pagos
+                          });
+                        },
+                      ),
                     ),
                   ),
-
-                  // Optional: Add some space between the two items if needed
-                  const SizedBox(width: 16),
-
-                  // --- Cuotas Pagadas Section ---
-                  Expanded( // Takes up the other half
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.check_circle_outline, color: Colors.purple[400], size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cuotas Pagadas',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]), // Label style
-                              ),
-                              Text(
-                                (compromise.cuotasPagadas ?? 0).toString(),
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87), // Value style
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
 
-            const SizedBox(height: 8),
+          // --- SECCIÓN DETALLE DE CUOTAS ---
+          if (hasInstallments) ...[
+            _buildSectionHeader('Cuotas'),
             allCuotas.isEmpty
                 ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -651,32 +642,40 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: DataTable(
-                    columnSpacing: 16,
+                    columnSpacing: 14,
                     headingRowHeight: 40,
                     dataRowMinHeight: 48,
                     dataRowMaxHeight: 60,
                     headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
                     dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+
+                    // --- COLUMNAS  ---
                     columns: const [
                       DataColumn(label: Text('N°')),
                       DataColumn(label: Text('Monto'), numeric: true),
+                      DataColumn(label: Text('Por'), numeric: true),
                       DataColumn(label: Text('Estado')),
-                      DataColumn(label: Text('Fecha Prog.')),
+                      DataColumn(label: Text('Fecha')),
                     ],
-                    // ✅ Use cuotasToShow (the potentially shorter list)
+
+                    // --- FILAS ---
                     rows: cuotasToShow.map((cuota) {
                       return DataRow(
                         cells: [
                           DataCell(Text(cuota.numeroCuota.toString())),
-                          DataCell(Text(cuota.montoFormateado)),
+                          DataCell(Text(cuota.montoTotalFormateado)),
+                          DataCell(Text(
+                            cuota.saldoRestanteFormateado,
+                            style: TextStyle(fontWeight: FontWeight.bold, color: cuota.pagado ? Colors.grey : Colors.black),
+                          )),
                           DataCell(
-                            Text(
-                              cuota.statusText,
-                              style: TextStyle(
-                                color: cuota.pagado ? Colors.green.shade700 : Colors.orange.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                              Text(
+                                cuota.statusText, // 'Pendiente', 'Parcial', 'Pagada'
+                                style: TextStyle(
+                                  color: cuota.statusColor, // Color dinámico
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              )
                           ),
                           DataCell(Text(_formatDate(cuota.fechaPagoProgramada))),
                         ],
@@ -684,12 +683,10 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     }).toList(),
                   ),
                 ),
-                // --- "View More" / "View Less" Button ---
-                // ✅ Show button only if there are more than 3 installments
                 if (hasMoreThanThree)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: Center( // Center the button
+                    child: Center(
                       child: TextButton.icon(
                         icon: Icon(
                           _showAllInstallments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
@@ -700,7 +697,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                           style: TextStyle(color: Colors.purple[700]),
                         ),
                         onPressed: () {
-                          // Toggle the state and rebuild
                           setState(() {
                             _showAllInstallments = !_showAllInstallments;
                           });
@@ -711,7 +707,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
               ],
             ),
           ],
-          // --- FIN DE SECCIÓN DETALLE DE CUOTAS ---
 
           // --- SECCIÓN DE FECHAS Y FRECUENCIA ---
           _buildSectionHeader('Fechas y Frecuencia'),
