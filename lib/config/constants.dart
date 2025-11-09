@@ -1,4 +1,4 @@
 
-const String API_BASE_URL = 'http://192.168.18.68/api';
-const String STORAGE_BASE_URL = 'http://192.168.18.68/storage';
+const String API_BASE_URL = 'https://api-finanzasbackend.onrender.com/api';
+const String STORAGE_BASE_URL = 'https://api-finanzasbackend.onrender.com/storage';
 

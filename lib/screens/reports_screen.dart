@@ -485,30 +485,46 @@ class MonthlyTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ... (La lógica de maxY, interval, spots, y left/bottom titles se queda igual) ...
     double maxY = 0;
     for (var data in trendData) {
       if (data.ingresos > maxY) maxY = data.ingresos;
       if (data.gastos > maxY) maxY = data.gastos;
     }
-
     double interval = maxY / 4;
     if (maxY == 0) {
       maxY = 100.0;
       interval = 25.0;
     } else {
       maxY = maxY * 1.1;
-      interval = maxY / 4;
+      interval = (maxY / 4).ceilToDouble();
     }
-
     final List<FlSpot> ingresosSpots = trendData.asMap().entries.map((entry) {
       return FlSpot(entry.key.toDouble(), entry.value.ingresos);
     }).toList();
-
     final List<FlSpot> gastosSpots = trendData.asMap().entries.map((entry) {
       return FlSpot(entry.key.toDouble(), entry.value.gastos);
     }).toList();
+    Widget leftTitleWidgets(double value, TitleMeta meta) {
+      if (value == meta.max) return Container();
+      const style = TextStyle(fontSize: 10, color: Colors.grey);
+      String text = currencyFormat.format(value).replaceAll('S/', '').split(',').first;
+      return Text(text, style: style, textAlign: TextAlign.left);
+    }
+    Widget bottomTitleWidgets(double value, TitleMeta meta) {
+      const style = TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500);
+      String text;
+      if (value.toInt() >= 0 && value.toInt() < trendData.length) {
+        text = trendData[value.toInt()].mesFull;
+      } else {
+        return Container();
+      }
+      return SideTitleWidget(axisSide: meta.axisSide, child: Text(text, style: style));
+    }
+
 
     return Container(
+      // ... (El Container exterior se queda igual) ...
       padding: const EdgeInsets.fromLTRB(10, 20, 20, 10),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -525,6 +541,7 @@ class MonthlyTrendChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ... (El título se queda igual) ...
           const Padding(
             padding: EdgeInsets.only(left: 10.0),
             child: Text(
@@ -537,53 +554,113 @@ class MonthlyTrendChart extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-
           SizedBox(
             height: 200,
             child: LineChart(
               LineChartData(
-                gridData: const FlGridData(show: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(reservedSize: 0)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(reservedSize: 0)),
+                // ... (gridData se queda igual) ...
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey.shade200,
+                      strokeWidth: 1,
+                      dashArray: [3, 3],
+                    );
+                  },
+                ),
 
+                // --- Tooltips (CON CORRECCIONES) ---
+                lineTouchData: LineTouchData(
+                  handleBuiltInTouches: true,
+                  getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+                    return spotIndexes.map((spotIndex) {
+                      return TouchedSpotIndicatorData(
+                        FlLine(color: Colors.purple.withOpacity(0.5), strokeWidth: 4),
+                        FlDotData(
+                          getDotPainter: (spot, percent, barData, index) {
+                            return FlDotCirclePainter(
+                              radius: 6,
+                              // 👇 CORRECCIÓN 1: Añadir un color por defecto (fallback)
+                              // Esto soluciona el 'color: barData.color' en rojo
+                              color: barData.color ?? Colors.transparent,
+                              strokeColor: Colors.white,
+                              strokeWidth: 2,
+                            );
+                          },
+                        ),
+                      );
+                    }).toList();
+                  },
+                  touchTooltipData: LineTouchTooltipData(
+                    // 👇 CORRECCIÓN 2: Usar el color del tema de forma más segura
+                    // Esto soluciona el 'tooltipBgColor' en rojo
+                    tooltipBgColor: Theme.of(context).primaryColorDark,
+                    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                      return touchedBarSpots.map((barSpot) {
+                        final flSpot = barSpot;
+                        String text = currencyFormat.format(flSpot.y);
+
+                        // 👇 CORRECCIÓN 3: Usar barIndex (0 o 1) en lugar de comparar colores
+                        // Esta es la corrección de lógica más importante
+                        final String label = barSpot.barIndex == 0 ? 'Ingreso: ' : 'Gasto: ';
+
+                        return LineTooltipItem(
+                          label,
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          children: [
+                            TextSpan(
+                              text: text,
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                            ),
+                          ],
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+                // --- Fin de las correcciones ---
+
+                // ... (titlesData, borderData, min/max X/Y, y lineBarsData se quedan igual) ...
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
+                      showTitles: true,
                       reservedSize: 30,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() < 0 || value.toInt() >= trendData.length) {
-                          return const SizedBox.shrink();
-                        }
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          child: Text(
-                            trendData[value.toInt()].mesFull,
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        );
-                      },
+                      getTitlesWidget: bottomTitleWidgets,
                       interval: 1,
                     ),
+                    axisNameWidget: const Text(
+                      'Mes',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black54),
+                    ),
+                    axisNameSize: 24,
                   ),
-
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value == 0 ? '0' : currencyFormat.format(value).replaceAll('S/', '').split(',').first,
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          textAlign: TextAlign.left,
-                        );
-                      },
+                      showTitles: true,
+                      reservedSize: 45,
+                      getTitlesWidget: leftTitleWidgets,
                       interval: interval,
                     ),
+                    axisNameWidget: const Text(
+                      'Monto (S/)',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black54),
+                    ),
+                    axisNameSize: 30,
                   ),
-
                 ),
                 borderData: FlBorderData(
                   show: true,
-                  border: Border.all(color: Colors.grey.shade200, width: 1),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300, width: 2),
+                    left: BorderSide(color: Colors.grey.shade300, width: 2),
+                    top: BorderSide.none,
+                    right: BorderSide.none,
+                  ),
                 ),
                 minX: 0,
                 maxX: trendData.length.toDouble() - 1,
@@ -593,28 +670,47 @@ class MonthlyTrendChart extends StatelessWidget {
                   LineChartBarData(
                     spots: ingresosSpots,
                     isCurved: true,
-                    color: Colors.green.shade600,
-                    barWidth: 3,
+                    color: Colors.green.shade600, // <-- Este color se usa en la Corrección 1
+                    barWidth: 4,
                     isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.green.shade600.withOpacity(0.3),
+                          Colors.green.shade600.withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
                   ),
                   LineChartBarData(
                     spots: gastosSpots,
                     isCurved: true,
-                    color: Colors.red.shade600,
-                    barWidth: 3,
+                    color: Colors.red.shade600, // <-- Este color se usa en la Corrección 1
+                    barWidth: 4,
                     isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.red.shade600.withOpacity(0.3),
+                          Colors.red.shade600.withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 10),
-
-          // Leyenda
+          // ... (La leyenda se queda igual) ...
           Padding(
             padding: const EdgeInsets.only(left: 10.0),
             child: Row(
@@ -631,7 +727,6 @@ class MonthlyTrendChart extends StatelessWidget {
     );
   }
 }
-
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String text;
