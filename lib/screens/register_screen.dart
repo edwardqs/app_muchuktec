@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:app_muchik/config/constants.dart';
+import 'package:app_muchik/screens/verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -804,12 +805,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
         if (response.statusCode == 201) {
-          _showSnackBar(
-              '✅ Registro exitoso. Ahora puedes iniciar sesión.', Colors.green[600]!);
-          await Future.delayed(const Duration(seconds: 2));
           if (mounted) {
-            Navigator.pushReplacementNamed(context, '/login');
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VerificationScreen(
+                  // Pasamos el email para mostrar un mensaje útil
+                  email: _emailController.text,
+                ),
+              ),
+            );
           }
+          // --- FIN DEL CAMBIO ---
         } else {
           final responseData = json.decode(response.body);
           if (responseData['errors'] != null) {
