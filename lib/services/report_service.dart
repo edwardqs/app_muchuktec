@@ -5,11 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/report_data.dart';
 import 'dart:async';
-import 'package:file_saver/file_saver.dart';
 import 'dart:typed_data'; // Necesario para los bytes
 import 'package:app_muchik/config/constants.dart';
-
-
+import 'package:flutter_file_dialog/flutter_file_dialog.dart'; // <-- 1. IMPORTA EL NUEVO PAQUETE
 class ReportService {
 
   Future<Map<String, dynamic>> _getAuthData() async {
@@ -78,7 +76,6 @@ class ReportService {
     final accessToken = authData['accessToken'];
     final idCuenta = authData['idCuenta'];
 
-    // 1. Crear el mapa de parámetros de consulta (queryParams)
     final queryParams = {
       'idcuenta': idCuenta,
     };
@@ -88,11 +85,9 @@ class ReportService {
     if (year != null) {
       queryParams['year'] = year.toString();
     }
-    // --- Fin del Cambio 1 ---
 
-    // 2. Usar 'queryParams' en la URI (¡ESTA ES LA CORRECCIÓN CLAVE!)
     final uri = Uri.parse('$API_BASE_URL/reports/export/$format')
-        .replace(queryParameters: queryParams); // <-- ANTES: {'idcuenta': idCuenta}
+        .replace(queryParameters: queryParams);
 
     final response = await http.get(
       uri,
@@ -105,24 +100,19 @@ class ReportService {
       Uint8List fileBytes = response.bodyBytes;
 
       String extension = format == 'excel' ? 'xlsx' : 'pdf';
-      // 3. CORRECCIÓN DEL NOMBRE DE ARCHIVO (quita el punto extra)
-      String baseFileName = 'reporte_financiero_${DateTime.now().toIso8601String()}';
+      String baseFileName = 'reporte_financiero_${DateTime.now().toIso8601String()}.$extension';
 
-      // 4. CORRECCIÓN DEL TIPO MIME (para que PDF funcione)
-      MimeType mimeType = format == 'excel' ? MimeType.microsoftExcel : MimeType.pdf;
-
-      String? filePath = await FileSaver.instance.saveFile(
-          name: baseFileName,  // <-- Nombre base SIN extensión
-          bytes: fileBytes,
-          fileExtension: extension, // <-- Extensión separada
-          mimeType: mimeType        // <-- MimeType dinámico
+      final params = SaveFileDialogParams(
+        data: fileBytes,
+        fileName: baseFileName,
       );
-      // --- Fin del Cambio 3 y 4 ---
+
+      final String? filePath = await FlutterFileDialog.saveFile(params: params);
 
       if (filePath != null) {
         return filePath;
       } else {
-        throw Exception('No se pudo guardar el archivo.');
+        throw Exception('Guardado cancelado por el usuario.');
       }
 
     } else {

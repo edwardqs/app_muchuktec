@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_model.dart';
 import 'package:flutter/services.dart';
 import 'package:app_muchik/config/constants.dart';
-
+import 'package:intl/intl.dart'; // Import intl
 
 class AssignBudgetScreen extends StatefulWidget {
   const AssignBudgetScreen({super.key});
@@ -23,38 +23,45 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   String? _profileImageUrl;
 
   List<CategoryModel> categories = [];
-  bool isLoading = true; // Renombrado de isLoading a _isLoading para evitar ambigüedad
   String? errorMessage;
   String? _accessToken;
   int? _idCuenta;
-  bool _isLoading = true; // Mantenemos esta para el appbar
+
+  // --- 👇 ESTADOS CORREGIDOS ---
+  // _isLoading es para la carga de la PÁGINA (AppBar y cuerpo)
+  bool _isLoading = true;
+  // _isSaving es para la acción de GUARDAR (el botón)
+  bool _isSaving = false;
+  // --- FIN DE ESTADOS CORREGIDOS ---
 
   List<String> months = [];
 
   @override
   void initState() {
     super.initState();
-    _loadAllData();
     _generateMonthsList();
+    _loadAllData(); // Llamada única
   }
 
+  // --- 👇 initState Y loadAllData CORREGIDOS ---
   Future<void> _loadAllData() async {
+    // El estado ya es _isLoading = true por defecto
     setState(() {
-      _isLoading = true;
-      isLoading = true; // Para la vista principal
       errorMessage = null;
     });
 
-    await Future.wait([
-      _loadUserDataAndFetchCategories(),
-      _loadSelectedAccountAndFetchImage(),
-    ]);
+    await _loadUserDataAndFetchCategories();
+    // Solo carga la imagen si la carga de datos del usuario fue exitosa
+    if (_accessToken != null) {
+      await _loadSelectedAccountAndFetchImage();
+    }
 
+    if (!mounted) return;
     setState(() {
-      _isLoading = false;
-      isLoading = false; // Para la vista principal
+      _isLoading = false; // Termina la carga de la PÁGINA
     });
   }
+  // --- FIN DE CORRECCIÓN ---
 
   void _generateMonthsList() {
     months.add('Mes - Año');
@@ -73,24 +80,19 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   }
 
   Future<void> _loadSelectedAccountAndFetchImage() async {
+    // Ya tenemos _accessToken y _idCuenta desde _loadUserDataAndFetchCategories
+    // Pero volvemos a obtener el token para estar seguros
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/');
-        }
+        if (mounted) Navigator.of(context).pushReplacementNamed('/');
         return;
       }
-
       if (selectedAccountId == null) {
-        if (mounted) {
-          setState(() {
-            _profileImageUrl = null;
-          });
-        }
+        if (mounted) setState(() => _profileImageUrl = null);
         return;
       }
 
@@ -104,7 +106,6 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       );
 
       if (!mounted) return;
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final accountData = data['cuenta'];
@@ -131,12 +132,12 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
     _idCuenta = prefs.getInt('idCuenta');
 
     if (_accessToken != null && _idCuenta != null) {
-      _fetchCategories();
+      await _fetchCategories(); // Usamos await para esperar que termine
     } else {
       if (!mounted) return;
       setState(() {
         errorMessage = 'No se encontró un token de sesión. Por favor, inicie sesión.';
-        isLoading = false;
+        // No ponemos _isLoading = false aquí, dejamos que _loadAllData lo haga
       });
     }
   }
@@ -190,7 +191,9 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
     }
   }
 
+  // --- 👇 sendBudgetToApi CORREGIDO ---
   Future<void> _sendBudgetToApi(Map<String, dynamic> budgetData) async {
+    // _isSaving ya es true, no necesitamos setState aquí
     try {
       final response = await http.post(
         Uri.parse('$API_BASE_URL/presupuestos'),
@@ -202,58 +205,69 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         body: json.encode(budgetData),
       );
 
+      if (!mounted) return; // Chequeo de seguridad
+
       if (response.statusCode == 201) {
-        if (!mounted) return;
         _showSnackBar('Presupuesto asignado exitosamente.', Colors.green);
-        _amountController.clear();
-        setState(() {
-          _selectedCategory = null;
-          _selectedMonth = 'Mes - Año';
-        });
+
+        // ¡REDIRECCIÓN!
+        Navigator.pushReplacementNamed(context, '/dashboard');
+
+        // Ya no necesitamos limpiar campos ni cambiar estado,
+        // porque la pantalla se va a destruir.
+
       } else {
+        // Hubo un error en el API
         final Map<String, dynamic> responseBody = json.decode(response.body);
-        final String message = responseBody['message'] ?? 'Error al asignar el presupuesto. Intente de nuevo.';
-        if (!mounted) return;
+        final String message = responseBody['message'] ?? 'Error al asignar el presupuesto.';
         _showSnackBar(message, Colors.red);
+        // Vuelve a habilitar el botón si hay un error
+        setState(() {
+          _isSaving = false;
+        });
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('No se pudo conectar al servidor. Revise su conexión.', Colors.red);
+      _showSnackBar('No se pudo conectar al servidor.', Colors.red);
+      // Vuelve a habilitar el botón si hay una excepción
+      setState(() {
+        _isSaving = false;
+      });
     }
   }
+  // --- FIN DE CORRECCIÓN ---
 
   void _assignBudget() {
+    // ... (Tu lógica de validación _assignBudget está perfecta) ...
     if (_selectedCategory == null) {
       _showSnackBar('Por favor, selecciona una categoría', Colors.red);
       return;
     }
-
     if (_selectedMonth == 'Mes - Año') {
       _showSnackBar('Por favor, selecciona un mes', Colors.red);
       return;
     }
-
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       _showSnackBar('Por favor, ingresa el monto del presupuesto', Colors.red);
       return;
     }
-
     final double? amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
       _showSnackBar('Por favor, ingresa un monto válido', Colors.red);
       return;
     }
-
     _showConfirmationDialog(amount);
   }
 
+  // --- 👇 showConfirmationDialog CORREGIDO ---
   void _showConfirmationDialog(double amount) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Evita que se cierre al tocar fuera
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirmar asignación de presupuesto'),
+          title: const Text('Confirmar asignación'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
@@ -280,19 +294,30 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
             ),
           ),
           actions: <Widget>[
+            // Botón "Cancelar" (CORREGIDO)
             TextButton(
-              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
               onPressed: () {
+                // Solo cierra el diálogo
                 Navigator.of(context).pop();
               },
             ),
+            // Botón "Confirmar" (CORREGIDO)
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
               ),
               child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
               onPressed: () {
+                // 1. Pone la UI en modo "Guardando"
+                setState(() {
+                  _isSaving = true;
+                });
+
+                // 2. Cierra el diálogo
                 Navigator.of(context).pop();
+
+                // 3. Prepara los datos
                 final parts = _selectedMonth.split(' ');
                 final monthName = parts[0];
                 final year = parts[1];
@@ -304,6 +329,8 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
                   'mes': mes,
                   'monto': amount,
                 };
+
+                // 4. Llama a la API DESPUÉS de cerrar el diálogo
                 _sendBudgetToApi(body);
               },
             ),
@@ -312,8 +339,10 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
       },
     );
   }
+  // --- FIN DE CORRECCIÓN ---
 
   String _getMonthNumber(String monthName) {
+    // ... (Tu código es correcto) ...
     final months = {
       'Enero': '01', 'Febrero': '02', 'Marzo': '03', 'Abril': '04',
       'Mayo': '05', 'Junio': '06', 'Julio': '07', 'Agosto': '08',
@@ -323,6 +352,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   }
 
   void _showSnackBar(String message, Color color) {
+    // ... (Tu código es correcto) ...
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -335,6 +365,8 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      // --- 👇 AppBar CORREGIDO ---
+      // (Usa _isLoading para el indicador)
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -371,7 +403,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
                 color: Colors.purple[100],
                 shape: BoxShape.circle,
               ),
-              child: _isLoading
+              child: _isLoading // <-- USA _isLoading (carga de página)
                   ? const Center(
                   child: CircularProgressIndicator(
                     color: Colors.purple,
@@ -395,13 +427,16 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
           ),
         ],
       ),
+      // --- FIN DE CORRECCIÓN ---
       body: _buildBody(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
+  // --- 👇 _buildBody CORREGIDO ---
+  // (Usa _isLoading para el indicador)
   Widget _buildBody() {
-    if (isLoading) {
+    if (_isLoading) { // <-- USA _isLoading (carga de página)
       return const Center(child: CircularProgressIndicator());
     }
     if (errorMessage != null) {
@@ -416,97 +451,124 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         ),
       );
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Seleccionar categoría',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildCategoryDropdown(),
-          const SizedBox(height: 24),
-          const Text(
-            'Mes',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildMonthDropdown(),
-          const SizedBox(height: 24),
-          const Text(
-            'Monto del presupuesto',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-            ],
-            decoration: InputDecoration(
-              hintText: 'S/.',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+    // El SingleChildScrollView ahora está envuelto en un 'GestureDetector'
+    // para ocultar el teclado si el usuario toca fuera de un campo de texto
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(), // Oculta el teclado
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ... (Dropdown de Categoría)
+            const Text(
+              'Seleccionar categoría',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.green, width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
-          ),
-          const SizedBox(height: 40),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _assignBudget,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
+            const SizedBox(height: 12),
+            _buildCategoryDropdown(),
+            const SizedBox(height: 24),
+
+            // ... (Dropdown de Mes)
+            const Text(
+              'Mes',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildMonthDropdown(),
+            const SizedBox(height: 24),
+
+            // ... (Campo de Monto)
+            const Text(
+              'Monto del presupuesto',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
+              decoration: InputDecoration(
+                hintText: 'S/.',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
                 ),
-                elevation: 0,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.green, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              child: const Text(
-                'Asignar Presupuesto',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+            ),
+            const SizedBox(height: 40),
+
+            // --- 👇 Botón de Guardar CORREGIDO ---
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                // Deshabilita si la página está cargando O si está guardando
+                onPressed: _isLoading || _isSaving ? null : _assignBudget,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                // Muestra el indicador de carga si _isSaving es true
+                child: _isSaving
+                    ? const SizedBox(
+                  height: 24, // Damos un tamaño al indicador
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+                    : const Text(
+                  'Asignar Presupuesto',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            // --- FIN DE CORRECCIÓN ---
+          ],
+        ),
       ),
     );
   }
+  // --- FIN DE CORRECCIÓN ---
+
 
   Widget _buildCategoryDropdown() {
+    // ... (Tu código es correcto) ...
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -557,6 +619,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   }
 
   Widget _buildMonthDropdown() {
+    // ... (Tu código es correcto) ...
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -594,6 +657,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
+    // ... (Tu código es correcto) ...
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -661,6 +725,8 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
   @override
   void dispose() {
     _amountController.dispose();
+    // NOTA: Tus otros controladores de 'compromises_create'
+    // no existen aquí, así que los quité de dispose().
     super.dispose();
   }
-}
+} // Fin de _AssignBudgetScreenState

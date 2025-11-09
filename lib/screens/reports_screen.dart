@@ -155,13 +155,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         SnackBar(
           content: Text('Reporte guardado en la carpeta de Descargas.'),
           duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-              label: 'VER RUTA',
-              onPressed: () {
-                // Opcional: Imprime la ruta completa en la consola para depuración
-                print('Archivo guardado en: $filePath');
-              }
-          ),
+
         ),
       );
 
