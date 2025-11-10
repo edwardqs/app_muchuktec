@@ -28,9 +28,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicialización para evitar LateInitializationError
-    _reportsFuture = Future.value(ReportData(summary: MonthlySummary(ingresos: 0, gastos: 0, balance: 0, mes: 'n/a', nombreMes: 'Cargando...'), trend: [], budgets: []));
 
+    _reportsFuture = Future.value(ReportData(
+      summary: MonthlySummary(ingresos: 0, gastos: 0, balance: 0, mes: 'n/a', nombreMes: 'Cargando...'),
+      trend: [],
+      budgets: [],
+      commitmentPayments: [], // <-- AÑADE ESTO
+    ));
     _checkAuthAndLoadReports();
   }
 
@@ -258,6 +262,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 MonthlyTrendChart(trendData: reportData.trend),
                 const SizedBox(height: 24),
                 BudgetComplianceCard(budgets: reportData.budgets),
+
+                // 👇 AÑADE ESTO
+                const SizedBox(height: 24),
+                CommitmentPaymentsCard(payments: reportData.commitmentPayments),
+                // ---
+
               ],
             ),
           );
@@ -905,6 +915,116 @@ class _DynamicBudgetItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
       ],
+    );
+  }
+}
+
+class CommitmentPaymentsCard extends StatelessWidget {
+  final List<CommitmentPayment> payments;
+
+  const CommitmentPaymentsCard({super.key, required this.payments});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pagos de Compromisos del Mes',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (payments.isEmpty)
+            const Center(child: Text('No se realizaron pagos de compromisos este mes.'))
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: payments.length,
+              itemBuilder: (context, index) {
+                return _PaymentItem(payment: payments[index]);
+              },
+              separatorBuilder: (context, index) => Divider(color: Colors.grey[200]),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 👇 WIDGET NUEVO: ITEM INDIVIDUAL DE PAGO ---
+class _PaymentItem extends StatelessWidget {
+  final CommitmentPayment payment;
+
+  const _PaymentItem({required this.payment});
+
+  @override
+  Widget build(BuildContext context) {
+    // Determina si es ingreso (préstamo recibido) o gasto (pago de deuda)
+    final bool isIncome = payment.tipoMovimiento == 'pago_ingreso';
+    final Color amountColor = isIncome ? Colors.green[600]! : Colors.red[600]!;
+    final String sign = isIncome ? '+' : '-';
+
+    // Crea el subtítulo dinámicamente
+    String subtitle;
+    if (payment.cuotaNumero != null) {
+      subtitle = 'Cuota N° ${payment.cuotaNumero} de ${payment.compromisoNombre}';
+    } else {
+      subtitle = payment.compromisoNombre;
+    }
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: amountColor.withOpacity(0.1),
+        child: Icon(
+          isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+          color: amountColor,
+          size: 20,
+        ),
+      ),
+      title: Text(
+        subtitle,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        DateFormat('dd MMM, yyyy', 'es_ES').format(payment.fechaPago),
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.grey[600],
+        ),
+      ),
+      trailing: Text(
+        '$sign${currencyFormat.format(payment.monto)}',
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          color: amountColor,
+        ),
+      ),
     );
   }
 }

@@ -84,22 +84,64 @@ class BudgetCompliance {
   }
 }
 
+class CommitmentPayment {
+  final int id;
+  final double monto;
+  final DateTime fechaPago;
+  final String tipoMovimiento; // 'pago_gasto' o 'pago_ingreso'
+  final String compromisoNombre;
+  final int? cuotaNumero; // Puede ser nulo
+
+  CommitmentPayment({
+    required this.id,
+    required this.monto,
+    required this.fechaPago,
+    required this.tipoMovimiento,
+    required this.compromisoNombre,
+    this.cuotaNumero,
+  });
+
+  factory CommitmentPayment.fromJson(Map<String, dynamic> json) {
+    // Manejo de relaciones que pueden ser nulas
+    final compromiso = json['compromiso'] as Map<String, dynamic>?;
+    final cuota = json['cuota_compromiso'] as Map<String, dynamic>?;
+
+    return CommitmentPayment(
+      id: json['id'] as int,
+      monto: (json['monto'] as num).toDouble(),
+      fechaPago: DateTime.parse(json['fecha_pago']),
+      tipoMovimiento: json['tipo_movimiento'] ?? 'desconocido',
+      compromisoNombre: compromiso?['nombre'] ?? 'Compromiso Eliminado',
+      cuotaNumero: cuota?['numero_cuota'] as int?,
+    );
+  }
+}
 class ReportData {
   final MonthlySummary summary;
   final List<TrendData> trend;
   final List<BudgetCompliance> budgets;
+  final List<CommitmentPayment> commitmentPayments; // <-- AÑADIDO
 
   ReportData({
     required this.summary,
     required this.trend,
     required this.budgets,
+    required this.commitmentPayments, // <-- AÑADIDO
   });
 
   factory ReportData.fromJson(Map<String, dynamic> json) {
     return ReportData(
       summary: MonthlySummary.fromJson(json['summary']),
-      trend: (json['trend'] as List).map((i) => TrendData.fromJson(i)).toList(),
-      budgets: (json['budgets'] as List).map((i) => BudgetCompliance.fromJson(i)).toList(),
+      trend: (json['trend'] as List)
+          .map((i) => TrendData.fromJson(i))
+          .toList(),
+      budgets: (json['budgets'] as List)
+          .map((i) => BudgetCompliance.fromJson(i))
+          .toList(),
+      // <-- AÑADIDO
+      commitmentPayments: (json['commitmentPayments'] as List)
+          .map((i) => CommitmentPayment.fromJson(i))
+          .toList(),
     );
   }
 }

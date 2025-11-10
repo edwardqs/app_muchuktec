@@ -211,7 +211,7 @@ class _AssignBudgetScreenState extends State<AssignBudgetScreen> {
         _showSnackBar('Presupuesto asignado exitosamente.', Colors.green);
 
         // ¡REDIRECCIÓN!
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        Navigator.pushReplacementNamed(context, '/budgets');
 
         // Ya no necesitamos limpiar campos ni cambiar estado,
         // porque la pantalla se va a destruir.
