@@ -5,7 +5,13 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
 
+// --- ¡NUEVO IMPORT! ---
+// Importamos la pantalla de verificación
+import '../screens/verification_screen.dart';
+// --- FIN DEL NUEVO IMPORT ---
+
 class LoginScreen extends StatefulWidget {
+  // ... (tu código se queda igual)
   const LoginScreen({super.key});
 
   @override
@@ -13,6 +19,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // ... (tus controladores se quedan igual)
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -24,13 +31,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isRedirecting = false;
 
+
   @override
   void initState() {
+    // ... (tu código se queda igual)
     super.initState();
     _checkSession();
   }
 
   Future<void> _checkSession() async {
+    // ... (tu código se queda igual)
+    // (Esta función usa API_BASE_URL, asegúrate que esté en tus constants.dart)
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString('accessToken');
 
@@ -41,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     print('🔍 Token de acceso encontrado. Validando sesión con el servidor...');
     _isLoading.value = true;
-    final url = Uri.parse('$API_BASE_URL/getUser'); // Endpoint para obtener el usuario actual
+    final url = Uri.parse('$API_BASE_URL/getUser');
 
     try {
       final response = await http.get(
@@ -57,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200) {
         print('✅ Sesión validada con éxito. Redirigiendo a /loading...');
-        // El token es válido y el usuario existe en la base de datos
         if (!_isRedirecting) {
           _isRedirecting = true;
           Navigator.of(context).pushReplacementNamed(
@@ -67,7 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         print('❌ El token no es válido o ha expirado. Estado: ${response.statusCode}');
-        // El token es inválido o el usuario ya no existe
         await prefs.remove('accessToken');
         await prefs.remove('idCuenta');
         _errorMessage.value = 'Tu sesión ha expirado o ya no es válida. Por favor, inicia sesión de nuevo.';
@@ -75,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       _isLoading.value = false;
       print('❗ Error al conectar con el servidor para validar la sesión: $e');
-      // Error de conexión al servidor
       _errorMessage.value = 'No se pudo verificar tu sesión. Por favor, intenta de nuevo.';
       await prefs.remove('accessToken');
       await prefs.remove('idCuenta');
@@ -83,6 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _performLogin() async {
+    // ... (tu código se queda igual)
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -126,13 +135,10 @@ class _LoginScreenState extends State<LoginScreen> {
           _errorMessage.value = 'Token no recibido. Por favor, intente de nuevo.';
         }
       } else {
+        // Esta parte es clave, aquí le avisamos si no está verificado
         final errorData = json.decode(response.body);
         if (errorData['errors'] != null && errorData['errors']['login'] != null) {
           _errorMessage.value = errorData['errors']['login'][0];
-        } else if (errorData['errors'] != null) {
-          // Fallback por si hay otro tipo de error
-          final firstError = errorData['errors'].values.first[0];
-          _errorMessage.value = firstError;
         } else {
           _errorMessage.value = errorData['message'] ?? 'Error desconocido.';
         }
@@ -146,6 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (tu código se queda igual)
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -159,12 +166,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
-        // Eliminamos el const aquí porque el hijo (_LoginContent)
-        // no es un widget constante, depende del estado.
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            // Llamada correcta sin paréntesis
             child: _LoginContent,
           ),
         ),
@@ -174,6 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    // ... (tu código se queda igual)
     _loginController.dispose();
     _passwordController.dispose();
     _isPasswordVisible.dispose();
@@ -183,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Se mantiene como un getter para la optimización
+  // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
   Widget get _LoginContent {
     return Form(
       key: _formKey,
@@ -197,6 +202,12 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 32),
           _buildLoginButton(),
           const SizedBox(height: 20),
+
+          // --- ¡BOTÓN NUEVO AÑADIDO! ---
+          _buildVerifyButton(context), // Botón para el "Plan B"
+          // --- FIN DEL CAMBIO ---
+
+          const SizedBox(height: 20), // Espacio extra
           const _Divider(),
           const SizedBox(height: 24),
           _buildRegisterButton(),
@@ -207,8 +218,36 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+  // --- FIN DEL CAMBIO ---
+
+
+  // --- ¡NUEVO WIDGET AÑADIDO! ---
+  Widget _buildVerifyButton(BuildContext context) {
+    return TextButton(
+      onPressed: () {
+        // Navega a la pantalla de verificación manual
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => VerificationScreen(),
+          ),
+        );
+      },
+      child: Text(
+        '¿Aún no verificaste tu correo? Haz clic aquí',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.9),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          decoration: TextDecoration.underline,
+        ),
+      ),
+    );
+  }
+  // --- FIN DEL NUEVO WIDGET ---
 
   Widget _buildLoginForm() {
+    // ... (tu código se queda igual)
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -298,6 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 20),
           Row(
+            // ... (tu código se queda igual)
             children: [
               ValueListenableBuilder<bool>(
                 valueListenable: _rememberMe,
@@ -372,6 +412,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginButton() {
+    // ... (tu código se queda igual)
     return ValueListenableBuilder<bool>(
       valueListenable: _isLoading,
       builder: (context, isLoading, child) {
@@ -435,6 +476,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildRegisterButton() {
+    // ... (tu código se queda igual)
     return Container(
       width: double.infinity,
       height: 56,
@@ -489,6 +531,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showForgotPasswordDialog() {
+    // ... (tu código se queda igual)
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -553,6 +596,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildModernTextField({
+    // ... (tu código se queda igual)
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -651,8 +695,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Widgets Estáticos para reusar y mejorar el rendimiento
+// Widgets Estáticos
 class _HeaderSection extends StatelessWidget {
+  // ... (tu código se queda igual)
   const _HeaderSection();
 
   @override
@@ -715,6 +760,7 @@ class _HeaderSection extends StatelessWidget {
 }
 
 class _Divider extends StatelessWidget {
+  // ... (tu código se queda igual)
   const _Divider();
 
   @override
@@ -750,6 +796,7 @@ class _Divider extends StatelessWidget {
 }
 
 class _FooterSection extends StatelessWidget {
+  // ... (tu código se queda igual)
   const _FooterSection();
 
   @override
