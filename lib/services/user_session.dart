@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:app_muchik/config/constants.dart';
+import '../config/constants.dart';
 
 class UserSession extends ChangeNotifier {
   // Patrón Singleton

@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+// --- NUEVOS IMPORTS ---
+import 'package:provider/provider.dart';
+import '../services/user_session.dart';
+// --- FIN DE NUEVOS IMPORTS ---
+
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -48,7 +53,12 @@ void main() async {
   // Inicializar localización para formatos de fecha
   await initializeDateFormatting('es');
 
-  runApp(const EconoMuchikApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => UserSession(), // Aquí creamos la instancia global
+      child: EconoMuchikApp(), // Tu app ahora es un hijo
+    ),
+  );
 }
 
 class EconoMuchikApp extends StatelessWidget {

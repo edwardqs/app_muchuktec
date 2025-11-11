@@ -7,6 +7,9 @@ import 'package:app_muchik/services/user_session.dart';
 import 'package:app_muchik/config/constants.dart';
 import 'package:app_muchik/services/firebase_api.dart';
 
+import 'package:app_links/app_links.dart';
+import '../services/auth_service.dart';
+
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
 
@@ -26,6 +29,9 @@ class _LoadingScreenState extends State<LoadingScreen>
   late Animation<double> _textOpacityAnimation;
   late Animation<Offset> _textSlideAnimation;
 
+  final _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -83,21 +89,20 @@ class _LoadingScreenState extends State<LoadingScreen>
   }
 
   Future<void> _initializeAndNavigate() async {
-    // Inicia todas las animaciones
     _logoController.forward();
     Future.delayed(const Duration(milliseconds: 600), () => _textController.forward());
     Future.delayed(const Duration(milliseconds: 1000), () => _progressController.forward());
 
-    // Define el tiempo mínimo que la pantalla debe mostrarse
     final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
 
-    // Ejecuta la comprobación de sesión y el registro de FCM
-    final isLoggedIn = await _checkSessionAndSetup();
+    bool isLoggedIn = await _handleInitialLink();
 
-    // Espera a que la animación MÍNIMA haya terminado
+    if (!isLoggedIn) {
+      isLoggedIn = await _checkSessionAndSetup();
+    }
+
     await animationFuture;
 
-    // Navega basado en el resultado de la comprobación
     if (mounted) {
       if (isLoggedIn) {
         Navigator.of(context).pushReplacementNamed('/dashboard');
@@ -106,6 +111,54 @@ class _LoadingScreenState extends State<LoadingScreen>
       }
     }
   }
+
+// --- ¡NUEVAS FUNCIONES AÑADIDAS (CON APP_LINKS)! ---
+  Future<bool> _handleInitialLink() async {
+    try {
+      // 1. Obtiene el enlace inicial (si la app se abrió con él)
+      final initialUri = await _appLinks.getInitialLink();
+
+      if (initialUri == null) {
+        print('No hay enlace inicial. Escuchando futuros enlaces...');
+        // 2. Configura el listener para enlaces futuros (si la app ya estaba abierta)
+        _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+          _handleDeepLink(uri);
+        });
+        return false; // No se abrió con un enlace
+      }
+
+      // 3. Si SÍ hubo un enlace inicial, manéjalo
+      print('Enlace inicial encontrado: $initialUri');
+      return await _handleDeepLink(initialUri);
+
+    } catch (e) {
+      print('Error al obtener el enlace inicial (app_links): $e');
+      return false;
+    }
+  }
+
+  /// Procesa el enlace y devuelve true si el auto-login es exitoso
+  Future<bool> _handleDeepLink(Uri uri) async {
+    // Revisa si el esquema y el "host" son los que definimos
+    if (uri.scheme == 'com.economuchik.app_muchik' && uri.host == 'verify') {
+      final String? token = uri.queryParameters['token'];
+
+      if (token != null && token.isNotEmpty) {
+        print('✅ Token capturado del Deep Link: $token');
+        try {
+          // Llama al servicio que hace el auto-login
+          await _authService.verifyEmailToken(token);
+          print('🎉 ¡Auto-login por Deep Link exitoso!');
+          return true; // Auto-login exitoso
+        } catch (e) {
+          print('❌ Error al verificar el token del Deep Link: $e');
+          return false; // Falló la verificación
+        }
+      }
+    }
+    return false; // No era un enlace de verificación
+  }
+  // --- FIN DE NUEVAS FUNCIONES ---
 
   Future<bool> _checkSessionAndSetup() async {
     final prefs = await SharedPreferences.getInstance();
@@ -168,6 +221,7 @@ class _LoadingScreenState extends State<LoadingScreen>
     _logoController.dispose();
     _progressController.dispose();
     _textController.dispose();
+    _linkSubscription?.cancel();
     super.dispose();
   }
 

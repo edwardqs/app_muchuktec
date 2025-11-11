@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:app_muchik/config/constants.dart'; // <-- Aquí está tu API_BASE_URL
+import 'package:app_muchik/config/constants.dart';
 import '../services/user_session.dart';
 
 class AuthService {
