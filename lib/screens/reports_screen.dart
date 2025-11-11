@@ -833,7 +833,7 @@ class _DynamicBudgetItem extends StatelessWidget {
       if (budget.montoAlcanzado >= budget.presupuestoMonto) {
         remainingLabel = 'Meta superada en ${currencyFormat.format(budget.montoAlcanzado - budget.presupuestoMonto)}';
       } else {
-        remainingLabel = '${(budget.porcentajeAlcanzado).toStringAsFixed(0)}% alcanzado (${currencyFormat.format(budget.restante)} restantes)';
+        remainingLabel = '${(budget.porcentajeAlcanzado).toStringAsFixed(0)}%. Queda ${currencyFormat.format(budget.restante)}';
       }
       // Aseguramos que el progreso no pase de 1.0 para la barra visual
       progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
@@ -849,7 +849,7 @@ class _DynamicBudgetItem extends StatelessWidget {
       } else {
         // Calculamos % restante basado en el monto restante
         double remainingPercentage = budget.presupuestoMonto > 0 ? (budget.restante / budget.presupuestoMonto * 100) : 0;
-        remainingLabel = '${remainingPercentage.toStringAsFixed(0)}% restante (${currencyFormat.format(budget.restante)})';
+        remainingLabel = '${remainingPercentage.toStringAsFixed(0)}%. Queda ${currencyFormat.format(budget.restante)}';
       }
       // Aseguramos que el progreso no pase de 1.0 para la barra visual
       progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
@@ -986,7 +986,7 @@ class _PaymentItem extends StatelessWidget {
     // Crea el subtítulo dinámicamente
     String subtitle;
     if (payment.cuotaNumero != null) {
-      subtitle = 'Cuota N° ${payment.cuotaNumero} de ${payment.compromisoNombre}';
+      subtitle = 'Cta. N° ${payment.cuotaNumero}: ${payment.compromisoNombre}';
     } else {
       subtitle = payment.compromisoNombre;
     }

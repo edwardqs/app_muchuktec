@@ -1,4 +1,25 @@
 // lib/models/report_data.dart
+import 'dart:convert';
+
+// --- NUEVA FUNCIÓN AUXILIAR ---
+// Esta función intentará parsear un valor a double,
+// sin importar si es int, double, o String.
+double _parseDouble(dynamic value) {
+  if (value == null) {
+    return 0.0;
+  }
+  if (value is double) {
+    return value;
+  }
+  if (value is int) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value) ?? 0.0;
+  }
+  return 0.0;
+}
+// --- FIN FUNCIÓN AUXILIAR ---
 
 class MonthlySummary {
   final double ingresos;
@@ -17,9 +38,10 @@ class MonthlySummary {
 
   factory MonthlySummary.fromJson(Map<String, dynamic> json) {
     return MonthlySummary(
-      ingresos: (json['ingresos'] as num).toDouble(),
-      gastos: (json['gastos'] as num).toDouble(),
-      balance: (json['balance'] as num).toDouble(),
+      // 👇 USA LA NUEVA FUNCIÓN AUXILIAR
+      ingresos: _parseDouble(json['ingresos']),
+      gastos: _parseDouble(json['gastos']),
+      balance: _parseDouble(json['balance']),
       mes: json['mes'] as String,
       nombreMes: json['nombre_mes'] as String,
     );
@@ -46,8 +68,9 @@ class TrendData {
       mes: json['mes'] as String,
       mesFull: json['mes_full'] as String,
       year: json['year'] as int,
-      ingresos: (json['ingresos'] as num).toDouble(),
-      gastos: (json['gastos'] as num).toDouble(),
+      // 👇 USA LA NUEVA FUNCIÓN AUXILIAR
+      ingresos: _parseDouble(json['ingresos']),
+      gastos: _parseDouble(json['gastos']),
     );
   }
 }
@@ -55,19 +78,19 @@ class TrendData {
 class BudgetCompliance {
   final int id;
   final String categoriaNombre;
-  final String categoriaTipo; // <-- NUEVO: 'gasto' o 'ingreso'
+  final String categoriaTipo;
   final double presupuestoMonto;
-  final double montoAlcanzado; // <-- CAMBIO DE NOMBRE (era gastoMonto)
-  final double porcentajeAlcanzado; // <-- CAMBIO DE NOMBRE (era porcentajeUsado)
+  final double montoAlcanzado;
+  final double porcentajeAlcanzado;
   final double restante;
 
   BudgetCompliance({
     required this.id,
     required this.categoriaNombre,
-    required this.categoriaTipo, // <-- NUEVO
+    required this.categoriaTipo,
     required this.presupuestoMonto,
-    required this.montoAlcanzado, // <-- CAMBIO
-    required this.porcentajeAlcanzado, // <-- CAMBIO
+    required this.montoAlcanzado,
+    required this.porcentajeAlcanzado,
     required this.restante,
   });
 
@@ -75,11 +98,12 @@ class BudgetCompliance {
     return BudgetCompliance(
       id: json['id'],
       categoriaNombre: json['categoria_nombre'] ?? 'Sin Categoría',
-      categoriaTipo: json['categoria_tipo'] ?? 'gasto', // <-- NUEVO (default a gasto si falta)
-      presupuestoMonto: (json['presupuesto_monto'] as num?)?.toDouble() ?? 0.0,
-      montoAlcanzado: (json['monto_alcanzado'] as num?)?.toDouble() ?? 0.0, // <-- CAMBIO
-      porcentajeAlcanzado: (json['porcentaje_alcanzado'] as num?)?.toDouble() ?? 0.0, // <-- CAMBIO
-      restante: (json['restante'] as num?)?.toDouble() ?? 0.0,
+      categoriaTipo: json['categoria_tipo'] ?? 'gasto',
+      // 👇 USA LA NUEVA FUNCIÓN AUXILIAR
+      presupuestoMonto: _parseDouble(json['presupuesto_monto']),
+      montoAlcanzado: _parseDouble(json['monto_alcanzado']),
+      porcentajeAlcanzado: _parseDouble(json['porcentaje_alcanzado']),
+      restante: _parseDouble(json['restante']),
     );
   }
 }
@@ -88,9 +112,9 @@ class CommitmentPayment {
   final int id;
   final double monto;
   final DateTime fechaPago;
-  final String tipoMovimiento; // 'pago_gasto' o 'pago_ingreso'
+  final String tipoMovimiento;
   final String compromisoNombre;
-  final int? cuotaNumero; // Puede ser nulo
+  final int? cuotaNumero;
 
   CommitmentPayment({
     required this.id,
@@ -102,13 +126,13 @@ class CommitmentPayment {
   });
 
   factory CommitmentPayment.fromJson(Map<String, dynamic> json) {
-    // Manejo de relaciones que pueden ser nulas
     final compromiso = json['compromiso'] as Map<String, dynamic>?;
     final cuota = json['cuota_compromiso'] as Map<String, dynamic>?;
 
     return CommitmentPayment(
       id: json['id'] as int,
-      monto: (json['monto'] as num).toDouble(),
+      // 👇 USA LA NUEVA FUNCIÓN AUXILIAR
+      monto: _parseDouble(json['monto']),
       fechaPago: DateTime.parse(json['fecha_pago']),
       tipoMovimiento: json['tipo_movimiento'] ?? 'desconocido',
       compromisoNombre: compromiso?['nombre'] ?? 'Compromiso Eliminado',
@@ -116,32 +140,33 @@ class CommitmentPayment {
     );
   }
 }
+
 class ReportData {
   final MonthlySummary summary;
   final List<TrendData> trend;
   final List<BudgetCompliance> budgets;
-  final List<CommitmentPayment> commitmentPayments; // <-- AÑADIDO
+  final List<CommitmentPayment> commitmentPayments;
 
   ReportData({
     required this.summary,
     required this.trend,
     required this.budgets,
-    required this.commitmentPayments, // <-- AÑADIDO
+    required this.commitmentPayments,
   });
 
   factory ReportData.fromJson(Map<String, dynamic> json) {
+    // --- VERIFICACIÓN DE NULOS (Defensa extra) ---
+    // Si alguna lista es nula en el JSON, la convertimos en una lista vacía.
+    final trendList = json['trend'] as List?;
+    final budgetsList = json['budgets'] as List?;
+    // Corregí el nombre de la clave para que coincida con tu Laravel
+    final commitmentPaymentsList = json['commitmentPayments'] as List?;
+
     return ReportData(
       summary: MonthlySummary.fromJson(json['summary']),
-      trend: (json['trend'] as List)
-          .map((i) => TrendData.fromJson(i))
-          .toList(),
-      budgets: (json['budgets'] as List)
-          .map((i) => BudgetCompliance.fromJson(i))
-          .toList(),
-      // <-- AÑADIDO
-      commitmentPayments: (json['commitmentPayments'] as List)
-          .map((i) => CommitmentPayment.fromJson(i))
-          .toList(),
+      trend: trendList?.map((i) => TrendData.fromJson(i)).toList() ?? [],
+      budgets: budgetsList?.map((i) => BudgetCompliance.fromJson(i)).toList() ?? [],
+      commitmentPayments: commitmentPaymentsList?.map((i) => CommitmentPayment.fromJson(i)).toList() ?? [],
     );
   }
 }
