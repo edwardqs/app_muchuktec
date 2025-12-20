@@ -17,17 +17,25 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'El proyecto Planifiko-Prod no está configurado para Web.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        return ios;
+        throw UnsupportedError(
+          'El proyecto Planifiko-Prod no está configurado para iOS.',
+        );
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'El proyecto Planifiko-Prod no está configurado para mac.',
+        );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'El proyecto Planifiko-Prod no está configurado para windows.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -40,50 +48,13 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD_-KlVbvBORb2yspB-2fZ8h6RrD8_Ityw',
-    appId: '1:783287914373:web:094ae9611af45ad333beec',
-    messagingSenderId: '783287914373',
-    projectId: 'muchik-tec-noti',
-    authDomain: 'muchik-tec-noti.firebaseapp.com',
-    storageBucket: 'muchik-tec-noti.firebasestorage.app',
-    measurementId: 'G-7VTP6K7HQT',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCMOHhwX-8RPjQO9mUq32-_cLiS_LhkEmc',
-    appId: '1:783287914373:android:d9e146650b1e93cf33beec',
-    messagingSenderId: '783287914373',
-    projectId: 'muchik-tec-noti',
-    storageBucket: 'muchik-tec-noti.firebasestorage.app',
+    apiKey: 'AIzaSyAnVFUMB2EgON3wvp_OeVcVkUoqUMHYFVQ',
+    appId: '1:329600917340:android:548a8709eb5e002f09eb99',
+    messagingSenderId: '329600917340',
+    projectId: 'planifiko-prod',
+    storageBucket: 'planifiko-prod.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAG3FugdPLpzpJgbfVKtvALkamIS5dZFJE',
-    appId: '1:783287914373:ios:5d9fcdaac09d82a633beec',
-    messagingSenderId: '783287914373',
-    projectId: 'muchik-tec-noti',
-    storageBucket: 'muchik-tec-noti.firebasestorage.app',
-    iosBundleId: 'com.economuchik.appMuchik',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAG3FugdPLpzpJgbfVKtvALkamIS5dZFJE',
-    appId: '1:783287914373:ios:5d9fcdaac09d82a633beec',
-    messagingSenderId: '783287914373',
-    projectId: 'muchik-tec-noti',
-    storageBucket: 'muchik-tec-noti.firebasestorage.app',
-    iosBundleId: 'com.economuchik.appMuchik',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyD_-KlVbvBORb2yspB-2fZ8h6RrD8_Ityw',
-    appId: '1:783287914373:web:d5b0f91d7779dd0c33beec',
-    messagingSenderId: '783287914373',
-    projectId: 'muchik-tec-noti',
-    authDomain: 'muchik-tec-noti.firebaseapp.com',
-    storageBucket: 'muchik-tec-noti.firebasestorage.app',
-    measurementId: 'G-F5RS26M665',
-  );
 
 }

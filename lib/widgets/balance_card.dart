@@ -20,6 +20,10 @@ class _BalanceCardState extends State<BalanceCard> {
   String? _accessToken;
   int? _selectedAccountId;
 
+  // Definimos los colores oficiales
+  final Color cPetrolBlue = const Color(0xFF264653);
+  final Color cMintGreen = const Color(0xFF2A9D8F);
+
   @override
   void initState() {
     super.initState();
@@ -32,50 +36,38 @@ class _BalanceCardState extends State<BalanceCard> {
     _selectedAccountId = prefs.getInt('idCuenta');
 
     if (_accessToken == null || _selectedAccountId == null) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          // Podrías mostrar un mensaje aquí si no hay cuenta seleccionada
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    setState(() { _isLoading = true; }); // Inicia la carga
+    setState(() => _isLoading = true);
 
     try {
-      // --- 1. Obtener la cuenta específica (sin cambios) ---
       final accountUrl = Uri.parse('$API_BASE_URL/accounts/$_selectedAccountId');
-      final accountsResponse = await http.get(
-        accountUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $_accessToken',
-        },
+      final movementsUrl = Uri.parse('$API_BASE_URL/movimientos').replace(
+        queryParameters: {'idcuenta': _selectedAccountId.toString()},
       );
 
-      // --- 2. Obtener los movimientos DE ESA CUENTA ---
-      // ✅ ¡CAMBIO AQUÍ! Añadimos el query parameter 'idcuenta'
-      final movementsUrl = Uri.parse('$API_BASE_URL/movimientos').replace(
-        queryParameters: {
-          'idcuenta': _selectedAccountId.toString(),
-        },
-      );
-      final movementsResponse = await http.get(
-        movementsUrl, // Usamos la nueva URL con el filtro
-        headers: {
+      // Usamos Future.wait para hacer ambas peticiones en paralelo (más rápido)
+      final responses = await Future.wait([
+        http.get(accountUrl, headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $_accessToken',
-        },
-      );
+        }),
+        http.get(movementsUrl, headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+        }),
+      ]);
+
+      final accountsResponse = responses[0];
+      final movementsResponse = responses[1];
 
       if (mounted) {
-        // Verificamos que AMBAS respuestas sean exitosas
         if (accountsResponse.statusCode == 200 && movementsResponse.statusCode == 200) {
           final accountData = json.decode(accountsResponse.body);
-          // Ahora SÍ recibimos solo los movimientos filtrados
           final List<dynamic> accountMovementsData = json.decode(movementsResponse.body);
 
           final totalBalance = double.tryParse(accountData['cuenta']['saldo_actual'].toString()) ?? 0.0;
@@ -83,7 +75,6 @@ class _BalanceCardState extends State<BalanceCard> {
           double totalIngresos = 0.0;
           double totalGastos = 0.0;
 
-          // Ya no necesitamos filtrar localmente, la API lo hizo
           for (var movement in accountMovementsData) {
             if (movement['tipo'] == 'ingreso') {
               totalIngresos += double.tryParse(movement['monto'].toString()) ?? 0.0;
@@ -98,39 +89,49 @@ class _BalanceCardState extends State<BalanceCard> {
             _gastosTotales = totalGastos;
           });
         } else {
-          // Imprimimos ambos códigos para saber cuál falló
-          print('Error al cargar datos. Códigos: Cuenta(${accountsResponse.statusCode}), Movimientos(${movementsResponse.statusCode})');
-          // Aquí podrías mostrar un error en la UI
+          print('Error al cargar datos.');
         }
       }
     } catch (e) {
-      if (mounted) {
-        print('Excepción al cargar el saldo y movimientos: $e');
-        // Mostrar error de conexión en la UI
-      }
+      if (mounted) print('Excepción al cargar el saldo: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(locale: 'es_ES', symbol: 'S/', decimalDigits: 2);
+    // --- SOLUCIÓN DEFINITIVA PARA EL SÍMBOLO ---
+    final currencyFormatter = NumberFormat.currency(
+      // Usamos 'es_ES' si quieres comas en decimales (300,50),
+      // o usa 'en_US' si prefieres puntos (300.50).
+      // Al usar customPattern, el locale solo define si usa coma o punto.
+      locale: 'es_ES',
+      symbol: 'S/ ',
+      decimalDigits: 2,
+      // ESTO ES LO IMPORTANTE:
+      // 'S/ ' está escrito "a mano" al inicio del patrón.
+      // #,##0.00 le dice cómo formatear los números.
+      customPattern: 'S/ #,##0.00',
+    );
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4FC3F7), Color(0xFF29B6F6)],
+        gradient: LinearGradient(
+          colors: [cPetrolBlue, cMintGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: cPetrolBlue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: _isLoading
           ? const Center(
@@ -146,8 +147,10 @@ class _BalanceCardState extends State<BalanceCard> {
             'Saldo Disponible',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 8),
@@ -157,50 +160,89 @@ class _BalanceCardState extends State<BalanceCard> {
               color: Colors.white,
               fontSize: 32,
               fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Ingresos totales',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_downward, color: Colors.white, size: 12),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Ingresos',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 4),
                     Text(
                       currencyFormatter.format(_ingresosTotales),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
                       ),
                     ),
                   ],
                 ),
               ),
+              Container(
+                height: 30,
+                width: 1,
+                color: Colors.white.withOpacity(0.2),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Gastos totales',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_upward, color: Colors.white, size: 12),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Gastos',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 4),
                     Text(
                       currencyFormatter.format(_gastosTotales),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
                       ),
                     ),
                   ],

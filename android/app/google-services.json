@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "783287914373",
-    "project_id": "muchik-tec-noti",
-    "storage_bucket": "muchik-tec-noti.firebasestorage.app"
+    "project_number": "329600917340",
+    "project_id": "planifiko-prod",
+    "storage_bucket": "planifiko-prod.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:783287914373:android:d9e146650b1e93cf33beec",
+        "mobilesdk_app_id": "1:329600917340:android:548a8709eb5e002f09eb99",
         "android_client_info": {
           "package_name": "com.economuchik.app_muchik"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCMOHhwX-8RPjQO9mUq32-_cLiS_LhkEmc"
+          "current_key": "AIzaSyAnVFUMB2EgON3wvp_OeVcVkUoqUMHYFVQ"
         }
       ],
       "services": {

@@ -11,6 +11,10 @@ class CustomBottomNavigation extends StatelessWidget {
     required this.onItemTapped,
   });
 
+  // Colores Oficiales
+  final Color cPetrolBlue = const Color(0xFF264653);
+  final Color cMintGreen = const Color(0xFF2A9D8F);
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -18,10 +22,10 @@ class CustomBottomNavigation extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withOpacity(0.15), // Sombra más sutil y moderna
             spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -29,7 +33,9 @@ class CustomBottomNavigation extends StatelessWidget {
         currentIndex: selectedIndex,
         onTap: (index) {
           print('CustomBottomNavigation tapped index: $index');
-          // Navegación actualizada para que funcione desde cualquier pantalla
+          // Evitamos recargar si ya estamos en la misma pestaña
+          if (index == selectedIndex) return;
+
           switch (index) {
             case 0:
               Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
@@ -38,14 +44,12 @@ class CustomBottomNavigation extends StatelessWidget {
               Navigator.pushNamedAndRemoveUntil(context, '/reports', (route) => false);
               break;
             case 2:
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Presupuestos en desarrollo')),
-              );
+            // Actualizado para navegar a Presupuestos
+              Navigator.pushNamedAndRemoveUntil(context, '/budgets', (route) => false);
               break;
             case 3:
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Categorías en desarrollo')),
-              );
+            // Actualizado para navegar a Categorías
+              Navigator.pushNamedAndRemoveUntil(context, '/categories', (route) => false);
               break;
             case 4:
               Navigator.pushNamedAndRemoveUntil(context, '/settings', (route) => false);
@@ -55,10 +59,22 @@ class CustomBottomNavigation extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        selectedItemColor: Colors.purple[700],
-        unselectedItemColor: Colors.grey[600],
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
+        // Ítem seleccionado: Verde Menta
+        selectedItemColor: cMintGreen,
+        // Ítem no seleccionado: Azul Petróleo con opacidad
+        unselectedItemColor: cPetrolBlue.withOpacity(0.5),
+
+        // Tipografía Poppins
+        selectedLabelStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w500,
+            fontSize: 12
+        ),
+        unselectedLabelStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 12
+        ),
+
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

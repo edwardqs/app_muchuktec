@@ -33,6 +33,9 @@ class _LoadingScreenState extends State<LoadingScreen>
   StreamSubscription<Uri>? _linkSubscription;
   final AuthService _authService = AuthService();
 
+  // Definimos tu color principal aquí para usarlo fácilmente
+  final Color mainColor = const Color(0xFF008989);
+
   @override
   void initState() {
     super.initState();
@@ -90,8 +93,10 @@ class _LoadingScreenState extends State<LoadingScreen>
 
   Future<void> _initializeAndNavigate() async {
     _logoController.forward();
-    Future.delayed(const Duration(milliseconds: 600), () => _textController.forward());
-    Future.delayed(const Duration(milliseconds: 1000), () => _progressController.forward());
+    Future.delayed(const Duration(milliseconds: 600),
+            () => _textController.forward());
+    Future.delayed(const Duration(milliseconds: 1000),
+            () => _progressController.forward());
 
     final animationFuture = Future.delayed(const Duration(milliseconds: 2500));
 
@@ -112,53 +117,44 @@ class _LoadingScreenState extends State<LoadingScreen>
     }
   }
 
-// --- ¡NUEVAS FUNCIONES AÑADIDAS (CON APP_LINKS)! ---
   Future<bool> _handleInitialLink() async {
     try {
-      // 1. Obtiene el enlace inicial (si la app se abrió con él)
       final initialUri = await _appLinks.getInitialLink();
 
       if (initialUri == null) {
         print('No hay enlace inicial. Escuchando futuros enlaces...');
-        // 2. Configura el listener para enlaces futuros (si la app ya estaba abierta)
         _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
           _handleDeepLink(uri);
         });
-        return false; // No se abrió con un enlace
+        return false;
       }
 
-      // 3. Si SÍ hubo un enlace inicial, manéjalo
       print('Enlace inicial encontrado: $initialUri');
       return await _handleDeepLink(initialUri);
-
     } catch (e) {
       print('Error al obtener el enlace inicial (app_links): $e');
       return false;
     }
   }
 
-  /// Procesa el enlace y devuelve true si el auto-login es exitoso
   Future<bool> _handleDeepLink(Uri uri) async {
-    // Revisa si el esquema y el "host" son los que definimos
     if (uri.scheme == 'com.economuchik.app_muchik' && uri.host == 'verify') {
       final String? token = uri.queryParameters['token'];
 
       if (token != null && token.isNotEmpty) {
         print('✅ Token capturado del Deep Link: $token');
         try {
-          // Llama al servicio que hace el auto-login
           await _authService.verifyEmailToken(token);
           print('🎉 ¡Auto-login por Deep Link exitoso!');
-          return true; // Auto-login exitoso
+          return true;
         } catch (e) {
           print('❌ Error al verificar el token del Deep Link: $e');
-          return false; // Falló la verificación
+          return false;
         }
       }
     }
-    return false; // No era un enlace de verificación
+    return false;
   }
-  // --- FIN DE NUEVAS FUNCIONES ---
 
   Future<bool> _checkSessionAndSetup() async {
     final prefs = await SharedPreferences.getInstance();
@@ -166,7 +162,7 @@ class _LoadingScreenState extends State<LoadingScreen>
 
     if (token == null) {
       print('🚫 No hay token, se redirige a login.');
-      return false; // No está logueado
+      return false;
     }
 
     final url = Uri.parse('$API_BASE_URL/getUser');
@@ -183,7 +179,8 @@ class _LoadingScreenState extends State<LoadingScreen>
 
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
-        final String? emailVerifiedAt = userData['email_verified_at'] as String?;
+        final String? emailVerifiedAt =
+        userData['email_verified_at'] as String?;
         final bool isVerified = emailVerifiedAt != null;
 
         await prefs.setBool('isUserVerified', isVerified);
@@ -197,22 +194,20 @@ class _LoadingScreenState extends State<LoadingScreen>
         print('🔄 Registrando dispositivo para notificaciones...');
         await FirebaseApi().initNotifications();
 
-        return true; // Está logueado
+        return true;
       } else {
-        // El token no es válido
         print('❌ Token no válido, limpiando sesión.');
         await prefs.remove('accessToken');
         await prefs.remove('idCuenta');
         await prefs.remove('isUserVerified');
-        return false; // No está logueado
+        return false;
       }
     } catch (e) {
-      // Error de red
       print('❗ Error de red al validar sesión: $e');
       await prefs.remove('accessToken');
       await prefs.remove('idCuenta');
       await prefs.remove('isUserVerified');
-      return false; // No está logueado
+      return false;
     }
   }
 
@@ -234,8 +229,8 @@ class _LoadingScreenState extends State<LoadingScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.purple[400]!,
-              Colors.purple[700]!,
+              mainColor.withOpacity(0.8),
+              mainColor,
             ],
           ),
         ),
@@ -251,9 +246,15 @@ class _LoadingScreenState extends State<LoadingScreen>
                     scale: _logoScaleAnimation.value,
                     child: Opacity(
                       opacity: _logoOpacityAnimation.value,
+                      // --- INICIO DE CAMBIOS IMPORTANTES ---
                       child: Container(
-                        width: 120,
-                        height: 120,
+                        // 1. Aumentamos un poco el tamaño del círculo contenedor
+                        width: 150,
+                        height: 150,
+
+                        // 2. ESTA LÍNEA ES MÁGICA: Recorta todo lo que se salga del círculo
+                        clipBehavior: Clip.antiAlias,
+
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.9),
                           shape: BoxShape.circle,
@@ -266,12 +267,14 @@ class _LoadingScreenState extends State<LoadingScreen>
                             ),
                           ],
                         ),
-                        child: Icon(
-                          Icons.account_balance_wallet,
-                          size: 60,
-                          color: Colors.purple[700],
+                        // 3. Quitamos el Padding para que la imagen toque los bordes
+                        child: Image.asset(
+                          'assets/icon/logo4.jpg',
+                          // 4. Usamos 'cover' para que haga zoom y llene todo el espacio
+                          fit: BoxFit.cover,
                         ),
                       ),
+                      // --- FIN DE CAMBIOS ---
                     ),
                   );
                 },
@@ -286,7 +289,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                   child: Column(
                     children: [
                       const Text(
-                        'Econo Muchik Finance',
+                        'Planifiko',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -296,7 +299,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Tu asistente financiero personal',
+                        'Tu dinero, bajo control',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.white.withOpacity(0.9),
@@ -376,7 +379,6 @@ class _LoadingScreenState extends State<LoadingScreen>
   }
 }
 
-// ... (El widget LoadingDots se queda igual) ...
 class LoadingDots extends StatefulWidget {
   const LoadingDots({super.key});
 

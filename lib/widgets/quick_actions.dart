@@ -4,17 +4,22 @@ import 'package:flutter/material.dart';
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
 
+  // Definimos los colores oficiales localmente para este widget
+  final Color cPetrolBlue = const Color(0xFF264653);
+  final Color cMintGreen = const Color(0xFF2A9D8F);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Acciones Rápidas',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: cPetrolBlue, // Título en Azul Petróleo
+            fontFamily: 'Poppins', // Tipografía oficial
           ),
         ),
         const SizedBox(height: 16),
@@ -24,10 +29,10 @@ class QuickActions extends StatelessWidget {
               child: _ActionButton(
                 icon: Icons.add_circle_outline,
                 label: 'Registrar\nMovimiento',
-                color: Colors.blue[100]!,
-                iconColor: Colors.blue[700]!,
+                // Estilo Verde Menta (Acción principal)
+                color: cMintGreen.withOpacity(0.15),
+                iconColor: cMintGreen,
                 onTap: () {
-                  // RUTA ESPECÍFICA PARA ASIGNAR MOVIMIENTO
                   Navigator.pushNamed(context, '/movements');
                 },
               ),
@@ -37,10 +42,10 @@ class QuickActions extends StatelessWidget {
               child: _ActionButton(
                 icon: Icons.assignment_outlined,
                 label: 'Asignar\nPresupuesto',
-                color: Colors.green[100]!,
-                iconColor: Colors.green[700]!,
+                // Estilo Azul Petróleo (Gestión)
+                color: cPetrolBlue.withOpacity(0.1),
+                iconColor: cPetrolBlue,
                 onTap: () {
-                  // RUTA ESPECÍFICA PARA ASIGNAR PRESUPUESTO
                   Navigator.pushNamed(context, '/assign-budget');
                 },
               ),
@@ -50,10 +55,10 @@ class QuickActions extends StatelessWidget {
               child: _ActionButton(
                 icon: Icons.calendar_today_outlined,
                 label: 'Registrar\nCompromiso',
-                color: Colors.purple[100]!,
-                iconColor: Colors.purple[700]!,
+                // Estilo Verde Menta (Acción de registro)
+                color: cMintGreen.withOpacity(0.15),
+                iconColor: cMintGreen,
                 onTap: () {
-                  // ¡Corregido! Usa la ruta correcta
                   Navigator.pushNamed(context, '/compromises_create');
                 },
               ),
@@ -67,8 +72,9 @@ class QuickActions extends StatelessWidget {
               child: _ActionButton(
                 icon: Icons.category_outlined,
                 label: 'Gestionar\nCategorías',
-                color: Colors.yellow[100]!,
-                iconColor: Colors.orange[700]!,
+                // Estilo Azul Petróleo (Gestión)
+                color: cPetrolBlue.withOpacity(0.1),
+                iconColor: cPetrolBlue,
                 onTap: () {
                   Navigator.pushNamed(context, '/categories');
                 },
@@ -79,15 +85,17 @@ class QuickActions extends StatelessWidget {
               child: _ActionButton(
                 icon: Icons.event_note_outlined,
                 label: 'Gestionar\nCompromisos',
-                color: Colors.pink[100]!,
-                iconColor: Colors.pink[700]!,
+                // Estilo Verde Menta (Para diferenciar de categorías o podrías usar Azul también)
+                // He optado por Azul para agrupar "Gestionar" visualmente
+                color: cPetrolBlue.withOpacity(0.1),
+                iconColor: cPetrolBlue,
                 onTap: () {
                   Navigator.pushNamed(context, '/compromises');
                 },
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: SizedBox()), // Empty space for alignment
+            const Expanded(child: SizedBox()), // Espacio vacío para alineación
           ],
         ),
       ],
@@ -118,19 +126,21 @@ class _ActionButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16), // Bordes un poco más redondeados
         ),
         child: Column(
           children: [
-            Icon(icon, color: iconColor, size: 24),
+            Icon(icon, color: iconColor, size: 26),
             const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600, // Semi-bold para mejor lectura
                 color: iconColor,
+                fontFamily: 'Poppins', // Tipografía oficial
+                height: 1.2, // Mejor interlineado
               ),
             ),
           ],

@@ -67,7 +67,7 @@ class EconoMuchikApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Econo Muchik Finance',
+      title: 'Planifiko',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.purple,
