@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'dart:ui';
 
 import 'payment_history_screen.dart';
 import 'compromises_screen.dart';
@@ -83,7 +84,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     }
   }
 
-  // Metodo para enviar el pago a la API
   Future<void> _submitPayment({
     required double amount,
     required String date,
@@ -138,11 +138,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
         );
         _fetchCompromiseDetails();
       } else {
-        String errorMessage = 'Error al registrar el pago: ${response.statusCode}';
+        String errorMessage = '';
         try {
           final errorData = json.decode(response.body);
           if (errorData['message'] != null) {
-            errorMessage += ' - ${errorData['message']}';
+            errorMessage += '${errorData['message']}';
           }
         } catch (_) {} // Ignore decoding errors
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,32 +157,23 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     }
   }
 
-  /// Esta función se llama al presionar el botón de añadir pago
   Future<void> _onAddPaymentPressed() async {
-    // 1. Obtener la lista COMPLETA de cuotas desde el compromiso ya cargado
     final List<CuotaCompromisoModel> allCuotas = _compromise?.cuotas ?? [];
 
-    // 2. Filtrar para encontrar las pendientes (no pagadas Y con saldo > 0)
-    //    Tu modelo CuotaCompromisoModel ya calcula 'pagado' y 'saldoRestante'
     final List<CuotaCompromisoModel> pendingInstallments = allCuotas
         .where((cuota) => !cuota.pagado && cuota.saldoRestante > 0.01)
         .toList();
-    // (Asumimos que la lista ya viene ordenada por numero_cuota desde el backend)
 
     CuotaCompromisoModel? preselectedInstallment;
     if (pendingInstallments.isNotEmpty) {
-      // 3. Pre-seleccionar la primera de la lista de pendientes
       preselectedInstallment = pendingInstallments.first;
     }
 
-    // 4. Mostrar el diálogo, pasando la cuota preseleccionada (o null)
     if (mounted) {
       _showAddPaymentDialog(preselectedInstallment);
     }
-    // No necesitamos _isOpeningPaymentDialog porque la operación es instantánea
   }
 
-// Metodo para mostrar el diálogo
   void _showAddPaymentDialog(CuotaCompromisoModel? preselectedInstallment) {
     final formKey = GlobalKey<FormState>();
 
@@ -304,16 +295,25 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                 ElevatedButton(
                   onPressed: () {
                     if (formKey.currentState!.validate()) {
-                      _submitPayment(
-                        amount: double.parse(amountController.text),
-                        date: dateController.text,
-                        note: noteController.text.isNotEmpty ? noteController.text : null,
-                        idcuota_compromiso: selectedCuotaId,
+                      // 1. CAPTURAR DATOS
+                      final double amount = double.parse(amountController.text);
+                      final String date = dateController.text;
+                      final String note = noteController.text;
+
+                      // 2. EN LUGAR DE ENVIAR DIRECTO, ABRIMOS LA CONFIRMACIÓN
+                      // Nota: No cerramos este diálogo todavía (Navigator.pop)
+                      // para que el usuario pueda volver si da clic en "Corregir".
+
+                      _showPaymentConfirmationDialog(
+                        amount: amount,
+                        date: date,
+                        note: note,
+                        idCuota: selectedCuotaId,
+                        cuotaInfo: preselectedInstallment, // Pasamos la info de la cuota para mostrar "Cuota N° X"
                       );
-                      Navigator.pop(context);
                     }
                   },
-                  child: const Text('Guardar Pago'),
+                  child: const Text('Continuar'),
                 ),
               ],
             );
@@ -374,6 +374,120 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
         const Divider(color: Colors.grey),
         const SizedBox(height: 10),
       ],
+    );
+  }
+
+  void _showPaymentConfirmationDialog({
+    required double amount,
+    required String date,
+    required String note,
+    required int? idCuota,
+    required CuotaCompromisoModel? cuotaInfo,
+  }) {
+    showDialog(
+      context: context,
+      // Hacemos el color de fondo más sutil porque el blur ya oscurece visualmente
+      barrierColor: Colors.black.withOpacity(0.2),
+      builder: (ctx) {
+        // --- AQUÍ ESTÁ EL TRUCO DEL FONDO NUBLADO ---
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0), // Intensidad del nublado (8.0 es un buen balance)
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), // Bordes un poco más redondeados
+            title: Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.green[600], size: 28),
+                const SizedBox(width: 10),
+                const Text('Confirmar Pago', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Por favor verifica los detalles antes de procesar:',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+
+                // --- DATOS DEL COMPROMISO ---
+                _buildConfirmationRow('Compromiso:', _compromise?.name ?? 'Sin nombre'),
+                if (_compromise?.nombreTercero != null)
+                  _buildConfirmationRow('Tercero:', _compromise!.nombreTercero!),
+
+                const Divider(height: 20),
+
+                // --- DATOS DEL PAGO ---
+                _buildConfirmationRow(
+                    'Tipo:',
+                    cuotaInfo != null ? 'Cuota N° ${cuotaInfo.numeroCuota}' : 'Pago General'
+                ),
+                _buildConfirmationRow(
+                    'Monto a Pagar:',
+                    'S/ ${amount.toStringAsFixed(2)}',
+                    isBold: true,
+                    valueColor: Colors.green[800]
+                ),
+                _buildConfirmationRow('Fecha:', _formatDate(date)),
+
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text('Nota:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(note, style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13)),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                },
+                child: const Text('Corregir', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop();
+
+                  _submitPayment(
+                    amount: amount,
+                    date: date,
+                    note: note.isNotEmpty ? note : null,
+                    idcuota_compromiso: idCuota,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Pequeño widget auxiliar para las filas del modal
+  Widget _buildConfirmationRow(String label, String value, {bool isBold = false, Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.black87)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: valueColor ?? Colors.black,
+              fontSize: isBold ? 16 : 14,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -466,14 +580,32 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     final compromise = _compromise!;
     final double montoTotalPagado = compromise.montoTotalPagado ?? 0.0;
     final double montoTotal = compromise.montoTotal ?? 0.0;
-    final double progresoPago = (montoTotal > 0) ? (montoTotalPagado / montoTotal) : 0.0;
 
     // CALCULO DEL MONTO A PAGAR TOTAL
     final double montoCuotaCalc = compromise.montoCuota ?? 0.0;
     final int cantidadCuotasCalc = compromise.cantidadCuotas ?? 0;
-    final double montoFinalCalculado = (cantidadCuotasCalc > 0 && montoCuotaCalc > 0)
-        ? (montoCuotaCalc * cantidadCuotasCalc)
-        : compromise.montoTotal ?? 0.0;
+
+    double montoFinalCalculado = 0.0;
+
+    // Verificamos si es "Sin cuotas" (ID 1) o si no tiene cuotas generadas
+    // Asumiendo que en tu modelo FrecuenciaModel tienes el id, o usas cantidadCuotas == 0
+    bool esSinCuotas = (compromise.frecuencia?.id == 1) || (compromise.cantidadCuotas == 0);
+
+    if (esSinCuotas) {
+      // CASO SIN CUOTAS: Capital + (Capital * Tasa / 100)
+      final double tasa = compromise.tasaInteres ?? 0.0;
+      final double interesCalculado = montoTotal * (tasa / 100);
+      montoFinalCalculado = montoTotal + interesCalculado;
+    } else {
+      // CASO CON CUOTAS: Monto Cuota * Cantidad Cuotas
+      final double montoCuota = compromise.montoCuota ?? 0.0;
+      final int cantidad = compromise.cantidadCuotas ?? 0;
+      montoFinalCalculado = montoCuota * cantidad;
+    }
+
+    final double progresoPago = (montoFinalCalculado > 0)
+        ? (montoTotalPagado / montoFinalCalculado)
+        : 0.0;
 
     final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
 
@@ -524,7 +656,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     Expanded(
                       child: _buildSummaryItem( // Usamos un widget auxiliar
                         icon: Icons.request_quote_outlined,
-                        label: 'Monto Original', // Etiqueta más clara
+                        label: 'Capital', // Etiqueta más clara
                         value: _formatCurrency(compromise.montoTotal),
                       ),
                     ),
@@ -532,7 +664,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     Expanded(
                       child: _buildSummaryItem(
                         icon: Icons.monetization_on_outlined, // Icono diferente
-                        label: 'Monto Final', // Nueva etiqueta
+                        label: 'Capital + Interés', // Nueva etiqueta
                         value: _formatCurrency(montoFinalCalculado), // Valor calculado
                       ),
                     ),
