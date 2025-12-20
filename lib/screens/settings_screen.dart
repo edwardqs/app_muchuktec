@@ -13,11 +13,16 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final int _selectedIndex = 4;
   String? _profileImageUrl;
   String? _accessToken;
   bool _isLoading = true;
-
 
   @override
   void initState() {
@@ -44,7 +49,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
 
-      // **CAMBIO 1: Usar la clave correcta ('idCuenta') y el tipo de dato correcto (int)**
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
@@ -66,7 +70,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
 
-      // **CAMBIO 2: Convertir el ID de int a String para la URL de la API**
       final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
       print('Fetching account details from URL: $url');
 
@@ -134,19 +137,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext dialogContext) { // Usamos 'dialogContext' aquí
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Cerrar sesión'),
-          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          backgroundColor: cBlanco,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Cerrar sesión',
+            style: TextStyle(
+              color: cAzulPetroleo,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            '¿Estás seguro de que quieres cerrar sesión?',
+            style: TextStyle(color: cAzulPetroleo.withOpacity(0.8)),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancelar'),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold),
+              ),
             ),
             TextButton(
               onPressed: () async {
-                // Navegar inmediatamente DESPUÉS de cerrar el diálogo
-                // El pop y la navegación deben estar en una sola operación.
                 await AuthService().logout();
                 Navigator.of(dialogContext).pop();
                 if (mounted) {
@@ -158,9 +173,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
               },
               style: TextButton.styleFrom(
+                backgroundColor: Colors.red[50],
                 foregroundColor: Colors.red,
               ),
-              child: const Text('Cerrar sesión'),
+              child: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -173,30 +189,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Acerca de Econo Muchik Finance'),
-          content: const Column(
+          backgroundColor: cBlanco,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Acerca de Planifiko',
+            style: TextStyle(
+              color: cAzulPetroleo,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Versión: 1.0.0',
-                style: TextStyle(fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: cVerdeMenta,
+                ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'Tu asistente financiero personal para gestionar ingresos, gastos y presupuestos de manera inteligente.',
+                style: TextStyle(color: cAzulPetroleo.withOpacity(0.8)),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Desarrollado con ❤️ para ayudarte a alcanzar tus metas financieras.',
-                style: TextStyle(fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: cAzulPetroleo.withOpacity(0.6),
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cerrar'),
+              child: Text(
+                'Cerrar',
+                style: TextStyle(color: cVerdeMenta, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -207,26 +242,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo #F4F4F4
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pushReplacementNamed(context, '/dashboard'),
         ),
-        title: const Text(
+        title: Text(
           'Ajustes',
           style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            color: cAzulPetroleo,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {
               Navigator.pushNamed(context, '/notifications');
             },
@@ -241,7 +276,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               margin: const EdgeInsets.only(right: 16),
               child: CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.purple[100],
+                backgroundColor: cVerdeMenta, // Verde Menta #2A9D8F
                 backgroundImage: _profileImageUrl != null
                     ? NetworkImage(_profileImageUrl!)
                     : null,
@@ -249,7 +284,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? Icon(
                   Icons.person,
                   size: 20,
-                  color: Colors.purple[700],
+                  color: cBlanco,
                 )
                     : null,
               ),
@@ -262,25 +297,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Cuenta',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cAzulPetroleo, // Azul Petróleo
               ),
             ),
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                color: cBlanco,
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: cAzulPetroleo.withOpacity(0.08),
+                    spreadRadius: 0,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -289,23 +324,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsItem(
                     icon: Icons.edit_outlined,
                     title: 'Editar datos personales',
+                    iconColor: cVerdeMenta,
+                    textColor: cAzulPetroleo,
                     onTap: () {
-                      // NAVEGACIÓN ACTUALIZADA A EDITAR PERFIL
                       Navigator.pushNamed(context, '/edit-profile');
                     },
                   ),
-                  const Divider(height: 1, indent: 56),
+                  Divider(height: 1, indent: 56, color: cGrisClaro),
                   _SettingsItem(
                     icon: Icons.notifications_active_outlined,
                     title: 'Notificaciones',
+                    iconColor: cVerdeMenta,
+                    textColor: cAzulPetroleo,
                     onTap: () {
                       Navigator.pushNamed(context, '/notifications');
                     },
                   ),
-                  const Divider(height: 1, indent: 56),
+                  Divider(height: 1, indent: 56, color: cGrisClaro),
                   _SettingsItem(
                     icon: Icons.group_outlined,
                     title: 'Ver perfiles',
+                    iconColor: cVerdeMenta,
+                    textColor: cAzulPetroleo,
                     onTap: () {
                       print('Navigating to accounts_screen');
                       Navigator.pushNamed(context, '/accounts');
@@ -315,25 +355,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            const Text(
+            Text(
               'General',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cAzulPetroleo,
               ),
             ),
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                color: cBlanco,
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: cAzulPetroleo.withOpacity(0.08),
+                    spreadRadius: 0,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -342,16 +382,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsItem(
                     icon: Icons.info_outline,
                     title: 'Acerca de ...',
+                    iconColor: cVerdeMenta,
+                    textColor: cAzulPetroleo,
                     onTap: _showAboutDialog,
                   ),
-                  const Divider(height: 1, indent: 56),
+                  Divider(height: 1, indent: 56, color: cGrisClaro),
                   _SettingsItem(
                     icon: Icons.logout,
                     title: 'Cerrar sesión',
-                    titleColor: Colors.red,
+                    iconColor: Colors.red[400]!, // Rojo pero suave
+                    textColor: Colors.red[700]!,
                     trailing: Icon(
                       Icons.power_settings_new,
-                      color: Colors.red[600],
+                      color: Colors.red[400],
                       size: 20,
                     ),
                     onTap: _showLogoutDialog,
@@ -365,12 +408,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cBlanco,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.black.withOpacity(0.05),
               spreadRadius: 1,
-              blurRadius: 8,
+              blurRadius: 10,
               offset: const Offset(0, -2),
             ),
           ],
@@ -381,8 +424,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.transparent,
           elevation: 0,
-          selectedItemColor: Colors.purple[700],
-          unselectedItemColor: Colors.grey[600],
+          selectedItemColor: cAzulPetroleo, // Azul Petróleo para activo
+          unselectedItemColor: Colors.grey[400],
           selectedFontSize: 12,
           unselectedFontSize: 12,
           items: const [
@@ -421,14 +464,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 class _SettingsItem extends StatelessWidget {
   final IconData icon;
   final String title;
-  final Color? titleColor;
+  final Color? iconColor;
+  final Color? textColor;
   final Widget? trailing;
   final VoidCallback onTap;
 
   const _SettingsItem({
     required this.icon,
     required this.title,
-    this.titleColor,
+    this.iconColor,
+    this.textColor,
     this.trailing,
     required this.onTap,
   });
@@ -436,17 +481,24 @@ class _SettingsItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: titleColor ?? Colors.grey[700],
-        size: 20,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (iconColor ?? Colors.grey).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: iconColor ?? Colors.grey[700],
+          size: 22,
+        ),
       ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: titleColor ?? Colors.black87,
+          color: textColor ?? Colors.black87,
         ),
       ),
       trailing: trailing ??
@@ -458,7 +510,7 @@ class _SettingsItem extends StatelessWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16,
-        vertical: 4,
+        vertical: 8,
       ),
     );
   }

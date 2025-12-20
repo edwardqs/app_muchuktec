@@ -7,6 +7,7 @@ import 'package:app_muchik/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:app_muchik/config/constants.dart';
+
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
 
@@ -15,6 +16,12 @@ class AccountsScreen extends StatefulWidget {
 }
 
 class _AccountsScreenState extends State<AccountsScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   List<dynamic> _userProfiles = [];
   bool _isLoading = true;
   String? _accessToken;
@@ -61,11 +68,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
       _selectedAccountId = id;
     });
     if (mounted) {
-      // Navegar al dashboard después de seleccionar la cuenta
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/dashboard',
-            (route) => false, // Elimina todas las rutas de la pila de navegación
+            (route) => false,
       );
     }
   }
@@ -120,6 +126,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
+  // --- MODAL AGREGAR ---
   void _showAddProfileModal() {
     if (_userProfiles.length >= 4) {
       if (mounted) {
@@ -136,12 +143,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Agregar Nuevo Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text('Agregar Nuevo Perfil', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
           content: TextField(
             controller: nameController,
             decoration: InputDecoration(
               hintText: 'Nombre del perfil',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              filled: true,
+              fillColor: cGrisClaro,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             ),
           ),
           actions: [
@@ -157,7 +166,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
+                backgroundColor: cVerdeMenta,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Agregar', style: TextStyle(color: Colors.white)),
@@ -184,7 +193,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
       if (response.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil agregado exitosamente.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+            SnackBar(content: const Text('Perfil agregado exitosamente.'), backgroundColor: cVerdeMenta),
           );
         }
         _fetchUserProfiles();
@@ -194,18 +203,19 @@ class _AccountsScreenState extends State<AccountsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al agregar el perfil.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error al agregar el perfil.'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // --- MODAL ELIMINAR ---
   void _showDeleteConfirmation(dynamic profile) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Confirmar Eliminación', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Confirmar Eliminación', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
         content: Text('¿Estás seguro de que deseas eliminar el perfil "${profile['nombre']}"?'),
         actions: [
           TextButton(
@@ -242,7 +252,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
       if (response.statusCode == 204) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil eliminado exitosamente.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+            SnackBar(content: const Text('Perfil eliminado exitosamente.'), backgroundColor: cVerdeMenta),
           );
         }
         _fetchUserProfiles();
@@ -252,12 +262,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al eliminar el perfil.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error al eliminar el perfil.'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // --- MODAL EDITAR ---
   void _showEditProfileDialog(dynamic profile) {
     _editNameController.text = profile['nombre'];
     _editDescriptionController.text = profile['descripcion'] ?? '';
@@ -270,12 +281,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
           builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Sección de la imagen
                     GestureDetector(
                       onTap: () async {
                         final picker = ImagePicker();
@@ -291,44 +301,41 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         height: 100,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey.shade400, width: 2),
+                          color: cGrisClaro,
+                          border: Border.all(color: cVerdeMenta, width: 2),
                         ),
                         child: ClipOval(
                           child: newImage != null
-                              ? Image.file(
-                            newImage!,
-                            fit: BoxFit.cover,
-                          )
+                              ? Image.file(newImage!, fit: BoxFit.cover)
                               : (profile['ruta_imagen'] != null
                               ? CachedNetworkImage(
                             imageUrl: '$STORAGE_BASE_URL/${profile['ruta_imagen']}',
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => const CircularProgressIndicator(),
-                            errorWidget: (context, url, error) => Icon(Icons.person, size: 50, color: Colors.grey[600]),
+                            placeholder: (context, url) => CircularProgressIndicator(color: cVerdeMenta),
+                            errorWidget: (context, url, error) => Icon(Icons.person, size: 50, color: Colors.grey[400]),
                           )
-                              : Icon(Icons.person, size: 50, color: Colors.grey[600])),
+                              : Icon(Icons.person, size: 50, color: Colors.grey[400])),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Campo para el nombre
                     TextField(
                       controller: _editNameController,
                       decoration: InputDecoration(
-                        hintText: 'Nombre del perfil',
                         labelText: 'Nombre',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        filled: true,
+                        fillColor: cGrisClaro,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Campo para la descripción
                     TextField(
                       controller: _editDescriptionController,
                       decoration: InputDecoration(
-                        hintText: 'Descripción del perfil',
                         labelText: 'Descripción',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        filled: true,
+                        fillColor: cGrisClaro,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                       ),
                       maxLines: 3,
                     ),
@@ -357,7 +364,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     _editDescriptionController.clear();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: cVerdeMenta,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   child: const Text('Guardar', style: TextStyle(color: Colors.white)),
@@ -401,7 +408,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
       if (response.statusCode == 200) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil actualizado con éxito.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+            SnackBar(content: const Text('Perfil actualizado con éxito.'), backgroundColor: cVerdeMenta),
           );
         }
         _fetchUserProfiles();
@@ -411,7 +418,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al actualizar el perfil.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error al actualizar el perfil.'), backgroundColor: Colors.red),
         );
       }
     }
@@ -420,7 +427,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
-    await prefs.remove('idCuenta'); // Eliminar también la cuenta seleccionada
+    await prefs.remove('idCuenta');
     AuthService().logout();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(
@@ -432,12 +439,19 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   void _showSelectionConfirmation(dynamic profile) {
+    String displayName = profile['nombre'];
+    if (_userProfiles.isNotEmpty && profile == _userProfiles[0]) {
+      if (displayName.length > 2 && displayName.endsWith('-1')) {
+        displayName = displayName.substring(0, displayName.length - 2);
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Confirmar Selección', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('¿Quieres usar el perfil "${profile['nombre']}"?'),
+        title: Text('Confirmar Selección', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
+        content: Text('¿Quieres usar el perfil "$displayName"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -449,7 +463,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               _saveSelectedAccount(profile['id']);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
+              backgroundColor: cVerdeMenta,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Seleccionar', style: TextStyle(color: Colors.white)),
@@ -462,11 +476,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blueGrey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial #F4F4F4
       appBar: AppBar(
         title: const Text('Perfiles de Usuario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.indigo,
+        backgroundColor: cAzulPetroleo, // Fondo oficial #264653
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -481,18 +495,18 @@ class _AccountsScreenState extends State<AccountsScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
           : Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '¿Quién está usando?',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: Colors.black87,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: cAzulPetroleo,
               ),
             ),
             const SizedBox(height: 32),
@@ -500,22 +514,35 @@ class _AccountsScreenState extends State<AccountsScreen> {
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 32,
-                  mainAxisSpacing: 32,
+                  crossAxisSpacing: 24,
+                  mainAxisSpacing: 24,
                   childAspectRatio: 0.8,
                 ),
                 itemCount: _userProfiles.length < 4
                     ? _userProfiles.length + 1
                     : _userProfiles.length,
                 itemBuilder: (context, index) {
+                  // Botón de agregar
                   if (index == _userProfiles.length && _userProfiles.length < 4) {
-                    return _AddProfileButton(onTap: _showAddProfileModal);
+                    return _AddProfileButton(
+                      onTap: _showAddProfileModal,
+                      cVerdeMenta: cVerdeMenta,
+                      cAzulPetroleo: cAzulPetroleo,
+                    );
                   }
+
                   final profile = _userProfiles[index];
                   bool isSelected = _selectedAccountId == profile['id'];
+                  String rawName = profile['nombre'];
+                  String displayName = rawName;
+
+                  // --- LÓGICA VISUAL PEDIDA ---
+                  if (index == 0 && rawName.length > 2 && rawName.endsWith('-1')) {
+                    displayName = rawName.substring(0, rawName.length - 2);
+                  }
 
                   return _ProfileItem(
-                    name: profile['nombre'],
+                    name: displayName,
                     imagePath: profile['ruta_imagen'] != null
                         ? '$STORAGE_BASE_URL/${profile['ruta_imagen']}'
                         : null,
@@ -524,6 +551,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     onTap: () => _showSelectionConfirmation(profile),
                     canDelete: index > 0,
                     isSelected: isSelected,
+                    cAzulPetroleo: cAzulPetroleo,
+                    cVerdeMenta: cVerdeMenta,
+                    cBlanco: cBlanco, // <--- AHORA PASAMOS EL COLOR
                   );
                 },
               ),
@@ -544,6 +574,9 @@ class _ProfileItem extends StatelessWidget {
   final VoidCallback onTap;
   final bool canDelete;
   final bool isSelected;
+  final Color cAzulPetroleo;
+  final Color cVerdeMenta;
+  final Color cBlanco; // <--- VARIABLE AGREGADA
 
   const _ProfileItem({
     required this.name,
@@ -553,6 +586,9 @@ class _ProfileItem extends StatelessWidget {
     required this.onTap,
     this.canDelete = true,
     this.isSelected = false,
+    required this.cAzulPetroleo,
+    required this.cVerdeMenta,
+    required this.cBlanco, // <--- VARIABLE AGREGADA
   });
 
   @override
@@ -564,10 +600,10 @@ class _ProfileItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: isSelected ? Border.all(color: Colors.blueAccent, width: 4) : null,
+          border: isSelected ? Border.all(color: cVerdeMenta, width: 3) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: cAzulPetroleo.withOpacity(0.1),
               spreadRadius: 2,
               blurRadius: 10,
               offset: const Offset(0, 5),
@@ -580,6 +616,7 @@ class _ProfileItem extends StatelessWidget {
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // Avatar
                 Container(
                   width: 80,
                   height: 80,
@@ -587,15 +624,15 @@ class _ProfileItem extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: imagePath == null
                         ? LinearGradient(
-                      colors: [Colors.blueAccent.shade100, Colors.blue.shade400],
+                      colors: [cVerdeMenta.withOpacity(0.4), cVerdeMenta],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
                         : null,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.4),
-                        spreadRadius: 2,
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 0,
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -606,40 +643,43 @@ class _ProfileItem extends StatelessWidget {
                     child: CachedNetworkImage(
                       imageUrl: imagePath!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                      errorWidget: (context, url, error) => const Icon(
+                      placeholder: (context, url) => Center(child: CircularProgressIndicator(color: cVerdeMenta)),
+                      errorWidget: (context, url, error) => Icon(
                         Icons.person,
                         size: 45,
-                        color: Colors.white,
+                        color: cBlanco, // <--- AHORA SÍ RECONOCE cBlanco
                       ),
                     ),
                   )
-                      : const Icon(
+                      : Icon(
                     Icons.person,
                     size: 45,
-                    color: Colors.white,
+                    color: cBlanco, // <--- AHORA SÍ RECONOCE cBlanco
                   ),
                 ),
                 const SizedBox(height: 12),
+                // Nombre
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text(
                     name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: cAzulPetroleo,
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(height: 8),
+                // Botones de acción
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: Icon(Icons.edit_rounded, color: Colors.blue[600]),
+                      icon: Icon(Icons.edit_rounded, color: cVerdeMenta),
                       onPressed: onEdit,
                       padding: const EdgeInsets.all(4),
                       constraints: const BoxConstraints(),
@@ -647,7 +687,7 @@ class _ProfileItem extends StatelessWidget {
                     const SizedBox(width: 8),
                     if (canDelete)
                       IconButton(
-                        icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
+                        icon: Icon(Icons.delete_rounded, color: Colors.red[400]),
                         onPressed: onDelete,
                         padding: const EdgeInsets.all(4),
                         constraints: const BoxConstraints(),
@@ -656,13 +696,14 @@ class _ProfileItem extends StatelessWidget {
                 ),
               ],
             ),
+            // Check de seleccionado
             if (isSelected)
-              const Positioned(
+              Positioned(
                 top: 8,
                 right: 8,
                 child: Icon(
                   Icons.check_circle,
-                  color: Colors.blueAccent,
+                  color: cVerdeMenta,
                   size: 28,
                 ),
               ),
@@ -676,9 +717,13 @@ class _ProfileItem extends StatelessWidget {
 // Widget para el botón de agregar perfil
 class _AddProfileButton extends StatelessWidget {
   final VoidCallback onTap;
+  final Color cVerdeMenta;
+  final Color cAzulPetroleo;
 
   const _AddProfileButton({
     required this.onTap,
+    required this.cVerdeMenta,
+    required this.cAzulPetroleo,
   });
 
   @override
@@ -688,42 +733,34 @@ class _AddProfileButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: Colors.white.withOpacity(0.5),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade300, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 2,
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          border: Border.all(color: cVerdeMenta.withOpacity(0.5), width: 2, style: BorderStyle.solid),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 70,
+              height: 70,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
-                border: Border.all(color: Colors.grey.shade400, width: 2),
+                border: Border.all(color: cVerdeMenta.withOpacity(0.5), width: 2),
               ),
               child: Icon(
                 Icons.add_rounded,
-                size: 45,
-                color: Colors.grey[600],
+                size: 40,
+                color: cVerdeMenta,
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Agregar Perfil',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
+                color: cAzulPetroleo.withOpacity(0.7),
               ),
               textAlign: TextAlign.center,
             ),

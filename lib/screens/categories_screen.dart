@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
 
-
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
@@ -14,6 +13,12 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _editNameController = TextEditingController();
 
@@ -78,7 +83,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           categories.removeWhere((category) => category.id == categoryId);
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categoría eliminada con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Categoría eliminada con éxito.'), backgroundColor: cVerdeMenta),
         );
       } else if (response.statusCode == 404) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -225,7 +230,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categoría actualizada con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Categoría actualizada con éxito.'), backgroundColor: cVerdeMenta),
         );
       } else if (response.statusCode == 401) {
         final prefs = await SharedPreferences.getInstance();
@@ -305,12 +310,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
-  // Lógica principal de registro
   void _addCategory() {
     final name = _nameController.text.trim();
     final type = _selectedType;
 
-    // 1. Validar los campos localmente
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, ingresa un nombre para la categoría'), backgroundColor: Colors.red),
@@ -323,38 +326,44 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       );
       return;
     }
-    // 2. Mostrar diálogo de confirmación
     _showConfirmationDialog(name, type.toLowerCase());
   }
 
-  // Nuevo método para mostrar el diálogo de confirmación
   void _showConfirmationDialog(String name, String type) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirmar Registro'),
+          backgroundColor: cBlanco,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Confirmar Registro',
+            style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold),
+          ),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('¿Estás seguro de que quieres crear esta categoría?'),
+                Text('¿Estás seguro de que quieres crear esta categoría?', style: TextStyle(color: cAzulPetroleo)),
                 const SizedBox(height: 16),
-                Text('Nombre: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Nombre: $name', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
                 const SizedBox(height: 8),
-                Text('Tipo: $type', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Tipo: $type', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
               ],
             ),
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: cVerdeMenta,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+              ),
+              child: Text('Confirmar', style: TextStyle(color: cBlanco)),
               onPressed: () {
                 Navigator.of(context).pop();
                 _sendCategoryToApi(name, type);
@@ -366,7 +375,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  // Nuevo método para enviar la categoría a la API
   Future<void> _sendCategoryToApi(String name, String type) async {
     if (_accessToken == null || _idCuenta == null) {
       if (!mounted) return;
@@ -405,7 +413,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           _selectedType = 'Gasto o ingreso';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Categoría agregada exitosamente'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Categoría agregada exitosamente'), backgroundColor: cVerdeMenta),
         );
       } else {
         String errorMessage;
@@ -438,26 +446,26 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Categorías',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {
               Navigator.pushNamed(context, '/notifications');
             },
@@ -472,7 +480,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               margin: const EdgeInsets.only(right: 16),
               child: CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.purple[100],
+                backgroundColor: cVerdeMenta.withOpacity(0.2),
                 backgroundImage: _profileImageUrl != null
                     ? NetworkImage(_profileImageUrl!)
                     : null,
@@ -480,7 +488,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     ? Icon(
                   Icons.person,
                   size: 20,
-                  color: Colors.purple[700],
+                  color: cAzulPetroleo,
                 )
                     : null,
               ),
@@ -489,7 +497,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -497,122 +505,125 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               'Añadir nueva categoría',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+                fontWeight: FontWeight.w700,
+                color: cAzulPetroleo,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Nombre de la categoría',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w500,
+                color: cAzulPetroleo.withOpacity(0.7),
+                fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: _nameController,
               maxLength: 30,
+              style: TextStyle(color: cAzulPetroleo),
               decoration: InputDecoration(
                 hintText: 'Ej. Salario',
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cBlanco,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.orange, width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cVerdeMenta, width: 1.5),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Tipo',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w500,
+                color: cAzulPetroleo.withOpacity(0.7),
+                fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(8),
+                color: cBlanco,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: DropdownButton<String>(
-                value: _selectedType,
-                isExpanded: true,
-                underline: SizedBox(),
-                icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-                items: ['Gasto o ingreso', 'Gasto', 'Ingreso'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        color: value == 'Gasto o ingreso' ? Colors.grey[400] : Colors.black,
-                        fontSize: 16,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedType,
+                  isExpanded: true,
+                  icon: Icon(Icons.keyboard_arrow_down, color: cAzulPetroleo),
+                  dropdownColor: cBlanco,
+                  items: ['Gasto o ingreso', 'Gasto', 'Ingreso'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          color: value == 'Gasto o ingreso' ? Colors.grey[400] : cAzulPetroleo,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedType = newValue;
-                    });
-                  }
-                },
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedType = newValue;
+                      });
+                    }
+                  },
+                ),
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _addCategory,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: cVerdeMenta,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: 2,
+                  shadowColor: cVerdeMenta.withOpacity(0.4),
                 ),
                 child: Text(
-                  'Guardar categoria',
+                  'Guardar categoría',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: cBlanco,
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             Text(
               'Mis categorías',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+                fontWeight: FontWeight.w700,
+                color: cAzulPetroleo,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             if (isLoading)
-              const Center(child: CircularProgressIndicator())
+              Center(child: CircularProgressIndicator(color: cVerdeMenta))
             else if (errorMessage != null)
               Center(
                 child: Padding(
@@ -642,44 +653,52 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Widget _buildCategoryItem(CategoryModel category) {
+    bool isExpense = category.type.toLowerCase() == 'gasto';
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
+        color: cBlanco,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: category.type.toLowerCase() == 'gasto' ? Colors.red[50] : Colors.green[50],
+              color: isExpense ? Colors.red[50] : cVerdeMenta.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               category.type,
               style: TextStyle(
-                color: category.type.toLowerCase() == 'gasto' ? Colors.red[600] : Colors.green[600],
+                color: isExpense ? Colors.red[600] : cVerdeMenta,
                 fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               category.name,
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
+                fontWeight: FontWeight.w600,
+                color: cAzulPetroleo,
               ),
             ),
           ),
           IconButton(
-            icon: Icon(Icons.edit_outlined, color: Colors.blue[400]),
+            icon: Icon(Icons.edit_outlined, color: cVerdeMenta),
             onPressed: () => _showEditCategoryDialog(category),
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(),
@@ -687,8 +706,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           IconButton(
             icon: Icon(Icons.delete_outline, color: Colors.red[400]),
             onPressed: () => _showDeleteConfirmation(category),
-            padding: EdgeInsets.all(4),
-            constraints: BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
@@ -698,43 +717,48 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 10,
-            offset: Offset(0, -2),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Azul Petróleo para activo
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: 3,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart_outlined),
+            activeIcon: Icon(Icons.bar_chart),
             label: 'Reportes',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
             label: 'Presupuestos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.category),
+            activeIcon: Icon(Icons.category_rounded),
             label: 'Categorías',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
             label: 'Ajustes',
           ),
         ],
@@ -764,25 +788,25 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: cBlanco,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Eliminar Categoría',
           style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
+            color: cAzulPetroleo,
+            fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           '¿Estás seguro de que quieres eliminar la categoría "${category.name}"?',
-          style: TextStyle(color: Colors.grey[700]),
+          style: TextStyle(color: cAzulPetroleo.withOpacity(0.8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
+            child: const Text(
               'Cancelar',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Colors.grey),
             ),
           ),
           TextButton(
@@ -790,9 +814,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Navigator.pop(context);
               _deleteCategory(category.id);
             },
-            child: Text(
+            child: const Text(
               'Eliminar',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -805,23 +829,28 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        backgroundColor: cBlanco,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           'Editar Categoría',
           style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
+            color: cAzulPetroleo,
+            fontWeight: FontWeight.bold,
           ),
         ),
         content: TextField(
           controller: _editNameController,
           maxLength: 30,
+          style: TextStyle(color: cAzulPetroleo),
           decoration: InputDecoration(
             labelText: 'Nombre de la categoría',
-            labelStyle: TextStyle(color: Colors.grey[600]),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.orange, width: 2),
+            labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+            filled: true,
+            fillColor: cGrisClaro,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: cVerdeMenta, width: 1.5),
             ),
           ),
         ),
@@ -831,9 +860,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Navigator.pop(context);
               _editNameController.clear();
             },
-            child: Text(
+            child: const Text(
               'Cancelar',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Colors.grey),
             ),
           ),
           TextButton(
@@ -842,9 +871,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               _updateCategory(category.id, _editNameController.text);
               _editNameController.clear();
             },
-            child: const Text(
+            child: Text(
               'Guardar',
-              style: TextStyle(color: Colors.orange),
+              style: TextStyle(color: cVerdeMenta, fontWeight: FontWeight.bold),
             ),
           ),
         ],

@@ -17,6 +17,12 @@ class BudgetsScreen extends StatefulWidget {
 }
 
 class _BudgetsScreenState extends State<BudgetsScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final int _selectedIndex = 2;
   bool _isLoading = true;
   List<Budget> budgets = [];
@@ -76,7 +82,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
       if (!mounted) return;
       if (response.statusCode == 200) {
-        // print('📄 JSON de Presupuestos: ${response.body}'); // <-- Para depurar
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           budgets = data.map((json) => Budget.fromJson(json)).toList();
@@ -193,7 +198,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Presupuesto eliminado con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Presupuesto eliminado con éxito.'), backgroundColor: cVerdeMenta),
         );
       } else if (response.statusCode == 401) {
         await prefs.remove('accessToken');
@@ -212,7 +217,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     }
   }
 
-  /// 1. FUNCIÓN PARA BUSCAR LAS CATEGORÍAS (usando tu CategoryModel)
   Future<List<CategoryModel>> _fetchCategoriesForDropdown() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
@@ -238,8 +242,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data
-          .map((json) => CategoryModel.fromJson(json)) // Usamos tu modelo
-          .where((cat) => cat.type == 'gasto')        // Filtramos por 'gasto'
+          .map((json) => CategoryModel.fromJson(json))
+          .where((cat) => cat.type == 'gasto')
           .toList();
     } else {
       throw Exception('Error al cargar categorías');
@@ -260,7 +264,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           'Authorization': 'Bearer $token',
         },
         body: json.encode({
-          'idcategoria': newCategoryId, // Enviamos el INT
+          'idcategoria': newCategoryId,
           'monto': newMonto,
         }),
       );
@@ -268,7 +272,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       if (!mounted) return;
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Presupuesto actualizado con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Presupuesto actualizado con éxito.'), backgroundColor: cVerdeMenta),
         );
         _fetchBudgets();
       } else {
@@ -287,7 +291,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   void _showEditBudgetDialog(Budget budget) {
     final formKey = GlobalKey<FormState>();
     final montoController = TextEditingController(text: budget.budgetAmount.toStringAsFixed(2));
-    int? selectedCategoryId = budget.categoryId; // El ID es INT
+    int? selectedCategoryId = budget.categoryId;
 
     showDialog(
       context: context,
@@ -295,16 +299,33 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('Editar Presupuesto de "${budget.category}"'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                'Editar Presupuesto',
+                style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold),
+              ),
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Text(
+                        'Editando: "${budget.category}"',
+                        style: TextStyle(color: cAzulPetroleo.withOpacity(0.7), fontSize: 14),
+                      ),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: montoController,
-                        decoration: const InputDecoration(labelText: 'Monto Presupuestado', prefixText: 'S/ '),
+                        decoration: InputDecoration(
+                          labelText: 'Monto Presupuestado',
+                          prefixText: 'S/ ',
+                          labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                          filled: true,
+                          fillColor: cGrisClaro,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cVerdeMenta)),
+                        ),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: (value) {
                           if (value == null || value.isEmpty || double.tryParse(value) == null || double.parse(value) <= 0) {
@@ -318,7 +339,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                         future: _fetchCategoriesForDropdown(),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
+                            return Center(child: CircularProgressIndicator(color: cVerdeMenta));
                           }
                           if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                             return Text('No se pudieron cargar las categorías. ${snapshot.error}');
@@ -326,21 +347,26 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
                           final categories = snapshot.data!;
 
-                          // Comparamos int (budget.categoryId) con String (category.id)
                           if (!categories.any((cat) => int.parse(cat.id) == budget.categoryId)) {
                             categories.insert(0, CategoryModel(id: budget.categoryId.toString(), name: budget.category, type: 'gasto'));
                           }
 
-                          return DropdownButtonFormField<int>( // El valor del Dropdown es INT
+                          return DropdownButtonFormField<int>(
                             value: selectedCategoryId,
-                            decoration: const InputDecoration(labelText: 'Categoría'),
+                            decoration: InputDecoration(
+                              labelText: 'Categoría',
+                              labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                              filled: true,
+                              fillColor: cGrisClaro,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            ),
                             items: categories.map((CategoryModel category) {
                               return DropdownMenuItem<int>(
-                                value: int.parse(category.id), // Convertimos el ID String a INT
+                                value: int.parse(category.id),
                                 child: Text(category.name),
                               );
                             }).toList(),
-                            onChanged: (int? newValue) { // Recibimos un INT
+                            onChanged: (int? newValue) {
                               setDialogState(() {
                                 selectedCategoryId = newValue;
                               });
@@ -356,7 +382,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -366,7 +392,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       Navigator.pop(context);
                     }
                   },
-                  child: const Text('Guardar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cVerdeMenta,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -392,7 +422,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
   String _getCurrentMonthName() {
     final now = DateTime.now();
-    final formatter = DateFormat('MMMM yyyy', 'es'); // Usar locale 'es'
+    final formatter = DateFormat('MMMM yyyy', 'es');
     return formatter.format(now).replaceRange(0, 1, formatter.format(now)[0].toUpperCase());
   }
 
@@ -401,26 +431,26 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final currentMonthBudgets = _getBudgetsForCurrentMonth();
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial #F4F4F4
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pushReplacementNamed(context, '/dashboard'),
         ),
-        title: const Text(
+        title: Text(
           'Mis Presupuestos',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {
               Navigator.pushNamed(context, '/notifications');
             },
@@ -435,13 +465,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.purple[100],
+                color: cVerdeMenta.withOpacity(0.2), // Fondo suave
                 shape: BoxShape.circle,
               ),
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                   child: CircularProgressIndicator(
-                    color: Colors.purple,
+                    color: cVerdeMenta,
                     strokeWidth: 2,
                   ))
                   : _profileImageUrl != null
@@ -452,19 +482,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   width: 40,
                   height: 40,
                   errorBuilder: (context, error, stackTrace) {
-                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                    return Icon(Icons.person, size: 24, color: cAzulPetroleo);
                   },
                 ),
               )
-                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
+                  : Icon(Icons.person, size: 24, color: cAzulPetroleo),
             ),
           ),
         ],
       ),
       body: RefreshIndicator(
+        color: cVerdeMenta,
         onRefresh: _loadAllData,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
             : _errorMessage != null
             ? Center(child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -475,68 +506,86 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Tarjeta Resumen con degradado oficial
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.blue[400]!, Colors.blue[600]!],
+                    colors: [cAzulPetroleo, cVerdeMenta], // Gradiente oficial
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: cAzulPetroleo.withOpacity(0.3),
+                      spreadRadius: 0,
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Resumen de Presupuestos -  ${_getCurrentMonthName()}',
+                      'Resumen de Presupuestos',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
+                        color: cBlanco.withOpacity(0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      _getCurrentMonthName(),
+                      style: TextStyle(
+                        color: cBlanco,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Total Presupuestado',
+                            Text(
+                              'Presupuestado',
                               style: TextStyle(
-                                color: Colors.white70,
+                                color: cBlanco.withOpacity(0.7),
                                 fontSize: 12,
                               ),
                             ),
                             Text(
                               'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.budgetAmount).toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                              style: TextStyle(
+                                color: cBlanco,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
+                        Container(width: 1, height: 40, color: cBlanco.withOpacity(0.2)),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text(
-                              'Total Gastado',
+                            Text(
+                              'Gastado Real',
                               style: TextStyle(
-                                color: Colors.white70,
+                                color: cBlanco.withOpacity(0.7),
                                 fontSize: 12,
                               ),
                             ),
                             Text(
                               'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.spentAmount).toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                              style: TextStyle(
+                                color: cBlanco,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
@@ -550,16 +599,16 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Presupuestos por Categoría',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: cAzulPetroleo,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                    icon: Icon(Icons.add_circle_rounded, color: cVerdeMenta, size: 30),
                     onPressed: () {
                       Navigator.pushNamed(context, '/assign-budget');
                     },
@@ -568,10 +617,16 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               ),
               const SizedBox(height: 16),
               currentMonthBudgets.isEmpty
-                  ? const Center(
+                  ? Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32.0),
-                    child: Text('No hay presupuestos asignados para este mes.'),
+                    padding: const EdgeInsets.symmetric(vertical: 32.0),
+                    child: Column(
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 48, color: cAzulPetroleo.withOpacity(0.3)),
+                        const SizedBox(height: 8),
+                        Text('No hay presupuestos este mes.', style: TextStyle(color: cAzulPetroleo.withOpacity(0.5))),
+                      ],
+                    ),
                   )
               )
                   : ListView.builder(
@@ -603,7 +658,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       statusColor = Colors.orange;
       statusText = '${(100 - percentage).toStringAsFixed(0)}% disponible';
     } else {
-      statusColor = Colors.green;
+      statusColor = cVerdeMenta; // Verde oficial
       statusText = '${(100 - percentage).toStringAsFixed(0)}% disponible';
     }
 
@@ -622,15 +677,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
+          color: cBlanco,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withAlpha(26),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.05),
+              spreadRadius: 0,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -640,20 +694,21 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  budget.category,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
+                Expanded(
+                  child: Text(
+                    budget.category,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: cAzulPetroleo,
+                    ),
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                  icon: Icon(Icons.more_vert, color: cAzulPetroleo.withOpacity(0.5)),
                   onSelected: (value) {
                     switch (value) {
                       case 'edit':
-                      // ✅ 3. Conectamos el botón de editar
                         _showEditBudgetDialog(budget);
                         break;
                       case 'delete':
@@ -665,10 +720,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     PopupMenuItem(
                       value: 'edit',
                       child: Row(
-                        children: const [
-                          Icon(Icons.edit, color: Colors.blue, size: 20),
-                          SizedBox(width: 8),
-                          Text('Editar'),
+                        children: [
+                          Icon(Icons.edit, color: cVerdeMenta, size: 20),
+                          const SizedBox(width: 8),
+                          Text('Editar', style: TextStyle(color: cAzulPetroleo)),
                         ],
                       ),
                     ),
@@ -686,20 +741,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               monthName,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: cAzulPetroleo.withOpacity(0.5),
               ),
             ),
             const SizedBox(height: 12),
             Container(
-              height: 6,
+              height: 8,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(3),
+                color: cGrisClaro,
+                borderRadius: BorderRadius.circular(4),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
@@ -707,7 +762,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: statusColor,
-                    borderRadius: BorderRadius.circular(3),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
@@ -721,10 +776,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   children: [
                     Text(
                       'S/.${budget.spentAmount.toStringAsFixed(2)} de S/.${budget.budgetAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
+                        fontWeight: FontWeight.w600,
+                        color: cAzulPetroleo,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -733,7 +788,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         color: statusColor,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -757,7 +812,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   String getMonthName(String dateString) {
     try {
       final date = DateTime.parse(dateString);
-      // Usamos 'es' para español
       return DateFormat('MMMM yyyy', 'es').format(date).replaceRange(0, 1, DateFormat('MMMM yyyy', 'es').format(date)[0].toUpperCase());
     } catch (e) {
       return 'Mes desconocido';
@@ -767,10 +821,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withAlpha(26),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, -2),
@@ -779,31 +833,36 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Azul Petróleo para seleccionado
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: _selectedIndex,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart_outlined),
+            activeIcon: Icon(Icons.bar_chart),
             label: 'Reportes',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
             label: 'Presupuestos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.category_outlined),
+            activeIcon: Icon(Icons.category),
             label: 'Categorías',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
             label: 'Ajustes',
           ),
         ],
@@ -833,25 +892,25 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar Presupuesto'),
-        content: Text('¿Estás seguro de que quieres eliminar el presupuesto de ${budget.category}?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Eliminar Presupuesto', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold)),
+        content: Text('¿Estás seguro de que quieres eliminar el presupuesto de ${budget.category}?', style: TextStyle(color: cAzulPetroleo)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-                await _deleteBudgetOnServer(budget.id);
+              await _deleteBudgetOnServer(budget.id);
               if (mounted) {
-                // Actualizamos la UI localmente
                 setState(() {
                   budgets.removeWhere((b) => b.id == budget.id);
                 });
               }
             },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -859,7 +918,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 }
 
-// ✅ 4. Modelo 'Budget' actualizado y al final del archivo
 class Budget {
   final String id;
   final int categoryId;
@@ -879,12 +937,11 @@ class Budget {
 
   factory Budget.fromJson(Map<String, dynamic> json) {
     final id = (json['id'] as int).toString();
-    final categoryId = json['idcategoria'] as int; // Leemos el ID de categoría
+    final categoryId = json['idcategoria'] as int;
     final month = json['mes'] as String? ?? '';
     final category = json['categoria_nombre'] as String? ?? 'Sin categoría';
 
     final budgetAmount = double.tryParse(json['monto'].toString()) ?? 0.0;
-    // Leemos el monto_gastado real
     final spentAmount = double.tryParse(json['monto_gastado'].toString()) ?? 0.0;
 
     return Budget(

@@ -4,14 +4,15 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
-
-// --- ¡NUEVO IMPORT! ---
-// Importamos la pantalla de verificación
 import '../screens/verification_screen.dart';
-// --- FIN DEL NUEVO IMPORT ---
+
+// --- DEFINICIÓN DE COLORES OFICIALES ---
+final Color cPetrolBlue = const Color(0xFF264653);
+final Color cMintGreen = const Color(0xFF2A9D8F);
+final Color cLightGrey = const Color(0xFFF4F4F4);
+final Color cWhite = const Color(0xFFFFFFFF);
 
 class LoginScreen extends StatefulWidget {
-  // ... (tu código se queda igual)
   const LoginScreen({super.key});
 
   @override
@@ -19,38 +20,28 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // ... (tus controladores se quedan igual)
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   final ValueNotifier<bool> _isPasswordVisible = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _rememberMe = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String> _errorMessage = ValueNotifier<String>('');
 
   bool _isRedirecting = false;
 
-
   @override
   void initState() {
-    // ... (tu código se queda igual)
     super.initState();
     _checkSession();
   }
 
   Future<void> _checkSession() async {
-    // ... (tu código se queda igual)
-    // (Esta función usa API_BASE_URL, asegúrate que esté en tus constants.dart)
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString('accessToken');
 
-    if (accessToken == null) {
-      print('🚫 No se encontró un token de acceso en SharedPreferences. Se mantiene en la pantalla de login.');
-      return;
-    }
+    if (accessToken == null) return;
 
-    print('🔍 Token de acceso encontrado. Validando sesión con el servidor...');
     _isLoading.value = true;
     final url = Uri.parse('$API_BASE_URL/getUser');
 
@@ -59,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Accept' : 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $accessToken',
         },
       );
@@ -67,7 +58,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading.value = false;
 
       if (response.statusCode == 200) {
-        print('✅ Sesión validada con éxito. Redirigiendo a /loading...');
         if (!_isRedirecting) {
           _isRedirecting = true;
           Navigator.of(context).pushReplacementNamed(
@@ -76,22 +66,18 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        print('❌ El token no es válido o ha expirado. Estado: ${response.statusCode}');
         await prefs.remove('accessToken');
         await prefs.remove('idCuenta');
-        _errorMessage.value = 'Tu sesión ha expirado o ya no es válida. Por favor, inicia sesión de nuevo.';
+        _errorMessage.value = 'Tu sesión ha expirado.';
       }
     } catch (e) {
       _isLoading.value = false;
-      print('❗ Error al conectar con el servidor para validar la sesión: $e');
-      _errorMessage.value = 'No se pudo verificar tu sesión. Por favor, intenta de nuevo.';
       await prefs.remove('accessToken');
       await prefs.remove('idCuenta');
     }
   }
 
   Future<void> _performLogin() async {
-    // ... (tu código se queda igual)
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -110,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Accept' : 'application/json',
+          'Accept': 'application/json',
         },
         body: json.encode(body),
       );
@@ -132,19 +118,18 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          _errorMessage.value = 'Token no recibido. Por favor, intente de nuevo.';
+          _errorMessage.value = 'Error de token.';
         }
       } else {
-        // Esta parte es clave, aquí le avisamos si no está verificado
         final errorData = json.decode(response.body);
         if (errorData['errors'] != null && errorData['errors']['login'] != null) {
           _errorMessage.value = errorData['errors']['login'][0];
         } else {
-          _errorMessage.value = errorData['message'] ?? 'Error desconocido.';
+          _errorMessage.value = errorData['message'] ?? 'Credenciales incorrectas.';
         }
       }
     } catch (e) {
-      _errorMessage.value = 'No se pudo conectar al servidor: $e';
+      _errorMessage.value = 'Error de conexión.';
     } finally {
       _isLoading.value = false;
     }
@@ -152,106 +137,101 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (tu código se queda igual)
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.purple[400]!,
-              Colors.purple[600]!,
-              Colors.indigo[600]!,
-            ],
+      body: Stack(
+        children: [
+          Container(
+            height: double.infinity,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [cPetrolBlue, cMintGreen],
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: _LoginContent,
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: _LoginContent,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   @override
   void dispose() {
-    // ... (tu código se queda igual)
     _loginController.dispose();
     _passwordController.dispose();
     _isPasswordVisible.dispose();
-    _rememberMe.dispose();
     _isLoading.dispose();
     _errorMessage.dispose();
     super.dispose();
   }
 
-  // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
   Widget get _LoginContent {
     return Form(
       key: _formKey,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 80),
+          const SizedBox(height: 20),
           const _HeaderSection(),
-          const SizedBox(height: 50),
+          const SizedBox(height: 30),
           _buildLoginForm(),
-          const SizedBox(height: 32),
-          _buildLoginButton(),
-          const SizedBox(height: 20),
-
-          // --- ¡BOTÓN NUEVO AÑADIDO! ---
-          _buildVerifyButton(context), // Botón para el "Plan B"
-          // --- FIN DEL CAMBIO ---
-
-          const SizedBox(height: 20), // Espacio extra
-          const _Divider(),
           const SizedBox(height: 24),
+          _buildLoginButton(),
+          const SizedBox(height: 10),
+          _buildVerifyButton(context),
+          const SizedBox(height: 16),
+          const _Divider(),
+          const SizedBox(height: 16),
           _buildRegisterButton(),
-          const SizedBox(height: 40),
-          const _FooterSection(),
           const SizedBox(height: 20),
+          const _FooterSection(),
+          const SizedBox(height: 10),
         ],
       ),
     );
   }
-  // --- FIN DEL CAMBIO ---
 
-
-  // --- ¡NUEVO WIDGET AÑADIDO! ---
   Widget _buildVerifyButton(BuildContext context) {
     return TextButton(
       onPressed: () {
-        // Navega a la pantalla de verificación manual
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => VerificationScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => VerificationScreen()),
         );
       },
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
       child: Text(
         '¿Aún no verificaste tu correo? Haz clic aquí',
         textAlign: TextAlign.center,
         style: TextStyle(
           color: Colors.white.withOpacity(0.9),
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           decoration: TextDecoration.underline,
+          fontFamily: 'Poppins',
         ),
       ),
     );
   }
-  // --- FIN DEL NUEVO WIDGET ---
 
   Widget _buildLoginForm() {
-    // ... (tu código se queda igual)
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Colors.white.withOpacity(0.2),
@@ -259,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: cPetrolBlue.withOpacity(0.3),
             spreadRadius: 0,
             blurRadius: 20,
             offset: const Offset(0, 10),
@@ -271,12 +251,10 @@ class _LoginScreenState extends State<LoginScreen> {
           ValueListenableBuilder<String>(
             valueListenable: _errorMessage,
             builder: (context, errorMsg, child) {
-              if (errorMsg.isEmpty) {
-                return const SizedBox.shrink();
-              }
+              if (errorMsg.isEmpty) return const SizedBox.shrink();
               return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -284,15 +262,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                    Icon(Icons.error_outline, color: Colors.red[700], size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         errorMsg,
                         style: TextStyle(
                           color: Colors.red[700],
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
+                          fontFamily: 'Poppins',
                         ),
                       ),
                     ),
@@ -306,14 +285,11 @@ class _LoginScreenState extends State<LoginScreen> {
             label: 'Correo o username',
             icon: Icons.person_outline,
             keyboardType: TextInputType.text,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu correo o username';
-              }
-              return null;
-            },
+            validator: (value) => (value == null || value.isEmpty)
+                ? 'Ingresa tu usuario'
+                : null,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           ValueListenableBuilder<bool>(
             valueListenable: _isPasswordVisible,
             builder: (context, isVisible, child) {
@@ -323,88 +299,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icons.lock_outline,
                 isPassword: true,
                 isPasswordVisible: isVisible,
-                onTogglePassword: () {
-                  _isPasswordVisible.value = !isVisible;
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingresa tu contraseña';
-                  }
-                  return null;
-                },
+                onTogglePassword: () => _isPasswordVisible.value = !isVisible,
+                validator: (value) => (value == null || value.isEmpty)
+                    ? 'Ingresa tu contraseña'
+                    : null,
               );
             },
-          ),
-          const SizedBox(height: 20),
-          Row(
-            // ... (tu código se queda igual)
-            children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: _rememberMe,
-                builder: (context, remember, child) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: remember
-                              ? Colors.purple[600]
-                              : Colors.white.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: remember
-                                ? Colors.purple[600]!
-                                : Colors.purple[300]!,
-                            width: 2,
-                          ),
-                        ),
-                        child: InkWell(
-                          onTap: () {
-                            _rememberMe.value = !remember;
-                          },
-                          child: remember
-                              ? const Icon(
-                            Icons.check,
-                            size: 14,
-                            color: Colors.white,
-                          )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          _rememberMe.value = !remember;
-                        },
-                        child: Text(
-                          'Recordarme',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: _showForgotPasswordDialog,
-                child: Text(
-                  'Recupera tu contraseña',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -412,24 +312,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginButton() {
-    // ... (tu código se queda igual)
     return ValueListenableBuilder<bool>(
       valueListenable: _isLoading,
       builder: (context, isLoading, child) {
         return Container(
           width: double.infinity,
-          height: 56,
+          height: 50,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.purple[500]!,
-                Colors.purple[700]!,
-              ],
-            ),
+            gradient: LinearGradient(colors: [cMintGreen, cPetrolBlue]),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.purple.withOpacity(0.4),
+                color: cPetrolBlue.withOpacity(0.4),
                 spreadRadius: 0,
                 blurRadius: 15,
                 offset: const Offset(0, 8),
@@ -441,30 +335,25 @@ class _LoginScreenState extends State<LoginScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: isLoading
-                ? const CircularProgressIndicator(
-              color: Colors.white,
-              strokeWidth: 2,
+                ? const SizedBox(
+                width: 24, height: 24,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
             )
                 : const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.login,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                SizedBox(width: 12),
+                Icon(Icons.login, color: Colors.white, size: 22),
+                SizedBox(width: 10),
                 Text(
                   'Iniciar Sesión',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
+                    fontFamily: 'Poppins',
                   ),
                 ),
               ],
@@ -476,52 +365,33 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildRegisterButton() {
-    // ... (tu código se queda igual)
     return Container(
       width: double.infinity,
-      height: 56,
+      height: 50,
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.8),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.white.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.white.withOpacity(0.8), width: 2),
       ),
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/register');
-        },
+        onPressed: () => Navigator.pushNamed(context, '/register'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.person_add,
-              color: Colors.white,
-              size: 24,
-            ),
-            SizedBox(width: 12),
+            Icon(Icons.person_add, color: Colors.white, size: 22),
+            SizedBox(width: 10),
             Text(
               'Crear nueva cuenta',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
+                fontFamily: 'Poppins',
               ),
             ),
           ],
@@ -530,73 +400,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _showForgotPasswordDialog() {
-    // ... (tu código se queda igual)
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.help_outline, color: Colors.purple[600]),
-            const SizedBox(width: 8),
-            const Text(
-              'Recuperar Contraseña',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Te enviaremos un enlace de recuperación a tu correo electrónico registrado.',
-          style: TextStyle(fontSize: 16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Enlace de recuperación enviado'),
-                  backgroundColor: Colors.green[600],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  margin: const EdgeInsets.all(16),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple[600],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Enviar',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // --- SOLUCIÓN: Agregado AutovalidateMode ---
   Widget _buildModernTextField({
-    // ... (tu código se queda igual)
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -606,98 +411,73 @@ class _LoginScreenState extends State<LoginScreen> {
     VoidCallback? onTogglePassword,
     String? Function(String?)? validator,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0, bottom: 6.0),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
           ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: isPassword ? !(isPasswordVisible ?? false) : false,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: Colors.purple[600],
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.purple[600],
-              size: 20,
-            ),
-          ),
-          suffixIcon: isPassword
-              ? IconButton(
-            icon: Icon(
-              isPasswordVisible ?? false
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-              color: Colors.purple[400],
-            ),
-            onPressed: onTogglePassword,
-          )
-              : null,
-          border: OutlineInputBorder(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Colors.purple.withOpacity(0.1),
-              width: 1,
+          child: TextFormField(
+            // ¡ESTA LÍNEA ES LA MAGIA! 👇
+            // Hace que el error desaparezca apenas el usuario interactúa con el campo
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+
+            controller: controller,
+            keyboardType: keyboardType,
+            obscureText: isPassword ? !(isPasswordVisible ?? false) : false,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: cPetrolBlue,
+              fontFamily: 'Poppins',
             ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: Colors.purple[400]!,
-              width: 2,
+            decoration: InputDecoration(
+              hintText: 'Ingresa tu $label'.toLowerCase(),
+              hintStyle: TextStyle(
+                color: cPetrolBlue.withOpacity(0.5),
+                fontWeight: FontWeight.w400,
+                fontFamily: 'Poppins',
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(icon, color: cPetrolBlue, size: 20),
+              suffixIcon: isPassword
+                  ? IconButton(
+                icon: Icon(
+                  isPasswordVisible ?? false
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: cPetrolBlue.withOpacity(0.6),
+                  size: 20,
+                ),
+                onPressed: onTogglePassword,
+              )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
+            validator: validator,
           ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: Colors.red,
-              width: 1,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.9),
         ),
-        validator: validator,
-      ),
+      ],
     );
   }
 }
 
-// Widgets Estáticos
 class _HeaderSection extends StatelessWidget {
-  // ... (tu código se queda igual)
   const _HeaderSection();
 
   @override
@@ -705,54 +485,56 @@ class _HeaderSection extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 140,
-          height: 140,
+          width: 90,
+          height: 90,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [
-                Colors.white,
-                Colors.purple[50]!,
-              ],
-            ),
+            color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.white.withOpacity(0.3),
-                spreadRadius: 8,
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color: cPetrolBlue.withOpacity(0.3),
+                spreadRadius: 2,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Icon(
-            Icons.account_balance_wallet,
-            size: 70,
-            color: Colors.purple[700],
-          ),
-        ),
-        const SizedBox(height: 40),
-        ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
-            colors: [Colors.white, Colors.purple[100]!],
-          ).createShader(bounds),
-          child: const Text(
-            '¡Bienvenido!',
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/icon/logo4.jpg',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         Text(
-          'Ingresa a tu cuenta Econo Muchik',
+          '¡Bienvenido!',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontFamily: 'Poppins',
+            shadows: [
+              Shadow(
+                offset: const Offset(0, 2),
+                blurRadius: 4,
+                color: Colors.black.withOpacity(0.2),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Ingresa a tu cuenta Planifiko',
+          style: TextStyle(
+            fontSize: 14,
             color: Colors.white.withOpacity(0.9),
             fontWeight: FontWeight.w300,
+            fontFamily: 'Poppins',
           ),
-          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -760,52 +542,42 @@ class _HeaderSection extends StatelessWidget {
 }
 
 class _Divider extends StatelessWidget {
-  // ... (tu código se queda igual)
   const _Divider();
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: Container(
-            height: 1,
-            color: Colors.white.withOpacity(0.3),
-          ),
-        ),
+        Expanded(child: Container(height: 1, color: Colors.white.withOpacity(0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'O',
             style: TextStyle(
               color: Colors.white.withOpacity(0.7),
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
             ),
           ),
         ),
-        Expanded(
-          child: Container(
-            height: 1,
-            color: Colors.white.withOpacity(0.3),
-          ),
-        ),
+        Expanded(child: Container(height: 1, color: Colors.white.withOpacity(0.3))),
       ],
     );
   }
 }
 
 class _FooterSection extends StatelessWidget {
-  // ... (tu código se queda igual)
   const _FooterSection();
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      '© 2025 Econo Muchik Finance',
+      '© 2025 Planifiko Finance',
       style: TextStyle(
         color: Colors.white.withOpacity(0.6),
-        fontSize: 12,
+        fontSize: 11,
+        fontFamily: 'Poppins',
       ),
     );
   }
