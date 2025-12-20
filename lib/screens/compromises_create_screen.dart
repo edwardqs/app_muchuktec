@@ -25,7 +25,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
 
   String _selectedType = 'Deuda'; // "Deuda" o "Préstamo"
   String _interestType = 'Simple'; // "Simple" o "Compuesto"
-  String _selectedFrequency = 'Sin cuota'; // Frecuencia de la cuota
+  String _selectedFrequency = 'Sin cuotas'; // Frecuencia de la cuota
 
   bool _isLoading = true; // Mantenemos esta para el appbar
   bool isLoading = true; // Renombrado de isLoading a _isLoading para evitar ambigüedad
@@ -295,7 +295,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     DateTime? fechaTermino;
     int cuotas = int.parse(_installmentsController.text.isEmpty ? '0' : _installmentsController.text);
 
-    if (_selectedFrequencyText == 'Sin cuota') {
+    if (_selectedFrequencyText == 'Sin cuotas') {
       fechaTermino = null;
     } else if (cuotas > 0) {
       switch (_selectedFrequencyText) {
@@ -469,12 +469,14 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             // Campo Monto total
             _buildLabeledTextField(
               label: 'Monto total',
-              hint: 'S/.',
+              hint: '00.00',
               controller: _amountController,
+              prefix: 'S/. ',
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*')),
               ],
+              contentPadding: const EdgeInsets.fromLTRB(10, 14, 16, 14),
             ),
             const SizedBox(height: 16),
 
@@ -509,7 +511,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                     hint: '5',
                     controller: _installmentsController,
                     keyboardType: TextInputType.number,
-                    enabled: _selectedFrequencyText != 'Sin cuota',
+                    enabled: _selectedFrequencyText != 'Sin cuotas',
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly, // <-- Solo números enteros
                     ],
@@ -529,6 +531,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               hint: 'S/.',
               controller: _calculatedAmountController,
               keyboardType: TextInputType.number,
+              enabled: _selectedFrequencyText != 'Sin cuotas',
             ),
             const SizedBox(height: 16),
 
@@ -576,9 +579,10 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     required String hint,
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
-    bool enabled = true, // <--- nuevo
-    List<TextInputFormatter>? inputFormatters, // <-- Nuevo parámetro
-
+    bool enabled = true,
+    List<TextInputFormatter>? inputFormatters,
+    String? prefix,
+    EdgeInsetsGeometry? contentPadding,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -596,13 +600,28 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           controller: controller,
           keyboardType: keyboardType,
           enabled: enabled,
-          inputFormatters: inputFormatters, // <-- Usar el nuevo parámetro
-
+          inputFormatters: inputFormatters,
+          style: const TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.w400
+          ),
           decoration: InputDecoration(
+            prefixText: prefix,
+            prefixStyle: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w400
+            ),
+
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),
             filled: true,
             fillColor: Colors.white,
+
+            // Ajustar el padding interno ayuda a que se vea centrado verticalmente
+            contentPadding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -615,7 +634,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Colors.orange, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         ),
       ],
@@ -628,7 +646,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Entidad',
+          'Tercero',
           style: TextStyle(
             fontSize: 14,
             color: Color.fromARGB(255, 78, 78, 78),
@@ -773,14 +791,14 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
 
 // Mapa: Texto visible -> ID que vas a enviar
   final Map<String, int> frequencyMap = {
-    'Sin cuota': 1,
+    'Sin cuotas': 1,
     'S': 2,
     'M': 3,
     'A': 4,
   };
 
 // Variable para guardar el texto seleccionado (para mostrar en el Dropdown)
-  String _selectedFrequencyText = 'Sin cuota';
+  String _selectedFrequencyText = 'Sin cuotas';
 
 // Variable para guardar el ID que se enviará a la API
   int? _selectedFrequencyId;
@@ -826,7 +844,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                   _selectedFrequencyText = newValue!;
                   _selectedFrequencyId = frequencyMap[newValue];
 
-                  if (_selectedFrequencyText == 'Sin cuota') {
+                  if (_selectedFrequencyText == 'Sin cuotas') {
                     _installmentsController.text = '0'; // siempre 0
                   }
                   _calculateInstallmentAmount(); // <-- Llamar al cálculo aquí

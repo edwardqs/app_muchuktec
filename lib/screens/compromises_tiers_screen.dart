@@ -174,6 +174,24 @@ class _TercerosScreenState extends State<TercerosScreen> {
       return;
     }
 
+    final nombreInput = _nombreController.text.trim();
+    final tipoInput = _tipoSeleccionado!;
+
+    bool existe = tercerosList.any((t) =>
+        t['nombre'].toString().toLowerCase() == nombreInput.toLowerCase() &&
+        t['tipo'].toString() == tipoInput // Aquí comparamos también el tipo
+    );
+
+    if (existe) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Ya existe "$nombreInput" como $tipoInput.'),
+            backgroundColor: Colors.orange
+        ),
+      );
+      return;
+    }
+
     if (_accessToken == null || _idCuenta == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -342,6 +360,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
             children: [
               TextField(
                 controller: editNombreController,
+                maxLength: 30,
                 decoration: InputDecoration(
                   labelText: 'Nombre del Tercero',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -435,7 +454,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
                 children: [
                   const Text('Registrar Nuevo Tercero', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 16),
-                  TextField(controller: _nombreController, decoration: InputDecoration(labelText: 'Nombre del Tercero', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
+                  TextField(controller: _nombreController,maxLength: 30, decoration: InputDecoration(labelText: 'Nombre del Tercero', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: _tipoSeleccionado,
