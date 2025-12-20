@@ -693,7 +693,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  // Muestra el monto total en lugar de la cuota como resumen
                   'Monto Total: S/ ${compromise.montoTotal?.toStringAsFixed(2) ?? compromise.amount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 14,
@@ -830,6 +829,7 @@ class CompromiseModel {
   final int? idusuario;
   final int? idcuenta;
   final int? idtercero;
+  final String? nombreTercero;
   final int? idfrecuencia;
   final double? montoTotal;
   final int? cantidadCuotas;
@@ -854,6 +854,7 @@ class CompromiseModel {
     this.idusuario,
     this.idcuenta,
     this.idtercero,
+    this.nombreTercero,
     this.idfrecuencia,
     this.montoTotal,
     this.cantidadCuotas,
@@ -870,9 +871,7 @@ class CompromiseModel {
     this.pagos = const [],
   });
 
-  // ✅ Código corregido
   factory CompromiseModel.fromJson(Map<String, dynamic> json) {
-    // Definimos las funciones auxiliares aquí dentro
     double? _toDouble(dynamic value) {
       if (value == null) return null;
       if (value is String) return double.tryParse(value);
@@ -909,6 +908,7 @@ class CompromiseModel {
       idusuario: _toInt(json['idusuario']),
       idcuenta: _toInt(json['idcuenta']),
       idtercero: _toInt(json['idtercero']),
+      nombreTercero: json['tercero'] != null ? json['tercero']['nombre'] : null,
       idfrecuencia: _toInt(json['idfrecuencia']),
       montoTotal: _toDouble(json['monto_total']),
       cantidadCuotas: _toInt(json['cantidad_cuotas']),

@@ -513,8 +513,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             SizedBox(height: 8),
             TextField(
               controller: _nameController,
+              maxLength: 30,
               decoration: InputDecoration(
-                hintText: 'Ej.',
+                hintText: 'Ej. Salario',
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.white,
@@ -815,6 +816,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         ),
         content: TextField(
           controller: _editNameController,
+          maxLength: 30,
           decoration: InputDecoration(
             labelText: 'Nombre de la categoría',
             labelStyle: TextStyle(color: Colors.grey[600]),

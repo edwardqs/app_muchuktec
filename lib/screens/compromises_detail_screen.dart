@@ -722,7 +722,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
           // --- SECCIÓN OTROS DATOS ---
           _buildSectionHeader('Otros Datos'),
           _buildDetailRow('Estado Actual', compromise.estado ?? 'N/A', Icons.info_outline), // Changed Icon
-          _buildDetailRow('ID del Tercero', (compromise.idtercero ?? 'N/A').toString(), Icons.people_alt),
+          _buildDetailRow(
+              'Tercero', // Cambiamos el título
+              compromise.nombreTercero ?? 'Sin tercero asignado', // Mostramos el nombre
+              Icons.people_alt
+          ),
           const SizedBox(height: 50),
         ],
       ),
