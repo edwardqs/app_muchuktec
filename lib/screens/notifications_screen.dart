@@ -46,27 +46,26 @@ class NotificationModel {
     );
   }
 
-  // --- CAMBIO --- Agregamos el mapeo para 'commitment_due'
   static NotificationType _mapStringToNotificationType(String? type) {
     switch (type) {
       case 'budget_warning':
-      case 'commitment_due': // <-- Lo tratamos igual que budget_warning
+      case 'commitment_due':
         return NotificationType.payment;
       case 'error':
         return NotificationType.alert;
       case 'success':
         return NotificationType.success;
-      default: // Cualquier otro tipo será 'info'
+      default:
         return NotificationType.info;
     }
   }
 }
 
 enum NotificationType {
-  payment, // Para alertas de presupuesto y vencimientos de compromiso
-  alert,   // Errores
-  info,    // General
-  success, // Éxito
+  payment,
+  alert,
+  info,
+  success,
 }
 // --- FIN DEL MODELO ---
 
@@ -78,6 +77,12 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   List<NotificationModel> _notifications = [];
   bool _isLoading = true;
   String? _error;
@@ -90,10 +95,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _fetchNotifications();
   }
 
-  // --- LÓGICA DE API (Sin cambios, ya era genérica) ---
+  // --- LÓGICA DE API (INTACTA) ---
 
   Future<void> _fetchNotifications() async {
-    // ... Tu código _fetchNotifications existente ...
     setState(() {
       _isLoading = true;
       _error = null;
@@ -108,7 +112,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         throw Exception('Usuario no autenticado o cuenta no seleccionada.');
       }
 
-      // La URL ya pide todas las notificaciones para la cuenta
       final url = Uri.parse('$API_BASE_URL/notifications?idcuenta=$_idcuenta');
       final response = await http.get(
         url,
@@ -123,7 +126,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          // El 'fromJson' ya usa el mapeo actualizado
           _notifications = data
               .map((json) => NotificationModel.fromJson(json))
               .toList();
@@ -142,35 +144,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAsRead(int notificationId) async {
-    // ... Tu código _markAsRead existente ...
-    // 1. Encontrar la notificación en la lista
+    // 1. Encontrar la notificación
     final notificationIndex = _notifications.indexWhere((n) => n.id == notificationId);
-    if (notificationIndex == -1) return; // Si no se encuentra, salir
+    if (notificationIndex == -1) return;
 
     final notification = _notifications[notificationIndex];
-
 
     // 2. Si ya está leída, no hacer nada
     if (notification.isRead) return;
 
-    // Guardar el estado original por si falla la API
-    final originalNotification = _notifications[notificationIndex];
+    // Guardar estado original
     final originalNotificationsList = List<NotificationModel>.from(_notifications);
 
-
-    // 3. Actualizar la UI localmente (Optimistic Update)
+    // 3. Optimistic Update
     setState(() {
       _notifications[notificationIndex] = notification.copyWith(isRead: true);
-      // Reordenar la lista para moverla visualmente si es necesario
       _notifications.sort((a, b) {
         if (a.isRead != b.isRead) {
-          return a.isRead ? 1 : -1; // No leídas primero
+          return a.isRead ? 1 : -1;
         }
-        return b.date.compareTo(a.date); // Luego por fecha descendente
+        return b.date.compareTo(a.date);
       });
     });
 
-    // 4. Intentar actualizar en el backend
+    // 4. Llamada al Backend
     try {
       final url = Uri.parse('$API_BASE_URL/notifications/$notificationId/read');
       final response = await http.post(
@@ -184,38 +181,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
 
       if (response.statusCode != 200) {
-        // 5. Si falla, revertir el cambio local y mostrar error
-        _showErrorSnackbar('No se pudo marcar como leída. ${response.body}');
+        _showErrorSnackbar('No se pudo marcar como leída.');
         setState(() {
-          _notifications = originalNotificationsList; // Restaurar lista original
+          _notifications = originalNotificationsList;
         });
       }
-      // Si tiene éxito, la UI ya está actualizada
     } catch (e) {
-      // 6. Revertir si hay un error de conexión
       _showErrorSnackbar('Error de red al marcar como leída.');
       setState(() {
-        _notifications = originalNotificationsList; // Restaurar lista original
+        _notifications = originalNotificationsList;
       });
     }
   }
 
   Future<void> _markAllAsRead() async {
-    // ... Tu código _markAllAsRead existente ...
-    // Guardar estado anterior en caso de que falle
     final originalNotifications = List<NotificationModel>.from(_notifications);
-
-    // --- NUEVO --- Solo actualiza si hay algo que marcar
     final bool hasUnread = _notifications.any((n) => !n.isRead);
     if (!hasUnread) return;
 
-    // Actualizar UI localmente
     setState(() {
       _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
     });
 
     try {
-      // ... (Tu lógica de API era correcta, sin cambios) ...
       final url = Uri.parse('$API_BASE_URL/notifications/read-all');
       final response = await http.post(
         url,
@@ -238,7 +226,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    // ... Tu código _showErrorSnackbar existente ...
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -248,24 +235,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  // --- MÉTODOS DE LA VISTA ---
+  // --- MÉTODOS DE LA VISTA CON COLORES OFICIALES ---
 
-  // --- CAMBIO --- Aseguramos que 'payment' tenga estilo
   Map<String, dynamic> _getStyle(NotificationType type) {
     switch (type) {
-      case NotificationType.payment: // <-- Este cubre 'budget_warning' Y 'commitment_due'
-        return {'color': Colors.orange[700], 'icon': Icons.account_balance_wallet_rounded};
+      case NotificationType.payment:
+      // Azul Petróleo para temas financieros
+        return {'color': cAzulPetroleo, 'icon': Icons.account_balance_wallet_rounded};
       case NotificationType.alert:
+      // Rojo para errores críticos
         return {'color': Colors.red[700], 'icon': Icons.error_outline_rounded};
       case NotificationType.info:
-        return {'color': Colors.blue[600], 'icon': Icons.info_outline_rounded};
+      // Azul Petróleo suave para info
+        return {'color': cAzulPetroleo.withOpacity(0.7), 'icon': Icons.info_outline_rounded};
       case NotificationType.success:
-        return {'color': Colors.green[600], 'icon': Icons.check_circle_outline_rounded};
+      // Verde Menta para éxitos
+        return {'color': cVerdeMenta, 'icon': Icons.check_circle_outline_rounded};
     }
   }
 
   String _formatTimeAgo(DateTime date) {
-    // ... Tu código _formatTimeAgo existente ...
     final Duration diff = DateTime.now().difference(date);
     if (diff.inSeconds < 60) return 'Hace ${diff.inSeconds} segundos';
     if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} minutos';
@@ -275,17 +264,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _showNotificationModal(BuildContext context, NotificationModel notification) {
-    // ... Tu código _showNotificationModal existente (sin el _markAsRead) ...
-    // 2. Obtiene el estilo (ícono y color)
     final style = _getStyle(notification.type);
     final color = style['color'] as Color?;
     final icon = style['icon'] as IconData?;
 
-    // 3. Muestra el diálogo
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: cBlanco,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -305,13 +292,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Text(
                 notification.title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: cAzulPetroleo,
                 ),
               ),
               const SizedBox(height: 12),
-              // Para que el texto largo tenga scroll si es necesario
               ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.3,
@@ -322,7 +309,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
-                      color: Colors.grey[700],
+                      color: cAzulPetroleo.withOpacity(0.7),
                       height: 1.4,
                     ),
                   ),
@@ -342,7 +329,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cerrar', style: TextStyle(fontSize: 16)),
+              child: Text(
+                'Cerrar',
+                style: TextStyle(fontSize: 16, color: cVerdeMenta, fontWeight: FontWeight.bold),
+              ),
             )
           ],
           actionsAlignment: MainAxisAlignment.center,
@@ -352,13 +342,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationItem(BuildContext context, NotificationModel notification) {
-    // ... Tu código _buildNotificationItem existente ...
     final style = _getStyle(notification.type);
     final color = style['color'] as Color?;
     final icon = style['icon'] as IconData?;
 
-    final bgColor = notification.isRead ? Colors.white : Colors.blueGrey[50];
-    final titleColor = notification.isRead ? Colors.grey[700] : Colors.black;
+    // Estilo diferenciado para leídas vs no leídas
+    final bgColor = notification.isRead ? cGrisClaro : cBlanco;
+    final titleColor = notification.isRead ? cAzulPetroleo.withOpacity(0.6) : cAzulPetroleo;
     final fontWeight = notification.isRead ? FontWeight.w400 : FontWeight.w600;
 
     return Container(
@@ -371,6 +361,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 5,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -417,11 +408,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
 
-        // --- Botón para marcar como leída ---
+        // --- FUNCIONALIDAD INTACTA ---
         trailing: notification.isRead
-            ? Icon(Icons.check_circle, color: Colors.green[300], size: 24)
+            ? Icon(Icons.check_circle, color: cVerdeMenta.withOpacity(0.5), size: 24)
             : IconButton(
-          icon: Icon(Icons.check_circle_outline, color: Colors.grey[400], size: 24),
+          icon: Icon(Icons.circle_outlined, color: cVerdeMenta, size: 24),
           tooltip: 'Marcar como leída',
           onPressed: () {
             // Llama a la función de marcar como leída
@@ -429,7 +420,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           },
         ),
 
-        // --- El onTap ahora muestra el modal ---
         onTap: () {
           _showNotificationModal(context, notification);
         },
@@ -437,47 +427,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  // --- MÉTODO BUILD (Sin cambios) ---
   @override
   Widget build(BuildContext context) {
-    // ... Tu código build existente ...
-    // Filtra las notificaciones leídas y no leídas
     final unread = _notifications.where((n) => !n.isRead).toList();
     final read = _notifications.where((n) => n.isRead).toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
-        title: const Text(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
           'Notificaciones',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
         actions: [
-          // El botón "Marcar todas" solo es visible si hay notificaciones sin leer
           if (unread.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.done_all, color: Colors.blue),
+              icon: Icon(Icons.done_all, color: cVerdeMenta),
               tooltip: 'Marcar todas como leídas',
               onPressed: _markAllAsRead,
             ),
         ],
       ),
-      body: _buildBody(unread, read), // Usamos un método auxiliar para el body
+      body: _buildBody(unread, read),
     );
   }
 
   Widget _buildBody(List<NotificationModel> unread, List<NotificationModel> read) {
-    // ... Tu código _buildBody existente ...
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return Center(
+        child: CircularProgressIndicator(color: cVerdeMenta),
       );
     }
     if (_error != null) {
@@ -493,10 +482,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
     if (_notifications.isEmpty) {
-      return const Center(
-        child: Text(
-          'No tienes notificaciones.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.notifications_off_outlined, size: 64, color: cAzulPetroleo.withOpacity(0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'No tienes notificaciones.',
+              style: TextStyle(fontSize: 16, color: cAzulPetroleo.withOpacity(0.5)),
+            ),
+          ],
         ),
       );
     }
@@ -511,7 +507,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cAzulPetroleo,
               ),
             ),
             const SizedBox(height: 10),
@@ -524,7 +520,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[500],
+                color: cAzulPetroleo.withOpacity(0.6),
               ),
             ),
             const SizedBox(height: 10),
@@ -534,4 +530,4 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-} // Fin de _NotificationsScreenState
+}

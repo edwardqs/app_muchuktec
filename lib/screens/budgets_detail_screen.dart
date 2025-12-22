@@ -15,9 +15,15 @@ class BudgetDetailScreen extends StatefulWidget {
 }
 
 class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final int _selectedIndex = 2;
   Map<String, dynamic>? _budget;
-  List<dynamic> _budgetMovements = []; // <-- Cambiado de _allMovements
+  List<dynamic> _budgetMovements = [];
   bool _isLoading = true;
   String? _errorMessage;
   String? _profileImageUrl;
@@ -33,15 +39,13 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-    // Ahora las llamadas son secuenciales, porque una depende de la otra
-    await _fetchBudgetDetailsAndMovements(); // <-- Función renombrada y combinada
+    await _fetchBudgetDetailsAndMovements();
     await _loadSelectedAccountAndFetchImage();
     setState(() {
       _isLoading = false;
     });
   }
 
-  // ✅ --- FUNCIÓN DE BÚSQUEDA TOTALMENTE REHECHA ---
   Future<void> _fetchBudgetDetailsAndMovements() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
@@ -56,7 +60,6 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     }
 
     try {
-      // --- 1. Primero, obtenemos los detalles del presupuesto ---
       final budgetUrl = Uri.parse('$API_BASE_URL/presupuestos/${widget.budgetId}');
       final budgetResponse = await http.get(
         budgetUrl,
@@ -72,7 +75,6 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       if (budgetResponse.statusCode == 200) {
         final budgetData = json.decode(budgetResponse.body);
 
-        // --- 2. Si es exitoso, usamos sus datos para buscar los movimientos ---
         final int idCategoria = budgetData['idcategoria'];
         final int idCuenta = budgetData['idcuenta'];
         final DateTime budgetDate = DateTime.parse(budgetData['mes']);
@@ -106,7 +108,6 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             _budgetMovements = movementsData as List;
           });
         } else {
-          // Si fallan los movimientos, al menos mostramos el presupuesto
           setState(() {
             _budget = budgetData;
             _errorMessage = 'Error al cargar movimientos: ${movementsResponse.statusCode}';
@@ -133,7 +134,6 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   }
 
   Future<void> _loadSelectedAccountAndFetchImage() async {
-    // ... (Esta función se queda exactamente igual que antes)
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
@@ -185,7 +185,6 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
 
     final String budgetName = _budget!['categoria_nombre'] as String? ?? 'Sin categoría';
     final double plannedAmount = double.tryParse(_budget!['monto']?.toString() ?? '0.0') ?? 0.0;
-    // ✅ ¡CORREGIDO! Leemos el monto_gastado que calcula la API
     final double spentAmount = double.tryParse(_budget!['monto_gastado']?.toString() ?? '0.0') ?? 0.0;
 
     final double remainingAmount = plannedAmount - spentAmount;
@@ -194,8 +193,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
 
     return Card(
-      elevation: 4,
+      elevation: 2, // Sombra más sutil
       margin: const EdgeInsets.symmetric(vertical: 16),
+      color: cBlanco,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -207,15 +207,15 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               children: [
                 Text(
                   budgetName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.purple,
+                    color: cAzulPetroleo, // Color oficial
                   ),
                 ),
                 Icon(
                   Icons.account_balance_wallet_outlined,
-                  color: Colors.purple[300],
+                  color: cVerdeMenta, // Color oficial
                   size: 32,
                 ),
               ],
@@ -224,23 +224,25 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             Text(
               'Gasto Planificado: ${currencyFormatter.format(plannedAmount)}',
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
+                fontSize: 14,
+                color: cAzulPetroleo.withOpacity(0.6),
+                fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               'Gasto Actual: ${currencyFormatter.format(spentAmount)}',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
+                color: cAzulPetroleo,
               ),
             ),
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
-              backgroundColor: Colors.grey[300],
-              color: Colors.deepPurple,
+              backgroundColor: cGrisClaro,
+              color: cVerdeMenta, // Barra de progreso oficial
               borderRadius: BorderRadius.circular(8),
               minHeight: 12,
             ),
@@ -249,8 +251,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               'Restante: ${currencyFormatter.format(remainingAmount)}',
               style: TextStyle(
                 fontSize: 14,
-                color: remainingAmount < 0 ? Colors.redAccent : Colors.green[600],
-                fontWeight: FontWeight.w600,
+                // Rojo si es negativo, Verde Menta si es positivo
+                color: remainingAmount < 0 ? Colors.redAccent : cVerdeMenta,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -259,9 +262,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     );
   }
 
-  // ✅ --- LISTA DE MOVIMIENTOS SIMPLIFICADA ---
   Widget _buildMovementsList() {
-    // Ya no necesitamos filtrar, la API ya lo hizo por nosotros.
     final movementsToShow = _budgetMovements;
 
     if (movementsToShow.isEmpty) {
@@ -270,14 +271,13 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           padding: const EdgeInsets.all(24.0),
           child: Text(
             'No hay movimientos registrados para este presupuesto.',
-            style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+            style: TextStyle(color: cAzulPetroleo.withOpacity(0.5), fontStyle: FontStyle.italic),
             textAlign: TextAlign.center,
           ),
         ),
       );
     }
 
-    // El backend ya los debería mandar ordenados, pero por si acaso:
     movementsToShow.sort((a, b) => (b['fecha'] as String).compareTo(a['fecha'] as String));
 
     return Column(
@@ -290,7 +290,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              color: cAzulPetroleo,
             ),
           ),
         ),
@@ -304,7 +304,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             final bool isExpense = movement['tipo'] == 'gasto';
             final bool isIncome = movement['tipo'] == 'ingreso';
 
-            Color backgroundColor = Colors.grey[50]!;
+            Color backgroundColor = cGrisClaro;
             Color iconColor = Colors.grey[400]!;
             IconData iconData = Icons.not_interested;
             Color amountColor = Colors.black;
@@ -315,16 +315,20 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               iconData = Icons.arrow_upward;
               amountColor = Colors.red[600]!;
             } else if (isIncome) {
-              backgroundColor = Colors.green[50]!;
-              iconColor = Colors.green[400]!;
+              backgroundColor = cVerdeMenta.withOpacity(0.1);
+              iconColor = cVerdeMenta;
               iconData = Icons.arrow_downward;
-              amountColor = Colors.green[600]!;
+              amountColor = cVerdeMenta;
             }
 
             return Card(
               margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0, // Diseño flat
+              color: cBlanco,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: cGrisClaro) // Borde sutil
+              ),
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: backgroundColor,
@@ -332,12 +336,11 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                 ),
                 title: Text(
                   movement['categoria_nombre'] ?? 'Sin categoría',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: cAzulPetroleo),
                 ),
                 subtitle: Text(
-                  // Formateamos la fecha para que sea más legible
                   'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(movement['fecha']))}',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: cAzulPetroleo.withOpacity(0.5)),
                 ),
                 trailing: Text(
                   amount,
@@ -356,13 +359,12 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    // ... (Esta función se queda exactamente igual que antes)
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withAlpha(26),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, -2),
@@ -371,31 +373,36 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Azul Petróleo para activo
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: _selectedIndex,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart_outlined),
+            activeIcon: Icon(Icons.bar_chart),
             label: 'Reportes',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
             label: 'Presupuestos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.category_outlined),
+            activeIcon: Icon(Icons.category),
             label: 'Categorías',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
             label: 'Ajustes',
           ),
         ],
@@ -424,19 +431,18 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          // Hacemos pop para volver a la lista (que se recargará si es necesario)
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Detalle del Presupuesto',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -444,7 +450,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {},
           ),
           InkWell(
@@ -457,13 +463,13 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.purple[100],
+                color: cVerdeMenta.withOpacity(0.2), // Fondo suave avatar
                 shape: BoxShape.circle,
               ),
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                   child: CircularProgressIndicator(
-                    color: Colors.purple,
+                    color: cVerdeMenta,
                     strokeWidth: 2,
                   ))
                   : _profileImageUrl != null
@@ -474,20 +480,19 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                   width: 40,
                   height: 40,
                   errorBuilder: (context, error, stackTrace) {
-                    print('Error al cargar la imagen de red: $error');
-                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                    return Icon(Icons.person, size: 24, color: cAzulPetroleo);
                   },
                 ),
               )
-                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
+                  : Icon(Icons.person, size: 24, color: cAzulPetroleo),
             ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.deepPurple))
+          ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
           : _errorMessage != null
-          ? Center(child: Text(_errorMessage!))
+          ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
           : SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),

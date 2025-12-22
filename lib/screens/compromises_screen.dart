@@ -7,7 +7,6 @@ import '../models/pago_compromiso_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
 
-
 class CompromisesScreen extends StatefulWidget {
   const CompromisesScreen({super.key});
 
@@ -16,6 +15,12 @@ class CompromisesScreen extends StatefulWidget {
 }
 
 class _CompromisesScreenState extends State<CompromisesScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   List<CompromiseModel> compromises = [];
   bool isLoading = false;
   String? errorMessage;
@@ -32,22 +37,21 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   @override
   void initState() {
     super.initState();
-    // Se llama a ambos métodos para cargar datos
     _loadSelectedAccountAndFetchImage();
     _loadAccessTokenAndFetchCompromises();
   }
 
   /// Función para enviar la actualización a la API
   Future<void> _updateCompromise(String id, String newName) async {
-    if (_accessToken == null) return; // Ya tienes _accessToken cargado
+    if (_accessToken == null) return;
 
     setState(() {
-      isLoading = true; // Muestra indicador general mientras guarda
+      isLoading = true;
     });
 
     try {
       final url = Uri.parse('$API_BASE_URL/compromisos/$id');
-      final response = await http.put( // Usamos PUT
+      final response = await http.put(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -63,9 +67,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Compromiso actualizado'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Compromiso actualizado'), backgroundColor: cVerdeMenta),
         );
-        // Actualizamos la lista después de guardar exitosamente
         _fetchCompromises();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -82,7 +85,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     }
   }
 
-
   /// Función para mostrar el diálogo de edición
   void _showEditDialog(CompromiseModel compromise) {
     final formKey = GlobalKey<FormState>();
@@ -93,7 +95,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Editar "${compromise.name}"'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Editar "${compromise.name}"', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold)),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -102,7 +105,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                 children: [
                   TextFormField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nuevo Nombre'),
+                    decoration: InputDecoration(
+                      labelText: 'Nuevo Nombre',
+                      labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: cVerdeMenta)),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'El nombre no puede estar vacío';
@@ -117,18 +124,18 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
                 if (formKey.currentState!.validate()) {
                   final newName = nameController.text;
-                  final newAmount = double.tryParse(amountController.text) ?? 0.0;
                   Navigator.pop(context);
                   _updateCompromise(compromise.id, newName);
                 }
               },
-              child: const Text('Guardar'),
+              style: ElevatedButton.styleFrom(backgroundColor: cVerdeMenta),
+              child: Text('Guardar', style: TextStyle(color: cBlanco)),
             ),
           ],
         );
@@ -148,7 +155,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
       if (token == null || selectedAccountId == null) {
         if (mounted) {
-          print('Token o ID de cuenta no encontrados. No se puede cargar la imagen.');
           setState(() {
             _profileImageUrl = null;
             _isLoadingImage = false;
@@ -182,21 +188,18 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
           _isLoadingImage = false;
         });
       } else {
-        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
         setState(() {
           _isLoadingImage = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        print('Excepción al obtener los detalles de la cuenta: $e');
         setState(() {
           _isLoadingImage = false;
         });
       }
     }
   }
-
 
   Future<void> _loadAccessTokenAndFetchCompromises() async {
     final prefs = await SharedPreferences.getInstance();
@@ -219,11 +222,9 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     setState(() { isLoading = true; errorMessage = null; });
 
     try {
-      // --- CONSTRUIR PARÁMETROS ---
       Map<String, String> queryParams = {
         'idcuenta': _idCuenta.toString(),
       };
-      // Solo añadir el estado si está seleccionado y no es 'Todos'
       if (_selectedStatus != null && _selectedStatus != 'Todos') {
         queryParams['estado'] = _selectedStatus!;
       }
@@ -239,7 +240,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       );
 
       final response = await http.get(
-        url, // Usar la nueva URL
+        url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -260,7 +261,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      print('Excepción en _fetchCompromises: $e');
       setState(() {
         errorMessage = 'No se pudo conectar al servidor. Revise su conexión.';
       });
@@ -299,7 +299,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
           compromises.removeWhere((compromise) => compromise.id == compromiseId);
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Compromiso eliminado con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Compromiso eliminado con éxito.'), backgroundColor: cVerdeMenta),
         );
       } else if (response.statusCode == 404) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -309,19 +309,16 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('accessToken');
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
-        );
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar el compromiso: ${response.statusCode}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error al eliminar: ${response.statusCode}'), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo conectar al servidor. Intente de nuevo.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('No se pudo conectar al servidor.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -330,76 +327,67 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        title: Text(
           'Eliminar Compromiso',
           style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
+            color: cAzulPetroleo,
+            fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           '¿Estás seguro de que quieres eliminar el compromiso "${compromise.name}"?',
-          style: TextStyle(color: Colors.grey[700]),
+          style: TextStyle(color: cAzulPetroleo.withOpacity(0.8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _deleteCompromise(compromise.id);
             },
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // --- Método de Navegación a Detalles Actualizado ---
   void _navigateToDetail(CompromiseModel compromise) {
     Navigator.pushNamed(
       context,
       '/compromises_detail',
-      arguments: compromise.id, // <-- ERROR: Pasando el objeto completo
+      arguments: compromise.id,
     );
   }
 
-
   @override
-
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial #F4F4F4
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Compromisos',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {
               Navigator.pushNamed(context, '/notifications');
             },
@@ -414,13 +402,13 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Colors.purple[100],
+                color: cVerdeMenta.withOpacity(0.2), // Fondo suave Mint
                 shape: BoxShape.circle,
               ),
               child: _isLoadingImage
-                  ? const Center(
+                  ? Center(
                   child: CircularProgressIndicator(
-                    color: Colors.purple,
+                    color: cVerdeMenta,
                     strokeWidth: 2,
                   ))
                   : _profileImageUrl != null
@@ -431,12 +419,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                   width: 32,
                   height: 32,
                   errorBuilder: (context, error, stackTrace) {
-                    print('Error al cargar la imagen de red: $error');
-                    return Icon(Icons.person, size: 20, color: Colors.purple[700]);
+                    return Icon(Icons.person, size: 20, color: cAzulPetroleo);
                   },
                 ),
               )
-                  : Icon(Icons.person, size: 20, color: Colors.purple[700]),
+                  : Icon(Icons.person, size: 20, color: cAzulPetroleo),
             ),
           ),
         ],
@@ -453,18 +440,19 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                   Navigator.pushNamed(context, '/compromises_tiers');
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: cAzulPetroleo, // Botón oficial Azul Petróleo
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: 2,
+                  shadowColor: cAzulPetroleo.withOpacity(0.3),
                 ),
-                icon: const Icon(Icons.people_alt, color: Colors.white),
-                label: const Text(
+                icon: Icon(Icons.people_alt, color: cBlanco),
+                label: Text(
                   'Ver mis terceros',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: cBlanco,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -473,24 +461,23 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
             ),
             const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes items apart
-              crossAxisAlignment: CrossAxisAlignment.center, // Vertically align items
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Mis compromisos',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87, // Slightly softer black
+                    fontWeight: FontWeight.w700,
+                    color: cAzulPetroleo,
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-                  tooltip: 'Registrar Nuevo Compromiso', // Accessibility
+                  icon: Icon(Icons.add_circle_rounded, color: cVerdeMenta, size: 30),
+                  tooltip: 'Registrar Nuevo Compromiso',
                   onPressed: () {
-                    // Same action as the old button
                     Navigator.pushNamed(context, '/compromises_create')
-                        .then((_) => _fetchCompromises()); // Refresh list on return
+                        .then((_) => _fetchCompromises());
                   },
                 ),
               ],
@@ -500,11 +487,11 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
             _buildFiltersSection(),
             const SizedBox(height: 24),
             if (isLoading)
-              const Center(child: CircularProgressIndicator())
+              Center(child: CircularProgressIndicator(color: cVerdeMenta))
             else if (errorMessage != null)
               Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red)))
             else if (compromises.isEmpty)
-                const Center(child: Text('No hay compromisos registrados.'))
+                Center(child: Text('No hay compromisos registrados.', style: TextStyle(color: cAzulPetroleo.withOpacity(0.6))))
               else
                 ListView.builder(
                   shrinkWrap: true,
@@ -521,7 +508,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
-  // Coloca esta función dentro de tu clase _CompromisesScreenState
 
   Widget _buildFiltersSection() {
     final List<String> statusOptions = ['Todos', 'Pendiente', 'Pagado'];
@@ -535,15 +521,14 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [ // Sombra sutil
+        color: cBlanco,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -551,8 +536,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: 8.0, // Espacio horizontal
-            runSpacing: 4.0, // Espacio vertical
+            spacing: 8.0,
+            runSpacing: 4.0,
             children: statusOptions.map((status) {
               final bool isSelected = (_selectedStatus == null && status == 'Todos') || (_selectedStatus == status);
               return ChoiceChip(
@@ -566,16 +551,17 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                     });
                   }
                 },
-                backgroundColor: Colors.grey[100],
-                selectedColor: Colors.purple[100],
+                backgroundColor: cGrisClaro,
+                selectedColor: cVerdeMenta.withOpacity(0.2), // Fondo seleccionado
                 labelStyle: TextStyle(
-                  color: isSelected ? Colors.purple[800] : Colors.black87,
-                  fontSize: 14, // Ligeramente más grande que antes
+                  color: isSelected ? cAzulPetroleo : cAzulPetroleo.withOpacity(0.6),
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   side: BorderSide(
-                    color: isSelected ? Colors.purple[200]! : Colors.grey[300]!,
+                    color: isSelected ? cVerdeMenta : Colors.transparent,
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -584,7 +570,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 16), // Espacio antes de Mes/Año
+          const SizedBox(height: 16),
 
           // --- Fila para Mes y Año ---
           Row(
@@ -592,48 +578,53 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               // --- Dropdown Mes ---
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedMonth ?? 0, // 0 representa 'Todos'
+                  value: _selectedMonth ?? 0,
                   decoration: InputDecoration(
                     labelText: 'Mes Creación',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    filled: true,
+                    fillColor: cGrisClaro,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     isDense: true,
                   ),
                   items: monthOptions.entries.map((entry) {
-                    // Capitalizar nombre del mes
                     String monthName = entry.value;
                     if (monthName != 'Todos') {
                       monthName = monthName[0].toUpperCase() + monthName.substring(1);
                     }
                     return DropdownMenuItem<int>(
-                      value: entry.key, // El valor es el número (0 para 'Todos')
-                      child: Text(monthName, overflow: TextOverflow.ellipsis), // Muestra el nombre, previene overflow
+                      value: entry.key,
+                      child: Text(monthName, overflow: TextOverflow.ellipsis, style: TextStyle(color: cAzulPetroleo)),
                     );
                   }).toList(),
                   onChanged: (int? newValue) {
                     setState(() {
-                      _selectedMonth = (newValue == 0) ? null : newValue; // null si selecciona 'Todos'
+                      _selectedMonth = (newValue == 0) ? null : newValue;
                       _fetchCompromises();
                     });
                   },
                 ),
               ),
-              const SizedBox(width: 16), // Espacio entre dropdowns
+              const SizedBox(width: 16),
 
               // --- Dropdown Año ---
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedYear ?? 0, // 0 representa 'Todos'
+                  value: _selectedYear ?? 0,
                   decoration: InputDecoration(
                     labelText: 'Año Creación',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    filled: true,
+                    fillColor: cGrisClaro,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     isDense: true,
                   ),
                   items: yearOptions.map((year) {
                     return DropdownMenuItem<int>(
                       value: year,
-                      child: Text(year == 0 ? 'Todos' : year.toString()),
+                      child: Text(year == 0 ? 'Todos' : year.toString(), style: TextStyle(color: cAzulPetroleo)),
                     );
                   }).toList(),
                   onChanged: (int? newValue) {
@@ -647,7 +638,6 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
             ],
           ),
 
-          // --- Botón Limpiar Filtros ---
           if (_selectedStatus != null || _selectedMonth != null || _selectedYear != null)
             Align(
               alignment: Alignment.centerRight,
@@ -657,10 +647,10 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                     _selectedStatus = null;
                     _selectedMonth = null;
                     _selectedYear = null;
-                    _fetchCompromises(); // Buscar sin filtros
+                    _fetchCompromises();
                   });
                 },
-                child: const Text('Limpiar Filtros', style: TextStyle(color: Colors.blueAccent)),
+                child: Text('Limpiar Filtros', style: TextStyle(color: cVerdeMenta, fontWeight: FontWeight.bold)),
               ),
             ),
         ],
@@ -671,11 +661,18 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   Widget _buildCompromiseItem(CompromiseModel compromise) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
+        color: cBlanco,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -685,10 +682,10 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
               children: [
                 Text(
                   compromise.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    color: cAzulPetroleo,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -696,22 +693,21 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                   'Monto Total: S/ ${compromise.montoTotal?.toStringAsFixed(2) ?? compromise.amount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: cAzulPetroleo.withOpacity(0.6),
                   ),
                 ),
               ],
             ),
           ),
-          // Botón para ver el detalle
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.purple),
-            onPressed: () => _navigateToDetail(compromise), // <-- Navegación por nombre
+            icon: Icon(Icons.info_outline, color: cAzulPetroleo),
+            onPressed: () => _navigateToDetail(compromise),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+            icon: Icon(Icons.edit_outlined, color: cVerdeMenta),
             onPressed: () {
               _showEditDialog(compromise);
             },
@@ -719,7 +715,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
             constraints: const BoxConstraints(),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outlined, color: Colors.red),
+            icon: Icon(Icons.delete_outlined, color: Colors.red[400]),
             onPressed: () => _showDeleteConfirmation(compromise),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -732,10 +728,10 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, -2),
@@ -744,31 +740,36 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Color activo oficial
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: 0,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart_outlined),
+            activeIcon: Icon(Icons.bar_chart),
             label: 'Reportes',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
             label: 'Presupuestos',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.category),
+            icon: Icon(Icons.category_outlined),
+            activeIcon: Icon(Icons.category),
             label: 'Categorías',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
             label: 'Ajustes',
           ),
         ],

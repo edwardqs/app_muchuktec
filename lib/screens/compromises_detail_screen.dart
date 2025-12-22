@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'dart:ui';
 
 import 'payment_history_screen.dart';
-import 'compromises_screen.dart';
+import 'compromises_screen.dart'; // Para el modelo CompromiseModel si está ahí
 import '../models/cuota_compromiso_model.dart';
 import '../models/pago_compromiso_model.dart';
 import 'package:app_muchik/config/constants.dart';
@@ -22,14 +22,18 @@ class CompromisesDetailScreen extends StatefulWidget {
 }
 
 class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   bool _isLoading = true;
   String? _errorMessage;
   CompromiseModel? _compromise;
 
   bool _showAllInstallments = false;
   bool _showAllPayments = false;
-
-  bool _isOpeningPaymentDialog = false;
 
   @override
   void initState() {
@@ -89,11 +93,9 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     required String date,
     String? note,
     int? idcuota_compromiso,
-
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
-    // Asumo que tienes la cuenta activa guardada en SharedPreferences
     final idCuenta = prefs.getInt('idCuenta');
 
     if (token == null || idCuenta == null) {
@@ -106,7 +108,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
 
     final url = Uri.parse('$API_BASE_URL/pagos-compromiso');
 
-    // Build the request body dynamically
     Map<String, dynamic> body = {
       'idcompromiso': _compromise!.id,
       'idcuenta': idCuenta,
@@ -114,27 +115,26 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
       'fecha_pago': date,
       'nota': note,
     };
-    // Add the installment ID only if one was selected
     if (idcuota_compromiso != null) {
       body['idcuota_compromiso'] = idcuota_compromiso;
     }
 
-    try{
+    try {
       final response = await http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: json.encode(body),
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode(body),
       );
 
       if (!mounted) return;
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pago registrado con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Pago registrado con éxito.'), backgroundColor: cVerdeMenta),
         );
         _fetchCompromiseDetails();
       } else {
@@ -144,7 +144,7 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
           if (errorData['message'] != null) {
             errorMessage += '${errorData['message']}';
           }
-        } catch (_) {} // Ignore decoding errors
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
@@ -187,11 +187,15 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        // Use StatefulBuilder to manage the dialog's internal state
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Registrar Nuevo Pago'),
+              backgroundColor: cBlanco,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                'Registrar Nuevo Pago',
+                style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold),
+              ),
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
@@ -199,7 +203,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- Muestra texto informativo ---
                       if (preselectedInstallment != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
@@ -207,13 +210,13 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.purple[50],
+                              color: cVerdeMenta.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.purple[100]!),
+                              border: Border.all(color: cVerdeMenta.withOpacity(0.3)),
                             ),
                             child: Text(
                               "Pagando ${preselectedInstallment.displayText}",
-                              style: TextStyle(color: Colors.purple[800], fontWeight: FontWeight.w500),
+                              style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.w600),
                             ),
                           ),
                         )
@@ -226,17 +229,22 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                           ),
                         ),
                       const SizedBox(height: 16),
-                      // --- Campo de Monto (con validación de maxAmountPayable) ---
                       TextFormField(
                         controller: amountController,
-                        decoration: const InputDecoration(labelText: 'Monto a Pagar', prefixText: 'S/ '),
+                        decoration: InputDecoration(
+                          labelText: 'Monto a Pagar',
+                          prefixText: 'S/ ',
+                          labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                          filled: true,
+                          fillColor: cGrisClaro,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cVerdeMenta)),
+                        ),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: (value) {
                           if (value == null || value.isEmpty) return 'Ingrese un monto.';
                           final double? amount = double.tryParse(value);
                           if (amount == null || amount <= 0) return 'Ingrese un monto válido.';
-
-                          // Validación de monto máximo
                           if (amount > (maxAmountPayable + 0.001)) {
                             return 'Monto excede el saldo restante (S/ ${maxAmountPayable.toStringAsFixed(2)}).';
                           }
@@ -246,27 +254,32 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: dateController,
-                        decoration: const InputDecoration(
-                            labelText: 'Fecha de Pago',
-                            suffixIcon: Icon(Icons.calendar_today),
+                        decoration: InputDecoration(
+                          labelText: 'Fecha de Pago',
+                          labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                          suffixIcon: Icon(Icons.calendar_today, color: cAzulPetroleo),
+                          filled: true,
+                          fillColor: cGrisClaro,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cVerdeMenta)),
                         ),
                         readOnly: true,
                         onTap: () async {
-                          DateTime initial = DateTime.now();
-                          // Intenta usar la fecha actual del campo como fecha inicial
-                          try {
-                            if (dateController.text.isNotEmpty) {
-                              initial = DateFormat('yyyy-MM-dd').parse(dateController.text);
-                            }
-                          } catch (e) {
-                            // Si hay error al parsear, usa la fecha actual
-                          }
-
                           DateTime? pickedDate = await showDatePicker(
                             context: context,
                             initialDate: DateTime.now(),
                             firstDate: DateTime(2000),
-                              lastDate: DateTime(2101),
+                            lastDate: DateTime(2101),
+                            builder: (context, child) {
+                              return Theme(
+                                data: ThemeData.light().copyWith(
+                                  primaryColor: cVerdeMenta,
+                                  colorScheme: ColorScheme.light(primary: cVerdeMenta, onPrimary: cBlanco),
+                                  buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+                                ),
+                                child: child!,
+                              );
+                            },
                           );
                           if (pickedDate != null) {
                             setDialogState(() {
@@ -274,46 +287,50 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                             });
                           }
                         },
-                        validator: (value) { // Validación opcional
-                          if (value == null || value.isEmpty) {
-                            return 'Seleccione una fecha.';
-                          }
-                          return null;
-                        },
+                        validator: (value) => (value == null || value.isEmpty) ? 'Seleccione una fecha.' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: noteController,
-                        decoration: const InputDecoration(labelText: 'Nota (Opcional)'),
+                        decoration: InputDecoration(
+                          labelText: 'Nota (Opcional)',
+                          labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                          filled: true,
+                          fillColor: cGrisClaro,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cVerdeMenta)),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                ),
                 ElevatedButton(
                   onPressed: () {
                     if (formKey.currentState!.validate()) {
-                      // 1. CAPTURAR DATOS
                       final double amount = double.parse(amountController.text);
                       final String date = dateController.text;
                       final String note = noteController.text;
-
-                      // 2. EN LUGAR DE ENVIAR DIRECTO, ABRIMOS LA CONFIRMACIÓN
-                      // Nota: No cerramos este diálogo todavía (Navigator.pop)
-                      // para que el usuario pueda volver si da clic en "Corregir".
 
                       _showPaymentConfirmationDialog(
                         amount: amount,
                         date: date,
                         note: note,
                         idCuota: selectedCuotaId,
-                        cuotaInfo: preselectedInstallment, // Pasamos la info de la cuota para mostrar "Cuota N° X"
+                        cuotaInfo: preselectedInstallment,
                       );
                     }
                   },
-                  child: const Text('Continuar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cVerdeMenta,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Continuar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -346,14 +363,14 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.purple[400], size: 20),
+          Icon(icon, color: cVerdeMenta, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600])),
-                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: cAzulPetroleo)),
               ],
             ),
           ),
@@ -369,9 +386,9 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
         const SizedBox(height: 25),
         Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo),
         ),
-        const Divider(color: Colors.grey),
+        Divider(color: Colors.grey[300]),
         const SizedBox(height: 10),
       ],
     );
@@ -386,19 +403,18 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
   }) {
     showDialog(
       context: context,
-      // Hacemos el color de fondo más sutil porque el blur ya oscurece visualmente
-      barrierColor: Colors.black.withOpacity(0.2),
+      barrierColor: cAzulPetroleo.withOpacity(0.3),
       builder: (ctx) {
-        // --- AQUÍ ESTÁ EL TRUCO DEL FONDO NUBLADO ---
         return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0), // Intensidad del nublado (8.0 es un buen balance)
+          filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
           child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), // Bordes un poco más redondeados
+            backgroundColor: cBlanco,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
-                Icon(Icons.check_circle_outline, color: Colors.green[600], size: 28),
+                Icon(Icons.check_circle_outline, color: cVerdeMenta, size: 28),
                 const SizedBox(width: 10),
-                const Text('Confirmar Pago', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('Confirmar Pago', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
               ],
             ),
             content: Column(
@@ -410,15 +426,10 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                   style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 20),
-
-                // --- DATOS DEL COMPROMISO ---
                 _buildConfirmationRow('Compromiso:', _compromise?.name ?? 'Sin nombre'),
                 if (_compromise?.nombreTercero != null)
                   _buildConfirmationRow('Tercero:', _compromise!.nombreTercero!),
-
                 const Divider(height: 20),
-
-                // --- DATOS DEL PAGO ---
                 _buildConfirmationRow(
                     'Tipo:',
                     cuotaInfo != null ? 'Cuota N° ${cuotaInfo.numeroCuota}' : 'Pago General'
@@ -427,10 +438,9 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                     'Monto a Pagar:',
                     'S/ ${amount.toStringAsFixed(2)}',
                     isBold: true,
-                    valueColor: Colors.green[800]
+                    valueColor: cVerdeMenta
                 ),
                 _buildConfirmationRow('Fecha:', _formatDate(date)),
-
                 if (note.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   const Text('Nota:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -440,16 +450,13 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                },
+                onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text('Corregir', style: TextStyle(color: Colors.grey)),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   Navigator.of(context).pop();
-
                   _submitPayment(
                     amount: amount,
                     date: date,
@@ -458,10 +465,10 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: cVerdeMenta,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white)),
+                child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -470,19 +477,18 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     );
   }
 
-  // Pequeño widget auxiliar para las filas del modal
   Widget _buildConfirmationRow(String label, String value, {bool isBold = false, Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.black87)),
+          Text(label, style: TextStyle(color: cAzulPetroleo)),
           Text(
             value,
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: valueColor ?? Colors.black,
+              color: valueColor ?? cAzulPetroleo,
               fontSize: isBold ? 16 : 14,
             ),
           ),
@@ -494,59 +500,55 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: cBlanco,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          // Muestra un título genérico mientras carga
           _compromise == null ? 'Detalle de Compromiso' : 'Detalle: ${_compromise!.name}',
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: cAzulPetroleo,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
-          actions: [
-            // Botón para ver historial (NUEVO)
-            if (_compromise != null) // Solo mostrar si ya cargó el compromiso
-              IconButton(
-                icon: const Icon(Icons.history, color: Colors.blueGrey),
-                tooltip: 'Ver Historial de Pagos',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PaymentHistoryScreen(
-                        compromiseId: _compromise!.id,
-                        compromiseName: _compromise!.name,
-                      ),
+        centerTitle: true,
+        actions: [
+          if (_compromise != null)
+            IconButton(
+              icon: Icon(Icons.history, color: cAzulPetroleo),
+              tooltip: 'Ver Historial de Pagos',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PaymentHistoryScreen(
+                      compromiseId: _compromise!.id,
+                      compromiseName: _compromise!.name,
                     ),
-                  );
-                },
-              ),
-            // Boton para agregar pago
-            if (_compromise != null)
-              IconButton(
-                // ✅ Ya no necesita _isOpeningPaymentDialog porque ahora es instantáneo
-                icon: const Icon(Icons.add_card_outlined, color: Colors.purple),
-                tooltip: 'Registrar Pago',
-                onPressed: _onAddPaymentPressed, // Llama a la función local
-              ),
-          ]
+                  ),
+                );
+              },
+            ),
+          if (_compromise != null)
+            IconButton(
+              icon: Icon(Icons.add_card_outlined, color: cVerdeMenta),
+              tooltip: 'Registrar Pago',
+              onPressed: _onAddPaymentPressed,
+            ),
+        ],
       ),
-      // 6. El cuerpo de la pantalla ahora maneja los 3 estados posibles
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
           : _errorMessage != null
           ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
           : _compromise == null
-          ? const Center(child: Text('No se encontró el compromiso.'))
-          : _buildDetailsView(), // Llama al metodo que construye la UI
+          ? Center(child: Text('No se encontró el compromiso.', style: TextStyle(color: cAzulPetroleo)))
+          : _buildDetailsView(),
     );
   }
 
@@ -554,20 +556,20 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: Colors.purple[400], size: 20),
-        const SizedBox(width: 8), // Menos espacio horizontal
+        Icon(icon, color: cAzulPetroleo, size: 24),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: Colors.grey[700]), // Tamaño ajustado
-                overflow: TextOverflow.ellipsis, // Evitar overflow si es largo
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: cAzulPetroleo.withOpacity(0.7)),
+                overflow: TextOverflow.ellipsis,
               ),
               Text(
                 value,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87), // Tamaño ajustado
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cAzulPetroleo),
               ),
             ],
           ),
@@ -581,61 +583,54 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
     final double montoTotalPagado = compromise.montoTotalPagado ?? 0.0;
     final double montoTotal = compromise.montoTotal ?? 0.0;
 
-    // CALCULO DEL MONTO A PAGAR TOTAL
     final double montoCuotaCalc = compromise.montoCuota ?? 0.0;
     final int cantidadCuotasCalc = compromise.cantidadCuotas ?? 0;
 
     double montoFinalCalculado = 0.0;
-
-    // Verificamos si es "Sin cuotas" (ID 1) o si no tiene cuotas generadas
-    // Asumiendo que en tu modelo FrecuenciaModel tienes el id, o usas cantidadCuotas == 0
     bool esSinCuotas = (compromise.frecuencia?.id == 1) || (compromise.cantidadCuotas == 0);
 
     if (esSinCuotas) {
-      // CASO SIN CUOTAS: Capital + (Capital * Tasa / 100)
       final double tasa = compromise.tasaInteres ?? 0.0;
       final double interesCalculado = montoTotal * (tasa / 100);
       montoFinalCalculado = montoTotal + interesCalculado;
     } else {
-      // CASO CON CUOTAS: Monto Cuota * Cantidad Cuotas
       final double montoCuota = compromise.montoCuota ?? 0.0;
       final int cantidad = compromise.cantidadCuotas ?? 0;
       montoFinalCalculado = montoCuota * cantidad;
     }
 
-    final double progresoPago = (montoFinalCalculado > 0)
-        ? (montoTotalPagado / montoFinalCalculado)
-        : 0.0;
-
-    final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
-
-    // --- Logic for showing installments ---
     final List<CuotaCompromisoModel> allCuotas = compromise.cuotas;
     final bool hasInstallments = allCuotas.isNotEmpty;
     final bool hasMoreThanThree = allCuotas.length > 3;
     final List<CuotaCompromisoModel> cuotasToShow = _showAllInstallments
         ? allCuotas
-        : (hasMoreThanThree ? allCuotas.sublist(0, 3) : allCuotas); // Show first 3 or all if less than 3
+        : (hasMoreThanThree ? allCuotas.sublist(0, 3) : allCuotas);
 
-    // --- ✅ Lógica para Pagos (NUEVA) ---
     final List<PagoCompromisoModel> allPayments = compromise.pagos;
-    final bool hasMoreThanThreePayments = allPayments.length > 3; // Nueva variable
-    final List<PagoCompromisoModel> paymentsToShow = _showAllPayments // Usa el nuevo flag
+    final bool hasMoreThanThreePayments = allPayments.length > 3;
+    final List<PagoCompromisoModel> paymentsToShow = _showAllPayments
         ? allPayments
-        : (hasMoreThanThreePayments ? allPayments.sublist(0, 3) : allPayments); // Muestra solo 3
+        : (hasMoreThanThreePayments ? allPayments.sublist(0, 3) : allPayments);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- SECCIÓN DE RESUMEN PRINCIPAL ---
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.purple.withOpacity(0.2)),
+              color: cBlanco,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: cVerdeMenta.withOpacity(0.5), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  spreadRadius: 0,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,145 +638,133 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                 Text(
                   compromise.tipoCompromiso ?? 'COMPROMISO REGISTRADO',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.purple[700],
+                    color: cVerdeMenta,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const Divider(height: 20, color: Colors.purple),
-
-                // --- Fila 1 (Monto Total y Monto Final) ---
+                Divider(height: 24, color: cGrisClaro, thickness: 1.5),
                 Row(
                   children: [
                     Expanded(
-                      child: _buildSummaryItem( // Usamos un widget auxiliar
-                        icon: Icons.request_quote_outlined,
-                        label: 'Capital', // Etiqueta más clara
+                      child: _buildSummaryItem(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Capital',
                         value: _formatCurrency(compromise.montoTotal),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: _buildSummaryItem(
-                        icon: Icons.monetization_on_outlined, // Icono diferente
-                        label: 'Capital + Interés', // Nueva etiqueta
-                        value: _formatCurrency(montoFinalCalculado), // Valor calculado
+                        icon: Icons.savings_outlined,
+                        label: 'Total + Interés',
+                        value: _formatCurrency(montoFinalCalculado),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10), // Espacio entre filas
-
-                // --- Fila 2 (Monto Cuota y Monto Pagado) ---
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: _buildSummaryItem(
-                        icon: Icons.paid_outlined,
-                        label: 'Monto Pagado',
+                        icon: Icons.check_circle_outline,
+                        label: 'Pagado',
                         value: _formatCurrency(montoTotalPagado),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      // Ocultar si no hay cuotas
                       child: (compromise.cantidadCuotas ?? 0) > 0
                           ? _buildSummaryItem(
-                        icon: Icons.payment_outlined,
-                        label: 'Monto por Cuota',
+                        icon: Icons.calendar_view_day_outlined,
+                        label: 'Por Cuota',
                         value: _formatCurrency(compromise.montoCuota),
                       )
-                          : const SizedBox(), // Espacio vacío si no hay cuotas
+                          : const SizedBox(),
                     ),
                   ],
                 ),
-
               ],
             ),
           ),
 
-          // --- SECCIÓN DE PAGOS ---
-            _buildSectionHeader('Pagos'),
-            allPayments.isEmpty
-                ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(child: Text('Aún no se han registrado pagos.', style: TextStyle(color: Colors.grey))),
-                )
-            : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch, // Make button full width if desired
-              children: [
-                // --- The DataTable ---
-                SizedBox(
-                  width: double.infinity,
-                  child: DataTable(
-                    columnSpacing: 16,
-                    headingRowHeight: 40,
-                    dataRowMinHeight: 48,
-                    headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
-                    dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
-                    columns: const [
-                      DataColumn(label: Text('Fecha')), // N° es menos útil que la Fecha
-                      DataColumn(label: Text('Cuota')),
-                      DataColumn(label: Text('Monto'), numeric: true),
-                    ],
-                    rows: paymentsToShow.map((pago) {
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(_formatDate(pago.fechaPago))),
-                          DataCell(Text(pago.cuotaDisplayText)),
-                          DataCell(Text(pago.montoFormateado)),
-                        ],
-                      );
-                    }).toList(),
+          _buildSectionHeader('Pagos'),
+          allPayments.isEmpty
+              ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(child: Text('Aún no se han registrado pagos.', style: TextStyle(color: Colors.grey[600]))),
+          )
+              : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: DataTable(
+                  columnSpacing: 16,
+                  headingRowHeight: 40,
+                  dataRowMinHeight: 48,
+                  headingTextStyle: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo, fontSize: 13),
+                  dataTextStyle: TextStyle(fontSize: 13, color: Colors.black87),
+                  columns: const [
+                    DataColumn(label: Text('Fecha')),
+                    DataColumn(label: Text('Cuota')),
+                    DataColumn(label: Text('Monto'), numeric: true),
+                  ],
+                  rows: paymentsToShow.map((pago) {
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(_formatDate(pago.fechaPago))),
+                        DataCell(Text(pago.cuotaDisplayText)),
+                        DataCell(Text(pago.montoFormateado, style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold))),
+                      ],
+                    );
+                  }).toList(),
                 ),
-                ),
-                if (hasMoreThanThreePayments) // <-- Usa el flag de pagos
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Center(
-                      child: TextButton.icon(
-                        icon: Icon(
-                          _showAllPayments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, // <-- Usa el flag de pagos
-                          color: Colors.purple[700],
-                        ),
-                        label: Text(
-                          _showAllPayments ? 'Ver Menos Pagos' : 'Ver ${allPayments.length - 3} Pagos Más', // <-- Texto dinámico
-                          style: TextStyle(color: Colors.purple[700]),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _showAllPayments = !_showAllPayments; // <-- Actualiza el flag de pagos
-                          });
-                        },
+              ),
+              if (hasMoreThanThreePayments)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Center(
+                    child: TextButton.icon(
+                      icon: Icon(
+                        _showAllPayments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        color: cVerdeMenta,
                       ),
+                      label: Text(
+                        _showAllPayments ? 'Ver Menos Pagos' : 'Ver ${allPayments.length - 3} Pagos Más',
+                        style: TextStyle(color: cVerdeMenta, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showAllPayments = !_showAllPayments;
+                        });
+                      },
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
+          ),
 
-          // --- SECCIÓN DETALLE DE CUOTAS ---
           if (hasInstallments) ...[
             _buildSectionHeader('Cuotas'),
             allCuotas.isEmpty
-                ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Center(child: Text('Este compromiso no tiene cuotas definidas.', style: TextStyle(color: Colors.grey))),
+                ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: Center(child: Text('Este compromiso no tiene cuotas definidas.', style: TextStyle(color: Colors.grey[600]))),
             )
                 : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch, // Make button full width if desired
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // --- The DataTable ---
                 SizedBox(
                   width: double.infinity,
                   child: DataTable(
-                    columnSpacing: 14,
+                    columnSpacing: 10,
                     headingRowHeight: 40,
                     dataRowMinHeight: 48,
-                    dataRowMaxHeight: 60,
-                    headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+                    headingTextStyle: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo, fontSize: 13),
                     dataTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
-
-                    // --- COLUMNAS  ---
                     columns: const [
                       DataColumn(label: Text('N°')),
                       DataColumn(label: Text('Monto'), numeric: true),
@@ -789,8 +772,6 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                       DataColumn(label: Text('Estado')),
                       DataColumn(label: Text('Fecha')),
                     ],
-
-                    // --- FILAS ---
                     rows: cuotasToShow.map((cuota) {
                       return DataRow(
                         cells: [
@@ -798,14 +779,14 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                           DataCell(Text(cuota.montoTotalFormateado)),
                           DataCell(Text(
                             cuota.saldoRestanteFormateado,
-                            style: TextStyle(fontWeight: FontWeight.bold, color: cuota.pagado ? Colors.grey : Colors.black),
+                            style: TextStyle(fontWeight: FontWeight.bold, color: cuota.pagado ? Colors.grey : cAzulPetroleo),
                           )),
                           DataCell(
                               Text(
-                                cuota.statusText, // 'Pendiente', 'Parcial', 'Pagada'
+                                cuota.statusText,
                                 style: TextStyle(
-                                  color: cuota.statusColor, // Color dinámico
-                                  fontWeight: FontWeight.w500,
+                                  color: cuota.statusColor,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               )
                           ),
@@ -822,11 +803,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                       child: TextButton.icon(
                         icon: Icon(
                           _showAllInstallments ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                          color: Colors.purple[700],
+                          color: cVerdeMenta,
                         ),
                         label: Text(
                           _showAllInstallments ? 'Ver Menos Cuotas' : 'Ver ${allCuotas.length - 3} Cuotas Más',
-                          style: TextStyle(color: Colors.purple[700]),
+                          style: TextStyle(color: cVerdeMenta, fontWeight: FontWeight.bold),
                         ),
                         onPressed: () {
                           setState(() {
@@ -840,23 +821,20 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
             ),
           ],
 
-          // --- SECCIÓN DE FECHAS Y FRECUENCIA ---
           _buildSectionHeader('Fechas y Frecuencia'),
           _buildDetailRow('Fecha de Inicio', _formatDate(compromise.date), Icons.calendar_today),
           _buildDetailRow('Fecha de Término', _formatDate(compromise.fechaTermino), Icons.event_available),
-          _buildDetailRow('Frecuencia', compromise.frecuencia?.nombre ?? 'No especificada', Icons.repeat), // Uses name
+          _buildDetailRow('Frecuencia', compromise.frecuencia?.nombre ?? 'No especificada', Icons.repeat),
 
-          // --- SECCIÓN DE INTERESES ---
           _buildSectionHeader('Intereses'),
           _buildDetailRow('Tasa de Interés', '${compromise.tasaInteres?.toStringAsFixed(2) ?? '0.00'}%', Icons.percent),
           _buildDetailRow('Tipo de Interés', compromise.tipoInteres ?? 'N/A', Icons.functions),
 
-          // --- SECCIÓN OTROS DATOS ---
           _buildSectionHeader('Otros Datos'),
-          _buildDetailRow('Estado Actual', compromise.estado ?? 'N/A', Icons.info_outline), // Changed Icon
+          _buildDetailRow('Estado Actual', compromise.estado ?? 'N/A', Icons.info_outline),
           _buildDetailRow(
-              'Tercero', // Cambiamos el título
-              compromise.nombreTercero ?? 'Sin tercero asignado', // Mostramos el nombre
+              'Tercero',
+              compromise.nombreTercero ?? 'Sin tercero asignado',
               Icons.people_alt
           ),
           const SizedBox(height: 50),

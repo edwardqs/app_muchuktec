@@ -35,11 +35,16 @@ class MovementsScreen extends StatefulWidget {
 }
 
 class _MovementsScreenState extends State<MovementsScreen> {
-  // Controladores y variables de estado
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
 
-  String _selectedMovementType = 'Gasto'; // Por defecto, 'Gasto' está seleccionado
+  String _selectedMovementType = 'Gasto';
   CategoryModel? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
 
@@ -55,7 +60,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     _loadData();
   }
 
-  // Método para cargar el token y las categorías al iniciar la pantalla
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
@@ -75,9 +79,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
-  // Lógica para obtener las categorías desde la API
   Future<void> _fetchCategories() async {
-    // Verificación de seguridad: nos aseguramos de tener todo lo necesario
     if (_accessToken == null || _idCuenta == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,7 +95,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
         },
       );
 
-      print('Llamando a la URL de categorías: $url'); // Para depurar
+      print('Llamando a la URL de categorías: $url');
 
       final response = await http.get(
         url,
@@ -130,7 +132,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
-  // Lógica para obtener la foto de perfil desde la API
   Future<void> _loadSelectedAccountAndFetchImage() async {
     setState(() {
       _isLoading = true;
@@ -205,7 +206,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
-  // Metodo para manejar la lógica de guardar un movimiento
   void _saveMovement() {
     final double? amount = double.tryParse(_amountController.text);
 
@@ -231,32 +231,40 @@ class _MovementsScreenState extends State<MovementsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirmar movimiento'),
+          backgroundColor: cBlanco,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Confirmar movimiento',
+            style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold),
+          ),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text('Tipo: $_selectedMovementType', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Tipo: $_selectedMovementType', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
                 const SizedBox(height: 8),
-                Text('Monto: S/.${amount.toStringAsFixed(2)}'),
+                Text('Monto: S/.${amount.toStringAsFixed(2)}', style: TextStyle(color: cAzulPetroleo)),
                 const SizedBox(height: 8),
-                Text('Categoría: ${_selectedCategory?.name ?? 'No seleccionada'}'),
+                Text('Categoría: ${_selectedCategory?.name ?? 'No seleccionada'}', style: TextStyle(color: cAzulPetroleo)),
                 const SizedBox(height: 8),
-                Text('Fecha: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'),
+                Text('Fecha: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}', style: TextStyle(color: cAzulPetroleo)),
                 const SizedBox(height: 8),
-                Text('Nota: ${_noteController.text.isNotEmpty ? _noteController.text : 'Sin nota'}'),
+                Text('Nota: ${_noteController.text.isNotEmpty ? _noteController.text : 'Sin nota'}', style: TextStyle(color: cAzulPetroleo)),
               ],
             ),
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF9B59B6)),
-              child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cVerdeMenta,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Confirmar', style: TextStyle(color: cBlanco, fontWeight: FontWeight.bold)),
               onPressed: () {
                 Navigator.of(context).pop();
                 _sendMovementToApi();
@@ -268,7 +276,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     );
   }
 
-  // Lógica para enviar el movimiento a la API
   Future<void> _sendMovementToApi() async {
     if (_accessToken == null || _idCuenta == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -320,7 +327,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Movimiento guardado con éxito.'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Movimiento guardado con éxito.'), backgroundColor: cVerdeMenta),
         );
         Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
@@ -344,7 +351,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
-  // Método para mostrar el selector de fecha
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -354,8 +360,8 @@ class _MovementsScreenState extends State<MovementsScreen> {
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            primaryColor: Colors.orange,
-            colorScheme: const ColorScheme.light(primary: Colors.orange),
+            primaryColor: cVerdeMenta,
+            colorScheme: ColorScheme.light(primary: cVerdeMenta, onPrimary: cBlanco),
             buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
           ),
           child: child!,
@@ -371,32 +377,31 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Filtrar categorías según el tipo de movimiento seleccionado (gasto/ingreso)
     final filteredCategories = _allCategories
         .where((category) => category.type.toLowerCase() == _selectedMovementType.toLowerCase())
         .toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Movimientos',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {
               Navigator.pushNamed(context, '/notifications');
             },
@@ -408,10 +413,10 @@ class _MovementsScreenState extends State<MovementsScreen> {
               margin: const EdgeInsets.only(right: 16),
               child: CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.purple[100],
+                backgroundColor: cVerdeMenta.withOpacity(0.2),
                 backgroundImage: _profileImageUrl != null ? NetworkImage(_profileImageUrl!) : null,
                 child: _profileImageUrl == null
-                    ? Icon(Icons.person, size: 20, color: Colors.purple[700])
+                    ? Icon(Icons.person, size: 20, color: cAzulPetroleo)
                     : null,
               ),
             ),
@@ -419,7 +424,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.orange))
+          ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
           : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -442,7 +447,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
               controller: _amountController,
               label: 'Monto',
               hintText: 'S/.',
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
@@ -458,13 +463,14 @@ class _MovementsScreenState extends State<MovementsScreen> {
                   value: category,
                   child: Row(
                     children: [
-                      Text(category.name),
+                      Text(category.name, style: TextStyle(color: cAzulPetroleo)),
                       const Spacer(),
                       Text(
                         '(${category.type})',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: category.type == 'ingreso' ? Colors.green : Colors.red,
+                            fontSize: 12,
+                            color: category.type == 'ingreso' ? cVerdeMenta : Colors.red[400],
+                            fontWeight: FontWeight.bold
                         ),
                       ),
                     ],
@@ -495,17 +501,18 @@ class _MovementsScreenState extends State<MovementsScreen> {
               child: ElevatedButton(
                 onPressed: _saveMovement,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF9B59B6),
+                  backgroundColor: cVerdeMenta, // Verde Menta oficial
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                  shadowColor: cVerdeMenta.withOpacity(0.4),
                 ),
-                child: const Text(
+                child: Text(
                   'Guardar movimiento',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: cBlanco,
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -531,7 +538,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 14, color: cAzulPetroleo.withOpacity(0.7), fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -539,24 +546,25 @@ class _MovementsScreenState extends State<MovementsScreen> {
           keyboardType: keyboardType,
           maxLines: maxLines,
           inputFormatters: inputFormatters,
+          style: TextStyle(color: cAzulPetroleo),
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(color: Colors.grey[400]),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: cBlanco,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF9B59B6), width: 2),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: cVerdeMenta, width: 1.5),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
@@ -575,23 +583,23 @@ class _MovementsScreenState extends State<MovementsScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 14, color: cAzulPetroleo.withOpacity(0.7), fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
+            color: cBlanco,
+            borderRadius: BorderRadius.circular(12),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
               hint: Text(hintText, style: TextStyle(color: Colors.grey[400])),
-              icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+              icon: Icon(Icons.keyboard_arrow_down, color: cAzulPetroleo),
+              dropdownColor: cBlanco,
               items: items,
               onChanged: onChanged,
             ),
@@ -607,7 +615,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
       children: [
         Text(
           'Fecha de registro',
-          style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 14, color: cAzulPetroleo.withOpacity(0.7), fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         GestureDetector(
@@ -615,18 +623,17 @@ class _MovementsScreenState extends State<MovementsScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
+              color: cBlanco,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   DateFormat('dd/MM/yyyy').format(_selectedDate),
-                  style: const TextStyle(fontSize: 16, color: Colors.black),
+                  style: TextStyle(fontSize: 16, color: cAzulPetroleo),
                 ),
-                Icon(Icons.calendar_today, color: Colors.grey[600]),
+                Icon(Icons.calendar_today, color: cVerdeMenta),
               ],
             ),
           ),
@@ -641,10 +648,10 @@ class _MovementsScreenState extends State<MovementsScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Color.fromARGB(255, 78, 78, 78),
-            fontWeight: FontWeight.w500,
+            color: cAzulPetroleo.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -654,13 +661,15 @@ class _MovementsScreenState extends State<MovementsScreen> {
               child: Padding(
                 padding: EdgeInsets.only(right: option == options.last ? 0 : 16),
                 child: RadioListTile<String>(
-                  title: Text(option),
+                  title: Text(option, style: TextStyle(color: cAzulPetroleo)),
                   value: option,
                   groupValue: selectedValue,
                   onChanged: onChanged,
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  activeColor: const Color(0xFF2C97C1),
+                  activeColor: cVerdeMenta,
+                  tileColor: cBlanco,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             );
@@ -673,10 +682,10 @@ class _MovementsScreenState extends State<MovementsScreen> {
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, -2),
@@ -685,9 +694,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Azul Petróleo para seleccionado
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: 0,

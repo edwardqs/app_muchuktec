@@ -12,6 +12,12 @@ class TercerosScreen extends StatefulWidget {
 }
 
 class _TercerosScreenState extends State<TercerosScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final _nombreController = TextEditingController();
   String? _tipoSeleccionado;
 
@@ -21,8 +27,8 @@ class _TercerosScreenState extends State<TercerosScreen> {
   String? errorMessage;
   String? _accessToken;
   int? _idCuenta;
-  bool _isLoading = true; // Mantenemos esta para el appbar
-  bool isLoading = true; // Renombrado de isLoading a _isLoading para evitar ambigüedad
+  bool _isLoading = true;
+  bool isLoading = true;
   String? _profileImageUrl;
 
   @override
@@ -30,9 +36,9 @@ class _TercerosScreenState extends State<TercerosScreen> {
     super.initState();
     setState(() {
       _isLoading = false;
-      isLoading = false; // Para la vista principal
+      isLoading = false;
     });
-    _loadSelectedAccountAndFetchImage(); // <-- ¡Llama a la función!
+    _loadSelectedAccountAndFetchImage();
     _loadAccessTokenAndFetchTerceros();
 
   }
@@ -178,8 +184,8 @@ class _TercerosScreenState extends State<TercerosScreen> {
     final tipoInput = _tipoSeleccionado!;
 
     bool existe = tercerosList.any((t) =>
-        t['nombre'].toString().toLowerCase() == nombreInput.toLowerCase() &&
-        t['tipo'].toString() == tipoInput // Aquí comparamos también el tipo
+    t['nombre'].toString().toLowerCase() == nombreInput.toLowerCase() &&
+        t['tipo'].toString() == tipoInput
     );
 
     if (existe) {
@@ -231,7 +237,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
           _tipoSeleccionado = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tercero registrado con éxito'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Tercero registrado con éxito'), backgroundColor: cVerdeMenta),
         );
       } else {
         String errorMessage = 'Error al registrar el tercero: Código ${response.statusCode}';
@@ -280,7 +286,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
           if (index != -1) tercerosList[index] = updatedTercero;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tercero actualizado'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Tercero actualizado'), backgroundColor: cVerdeMenta),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -313,7 +319,7 @@ class _TercerosScreenState extends State<TercerosScreen> {
           tercerosList.removeWhere((t) => t['id'] == id);
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tercero eliminado'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Tercero eliminado'), backgroundColor: cVerdeMenta),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -332,13 +338,13 @@ class _TercerosScreenState extends State<TercerosScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Eliminar Tercero', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
-        content: const Text('¿Estás seguro de que quieres eliminar este tercero?', style: TextStyle(color: Colors.grey)),
+        backgroundColor: cBlanco,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Eliminar Tercero', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold)),
+        content: Text('¿Estás seguro de que quieres eliminar este tercero?', style: TextStyle(color: cAzulPetroleo.withOpacity(0.8))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancelar', style: TextStyle(color: Colors.grey[600]))),
-          TextButton(onPressed: () { Navigator.pop(context); _eliminarTercero(id); }, child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () { Navigator.pop(context); _eliminarTercero(id); }, child: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -351,9 +357,9 @@ class _TercerosScreenState extends State<TercerosScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Editar Tercero', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+        backgroundColor: cBlanco,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Editar Tercero', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.w600)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -363,7 +369,11 @@ class _TercerosScreenState extends State<TercerosScreen> {
                 maxLength: 30,
                 decoration: InputDecoration(
                   labelText: 'Nombre del Tercero',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                  filled: true,
+                  fillColor: cGrisClaro,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cVerdeMenta, width: 1.5)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -371,20 +381,23 @@ class _TercerosScreenState extends State<TercerosScreen> {
                 value: editTipoSeleccionado,
                 decoration: InputDecoration(
                   labelText: 'Tipo de Tercero',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                  filled: true,
+                  fillColor: cGrisClaro,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
-                items: _tipos.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                items: _tipos.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(color: cAzulPetroleo)))).toList(),
                 onChanged: (newValue) => editTipoSeleccionado = newValue,
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancelar', style: TextStyle(color: Colors.grey[600]))),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () { Navigator.pop(context); _actualizarTercero(tercero['id'], editNombreController.text, editTipoSeleccionado); },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: cVerdeMenta, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: Text('Guardar', style: TextStyle(color: cBlanco, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -394,15 +407,15 @@ class _TercerosScreenState extends State<TercerosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro, // Fondo oficial
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        title: const Text('Gestión de Terceros', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600)),
+        leading: IconButton(icon: Icon(Icons.arrow_back, color: cAzulPetroleo), onPressed: () => Navigator.pop(context)),
+        title: Text('Gestión de Terceros', style: TextStyle(color: cAzulPetroleo, fontSize: 18, fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.black), onPressed: () {Navigator.pushNamed(context, '/notifications');}),
+          IconButton(icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo), onPressed: () {Navigator.pushNamed(context, '/notifications');}),
           InkWell(
             onTap: () {
               Navigator.pushNamed(context, '/accounts');
@@ -413,13 +426,13 @@ class _TercerosScreenState extends State<TercerosScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.purple[100],
+                color: cVerdeMenta.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                   child: CircularProgressIndicator(
-                    color: Colors.purple,
+                    color: cVerdeMenta,
                     strokeWidth: 2,
                   ))
                   : _profileImageUrl != null
@@ -431,11 +444,11 @@ class _TercerosScreenState extends State<TercerosScreen> {
                   height: 40,
                   errorBuilder: (context, error, stackTrace) {
                     print('Error al cargar la imagen de red: $error');
-                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                    return Icon(Icons.person, size: 24, color: cAzulPetroleo);
                   },
                 ),
               )
-                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
+                  : Icon(Icons.person, size: 24, color: cAzulPetroleo),
             ),
           ),
         ],
@@ -447,19 +460,42 @@ class _TercerosScreenState extends State<TercerosScreen> {
           children: [
             // Sección Registro
             Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[200]!)),
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                  color: cBlanco,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.03), spreadRadius: 0, blurRadius: 10, offset: const Offset(0, 4))
+                  ]
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Registrar Nuevo Tercero', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text('Registrar Nuevo Tercero', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo)),
                   const SizedBox(height: 16),
-                  TextField(controller: _nombreController,maxLength: 30, decoration: InputDecoration(labelText: 'Nombre del Tercero', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
+                  TextField(
+                      controller: _nombreController,
+                      maxLength: 30,
+                      decoration: InputDecoration(
+                        labelText: 'Nombre del Tercero',
+                        labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                        filled: true,
+                        fillColor: cGrisClaro,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cVerdeMenta)),
+                      )
+                  ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: _tipoSeleccionado,
-                    decoration: InputDecoration(labelText: 'Tipo de Tercero', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                    items: _tipos.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    decoration: InputDecoration(
+                      labelText: 'Tipo de Tercero',
+                      labelStyle: TextStyle(color: cAzulPetroleo.withOpacity(0.6)),
+                      filled: true,
+                      fillColor: cGrisClaro,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                    items: _tipos.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(color: cAzulPetroleo)))).toList(),
                     onChanged: (newValue) => setState(() { _tipoSeleccionado = newValue; }),
                   ),
                   const SizedBox(height: 24),
@@ -467,20 +503,26 @@ class _TercerosScreenState extends State<TercerosScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _registrarTercero,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0),
-                      child: const Text('Registrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: cVerdeMenta,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 2,
+                          shadowColor: cVerdeMenta.withOpacity(0.4)
+                      ),
+                      child: Text('Registrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cBlanco)),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 32),
-            const Text('Lista de Terceros Registrados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text('Lista de Terceros Registrados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo)),
             const SizedBox(height: 16),
             isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
                 : tercerosList.isEmpty
-                ? Text(errorMessage ?? 'No hay terceros registrados', style: const TextStyle(color: Colors.grey))
+                ? Center(child: Text(errorMessage ?? 'No hay terceros registrados', style: TextStyle(color: cAzulPetroleo.withOpacity(0.5))))
                 : ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -498,18 +540,24 @@ class _TercerosScreenState extends State<TercerosScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[200]!)),
+      decoration: BoxDecoration(
+          color: cBlanco,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.03), spreadRadius: 0, blurRadius: 5, offset: const Offset(0, 2))
+          ]
+      ),
       child: Row(
         children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tercero['nombre'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black)),
+              Text(tercero['nombre'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: cAzulPetroleo)),
               const SizedBox(height: 4),
-              Text(tercero['tipo'], style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+              Text(tercero['tipo'], style: TextStyle(fontSize: 14, color: cAzulPetroleo.withOpacity(0.7))),
             ]),
           ),
-          IconButton(icon: const Icon(Icons.edit_outlined, color: Colors.blue), onPressed: () => _mostrarModalEditar(tercero), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _mostrarConfirmacionEliminar(tercero['id']), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          IconButton(icon: Icon(Icons.edit_outlined, color: cVerdeMenta), onPressed: () => _mostrarModalEditar(tercero), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          IconButton(icon: Icon(Icons.delete_outline, color: Colors.red[400]), onPressed: () => _mostrarConfirmacionEliminar(tercero['id']), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
         ],
       ),
     );
@@ -517,12 +565,15 @@ class _TercerosScreenState extends State<TercerosScreen> {
 
   Widget _buildBottomNavigationBar() {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 10, offset: const Offset(0, -2))]),
+      decoration: BoxDecoration(
+          color: cBlanco,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 1, blurRadius: 10, offset: const Offset(0, -2))]
+      ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Azul Petróleo para activo
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: 3,

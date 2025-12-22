@@ -15,6 +15,12 @@ class CompromisesCreateScreen extends StatefulWidget {
 }
 
 class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _entityController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
@@ -23,12 +29,12 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   final TextEditingController _calculatedAmountController = TextEditingController();
   DateTime? _startDate;
 
-  String _selectedType = 'Deuda'; // "Deuda" o "Préstamo"
-  String _interestType = 'Simple'; // "Simple" o "Compuesto"
-  String _selectedFrequency = 'Sin cuotas'; // Frecuencia de la cuota
+  String _selectedType = 'Deuda';
+  String _interestType = 'Simple';
+  String _selectedFrequency = 'Sin cuotas';
 
-  bool _isLoading = true; // Mantenemos esta para el appbar
-  bool isLoading = true; // Renombrado de isLoading a _isLoading para evitar ambigüedad
+  bool _isLoading = true;
+  bool isLoading = true;
 
   String? _accessToken;
   int? _idCuenta;
@@ -37,18 +43,28 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   List<Map<String, dynamic>> _terceros = [];
   int? _selectedTerceroId;
 
+  // Mapa: Texto visible -> ID que vas a enviar
+  final Map<String, int> frequencyMap = {
+    'Sin cuotas': 1,
+    'S': 2,
+    'M': 3,
+    'A': 4,
+  };
+
+  String _selectedFrequencyText = 'Sin cuotas';
+  int? _selectedFrequencyId;
+
   @override
   void initState() {
     super.initState();
     setState(() {
       _isLoading = false;
-      isLoading = false; // Para la vista principal
+      isLoading = false;
     });
     _selectedFrequencyId = frequencyMap[_selectedFrequencyText];
     _loadAccessToken().then((_) {
-      // Solo intenta cargar la imagen y los terceros si el token existe
       if (_accessToken != null) {
-        _loadSelectedAccountAndFetchImage(); // <-- ¡Llama a la función!
+        _loadSelectedAccountAndFetchImage();
         _loadTerceros();
       }
     });
@@ -56,8 +72,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     _interestRateController.addListener(_calculateInstallmentAmount);
     _installmentsController.addListener(_calculateInstallmentAmount);
   }
-
-
 
   Future<void> _loadAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -153,47 +167,49 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     final String rateText = _interestRateController.text;
     final String installmentsText = _installmentsController.text;
 
-    // Convertir los valores a números, con manejo de errores
     final double? amount = double.tryParse(amountText);
     final double? rate = double.tryParse(rateText);
     final int? installments = int.tryParse(installmentsText);
 
-    // Si algún valor es nulo o cero, no se puede calcular
     if (amount == null || amount <= 0 || (installments == null || installments <= 0)) {
-      _calculatedAmountController.text = ''; // Limpiar el campo si no hay valores válidos
+      _calculatedAmountController.text = '';
       return;
     }
 
     double calculatedAmount = 0.0;
-    double monthlyRate = (rate ?? 0.0) / 100 / 12; // Convertir tasa anual a mensual
+    double monthlyRate = (rate ?? 0.0) / 100 / 12;
 
     if (_interestType == 'Simple') {
-      // Fórmula de interés simple: Monto total / cuotas + (Monto total * tasa de interés / 12)
-      // O una versión simplificada, asumiendo que el interés se paga con el principal
       if (installments > 0) {
         calculatedAmount = (amount + (amount * (rate ?? 0.0) / 100)) / installments;
       }
-    } else { // Interés compuesto
-      // Fórmula de anualidad (cuota fija)
+    } else {
       if (monthlyRate > 0) {
         calculatedAmount = amount * (monthlyRate * (1 + monthlyRate) * installments) / ((1 + monthlyRate) * installments - 1);
       } else {
-        // Si la tasa es 0, es solo el monto / cuotas
         calculatedAmount = amount / installments;
       }
     }
 
-    // Actualizar el controlador de la cuota calculada con el resultado, redondeado a 2 decimales
     _calculatedAmountController.text = calculatedAmount.toStringAsFixed(2);
   }
 
-  // Método para seleccionar la fecha
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _startDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: cVerdeMenta,
+            colorScheme: ColorScheme.light(primary: cVerdeMenta, onPrimary: cBlanco),
+            buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _startDate) {
       setState(() {
@@ -202,9 +218,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     }
   }
 
-  // Método para mostrar el diálogo de confirmación
   void _showConfirmationDialog() {
-    // Primero, se verifica si hay campos vacíos.
     if (_nameController.text.isEmpty ||
         _entityController.text.isEmpty ||
         _amountController.text.isEmpty ||
@@ -219,8 +233,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Text('Confirmar Registro', style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: cBlanco,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Confirmar Registro', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
@@ -244,11 +259,15 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                 Navigator.of(context).pop();
               },
             ),
-            TextButton(
-              child: const Text('Confirmar', style: TextStyle(color: Color(0xFF9B59B6))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cVerdeMenta,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Confirmar', style: TextStyle(color: cBlanco, fontWeight: FontWeight.bold)),
               onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
-                _saveCompromise(); // Llama al método de guardado
+                Navigator.of(context).pop();
+                _saveCompromise();
               },
             ),
           ],
@@ -257,7 +276,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-  // Método auxiliar para el texto de la vista previa
   Widget _buildPreviewText(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -266,14 +284,14 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           children: [
             TextSpan(
               text: label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: cAzulPetroleo,
               ),
             ),
             TextSpan(
               text: ' $value',
-              style: const TextStyle(color: Colors.black),
+              style: TextStyle(color: cAzulPetroleo.withOpacity(0.8)),
             ),
           ],
         ),
@@ -281,7 +299,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-  // Método para guardar el compromiso (llama a la API)
   void _saveCompromise() async {
     if (_accessToken == null || _idCuenta == null) {
       if (!mounted) return;
@@ -291,7 +308,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       return;
     }
 
-    // Calcular fecha de término en base a frecuencia y cuotas
     DateTime? fechaTermino;
     int cuotas = int.parse(_installmentsController.text.isEmpty ? '0' : _installmentsController.text);
 
@@ -299,17 +315,17 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       fechaTermino = null;
     } else if (cuotas > 0) {
       switch (_selectedFrequencyText) {
-        case 'S': // Semanal
+        case 'S':
           fechaTermino = _startDate!.add(Duration(days: 7 * cuotas));
           break;
-        case 'M': // Mensual
+        case 'M':
           fechaTermino = DateTime(
             _startDate!.year,
             _startDate!.month + cuotas,
             _startDate!.day,
           );
           break;
-        case 'A': // Anual
+        case 'A':
           fechaTermino = DateTime(
             _startDate!.year + cuotas,
             _startDate!.month,
@@ -318,7 +334,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           break;
       }
     }
-
 
     final body = {
       'idcuenta': _idCuenta,
@@ -333,7 +348,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       'monto_cuota': double.parse(_calculatedAmountController.text.isEmpty ? '0.0' : _calculatedAmountController.text),
       'fecha_inicio': _startDate!.toIso8601String().split('T')[0],
       'fecha_termino': fechaTermino != null ? fechaTermino.toIso8601String().split('T')[0] : null,
-      'estado': 'Pendiente', // valor inicial por defecto
+      'estado': 'Pendiente',
     };
 
     setState(() {
@@ -354,7 +369,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       if (!mounted) return;
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Compromiso guardado exitosamente'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Compromiso guardado exitosamente'), backgroundColor: cVerdeMenta),
         );
         Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
@@ -379,18 +394,18 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: cGrisClaro, // Fondo oficial
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cBlanco,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Compromisos',
           style: TextStyle(
-            color: Colors.black,
+            color: cAzulPetroleo,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -398,7 +413,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+            icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
             onPressed: () {
               Navigator.pushNamed(context, '/notifications');
             },
@@ -413,13 +428,13 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.purple[100],
+                color: cVerdeMenta.withOpacity(0.2), // Fondo suave avatar
                 shape: BoxShape.circle,
               ),
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                   child: CircularProgressIndicator(
-                    color: Colors.purple,
+                    color: cVerdeMenta,
                     strokeWidth: 2,
                   ))
                   : _profileImageUrl != null
@@ -430,12 +445,11 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                   width: 40,
                   height: 40,
                   errorBuilder: (context, error, stackTrace) {
-                    print('Error al cargar la imagen de red: $error');
-                    return Icon(Icons.person, size: 24, color: Colors.purple[700]);
+                    return Icon(Icons.person, size: 24, color: cAzulPetroleo);
                   },
                 ),
               )
-                  : Icon(Icons.person, size: 24, color: Colors.purple[700]),
+                  : Icon(Icons.person, size: 24, color: cAzulPetroleo),
             ),
           ),
         ],
@@ -445,7 +459,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Radio buttons para Deuda/Préstamo
             _buildRadioGroup('Tipo:', ['Deuda', 'Préstamo'], _selectedType, (value) {
               setState(() {
                 _selectedType = value!;
@@ -453,20 +466,16 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             }),
             const SizedBox(height: 24),
 
-            // Campo Nombre
             _buildLabeledTextField(
               label: 'Nombre',
-              hint: 'Pago de refrigeradora...',
+              hint: 'Ej: Pago de refrigeradora',
               controller: _nameController,
             ),
             const SizedBox(height: 16),
 
-            // Campo Entidad
             _buildEntidadField(),
             const SizedBox(height: 16),
 
-
-            // Campo Monto total
             _buildLabeledTextField(
               label: 'Monto total',
               hint: 'S/.',
@@ -478,7 +487,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Campo Tasa de interés
             _buildLabeledTextField(
               label: 'Tasa de interés:',
               hint: '0.00%',
@@ -490,17 +498,14 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Radio buttons para Simple/Compuesto
             _buildRadioGroup('Tipo de interés:', ['Simple', 'Compuesto'], _interestType, (value) {
               setState(() {
                 _interestType = value!;
-                _calculateInstallmentAmount(); // <-- Llamar al cálculo aquí
-
+                _calculateInstallmentAmount();
               });
             }),
             const SizedBox(height: 16),
 
-            // Campo Cuotas y Frecuencia
             Row(
               children: [
                 Expanded(
@@ -511,7 +516,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                     keyboardType: TextInputType.number,
                     enabled: _selectedFrequencyText != 'Sin cuotas',
                     inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly, // <-- Solo números enteros
+                      FilteringTextInputFormatter.digitsOnly,
                     ],
                   ),
                 ),
@@ -523,9 +528,8 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Campo Cuota mensual
             _buildLabeledTextField(
-              label: 'Cuota mensual(u otro) calculada:',
+              label: 'Cuota mensual calculada:',
               hint: 'S/.',
               controller: _calculatedAmountController,
               keyboardType: TextInputType.number,
@@ -533,34 +537,37 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Campo Fecha de inicio
             _buildDateField(
               label: 'Fecha de inicio del compromiso',
-              hint: 'dd/mm/aa',
+              hint: 'dd/mm/aaaa',
             ),
             const SizedBox(height: 24),
 
-            // Botón de guardar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: isLoading ? null : _showConfirmationDialog,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF9B59B6),
+                  backgroundColor: cVerdeMenta,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: 2,
+                  shadowColor: cVerdeMenta.withOpacity(0.4),
                 ),
                 child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
+                    ? SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(color: cBlanco, strokeWidth: 3),
+                )
+                    : Text(
                   'Guardar compromiso',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: cBlanco,
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -587,10 +594,10 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Color.fromARGB(255, 78, 78, 78),
-            fontWeight: FontWeight.w500,
+            color: cAzulPetroleo.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -599,38 +606,26 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           keyboardType: keyboardType,
           enabled: enabled,
           inputFormatters: inputFormatters,
-          style: const TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w400
-          ),
+          style: TextStyle(color: cAzulPetroleo, fontSize: 16),
           decoration: InputDecoration(
             prefixText: prefix,
-            prefixStyle: const TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w400
-            ),
-
+            prefixStyle: TextStyle(color: cAzulPetroleo, fontSize: 16),
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),
             filled: true,
-            fillColor: Colors.white,
-
-            // Ajustar el padding interno ayuda a que se vea centrado verticalmente
+            fillColor: cBlanco,
             contentPadding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.orange, width: 2),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: cVerdeMenta, width: 1.5),
             ),
           ),
         ),
@@ -638,17 +633,16 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-  // ====================== CAMPO ENTIDAD (TERCERO) ======================
   Widget _buildEntidadField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Tercero',
           style: TextStyle(
             fontSize: 14,
-            color: Color.fromARGB(255, 78, 78, 78),
-            fontWeight: FontWeight.w500,
+            color: cAzulPetroleo.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -669,26 +663,26 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             return TextField(
               controller: controller,
               focusNode: focusNode,
+              style: TextStyle(color: cAzulPetroleo),
               decoration: InputDecoration(
                 hintText: 'Escribe para buscar...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cBlanco,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide:
-                  const BorderSide(color: Colors.orange, width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cVerdeMenta, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                    horizontal: 16, vertical: 14),
               ),
             );
           },
@@ -703,7 +697,6 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-
   Widget _buildDateField({
     required String label,
     required String hint,
@@ -713,10 +706,10 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Color.fromARGB(255, 78, 78, 78),
-            fontWeight: FontWeight.w500,
+            color: cAzulPetroleo.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -724,11 +717,10 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           onTap: _selectDate,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
+              color: cBlanco,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -738,11 +730,11 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                       ? hint
                       : DateFormat('dd/MM/yyyy').format(_startDate!),
                   style: TextStyle(
-                    color: _startDate == null ? Colors.grey[400] : Colors.black,
+                    color: _startDate == null ? Colors.grey[400] : cAzulPetroleo,
                     fontSize: 16,
                   ),
                 ),
-                const Icon(Icons.calendar_today, color: Colors.grey),
+                Icon(Icons.calendar_today, color: cVerdeMenta),
               ],
             ),
           ),
@@ -751,17 +743,16 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-  // Nuevo widget para los Radio Buttons
   Widget _buildRadioGroup(String label, List<String> options, String selectedValue, void Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Color.fromARGB(255, 78, 78, 78),
-            fontWeight: FontWeight.w500,
+            color: cAzulPetroleo.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -771,13 +762,15 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
               child: Padding(
                 padding: EdgeInsets.only(right: option == options.last ? 0 : 16),
                 child: RadioListTile<String>(
-                  title: Text(option),
+                  title: Text(option, style: TextStyle(color: cAzulPetroleo)),
                   value: option,
                   groupValue: selectedValue,
                   onChanged: onChanged,
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  activeColor: const Color(0xFF2C97C1),
+                  activeColor: cVerdeMenta,
+                  tileColor: cBlanco,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             );
@@ -787,30 +780,16 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-// Mapa: Texto visible -> ID que vas a enviar
-  final Map<String, int> frequencyMap = {
-    'Sin cuotas': 1,
-    'S': 2,
-    'M': 3,
-    'A': 4,
-  };
-
-// Variable para guardar el texto seleccionado (para mostrar en el Dropdown)
-  String _selectedFrequencyText = 'Sin cuotas';
-
-// Variable para guardar el ID que se enviará a la API
-  int? _selectedFrequencyId;
-
   Widget _buildFrequencyDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Frecuencia',
           style: TextStyle(
             fontSize: 14,
-            color: Color.fromARGB(255, 78, 78, 78),
-            fontWeight: FontWeight.w500,
+            color: cAzulPetroleo.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -818,22 +797,22 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
+            color: cBlanco,
+            borderRadius: BorderRadius.circular(12),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedFrequencyText,
               isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+              icon: Icon(Icons.keyboard_arrow_down, color: cAzulPetroleo),
+              dropdownColor: cBlanco,
               items: frequencyMap.keys
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(
                     value,
-                    style: const TextStyle(fontSize: 16, color: Colors.black),
+                    style: TextStyle(fontSize: 16, color: cAzulPetroleo),
                   ),
                 );
               }).toList(),
@@ -843,10 +822,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                   _selectedFrequencyId = frequencyMap[newValue];
 
                   if (_selectedFrequencyText == 'Sin cuotas') {
-                    _installmentsController.text = '0'; // siempre 0
+                    _installmentsController.text = '0';
                   }
-                  _calculateInstallmentAmount(); // <-- Llamar al cálculo aquí
-
+                  _calculateInstallmentAmount();
                 });
               },
             ),
@@ -856,15 +834,13 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     );
   }
 
-
-
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, -2),
@@ -873,9 +849,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Azul Petróleo para seleccionado
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         currentIndex: 0,
@@ -927,11 +903,11 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   void dispose() {
     _nameController.dispose();
     _entityController.dispose();
-    _amountController.removeListener(_calculateInstallmentAmount); // <-- Remover listener
+    _amountController.removeListener(_calculateInstallmentAmount);
     _amountController.dispose();
-    _interestRateController.removeListener(_calculateInstallmentAmount); // <-- Remover listener
+    _interestRateController.removeListener(_calculateInstallmentAmount);
     _interestRateController.dispose();
-    _installmentsController.removeListener(_calculateInstallmentAmount); // <-- Remover listener
+    _installmentsController.removeListener(_calculateInstallmentAmount);
     _installmentsController.dispose();
     _calculatedAmountController.dispose();
     super.dispose();
