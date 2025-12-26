@@ -33,6 +33,7 @@ dependencies:
   flutter_file_dialog: 3.0.2
   provider: ^6.1.5+1
   app_links: ^6.4.1
+  google_mobile_ads: ^7.0.0
 
 dev_dependencies:
   flutter_test:

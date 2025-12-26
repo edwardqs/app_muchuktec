@@ -6,6 +6,8 @@ import '../widgets/quick_actions.dart';
 import '../widgets/recent_movements.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
+// ✅ 1. Importamos el widget del anuncio
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -219,24 +221,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    // Usamos el color Gris Claro (#F4F4F4) para el fondo
     return Scaffold(
       backgroundColor: cLightGrey,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          // Azul Petróleo para íconos
-          icon: Icon(Icons.menu, color: cPetrolBlue),
-          onPressed: () {},
-        ),
+        automaticallyImplyLeading: false, // ✅ Evita que aparezca flecha de volver por defecto
+        // ✅ Botón de hamburguesa ELIMINADO de aquí
         title: Text(
           'Menu',
           style: TextStyle(
-            color: cPetrolBlue, // Azul Petróleo para texto
+            color: cPetrolBlue,
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins', // Tipografía principal
+            fontFamily: 'Poppins',
           ),
         ),
         centerTitle: true,
@@ -257,14 +255,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                // Fondo verde menta suave para el avatar
                 color: cMintGreen.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: _isLoading
                   ? Center(
                   child: CircularProgressIndicator(
-                    color: cMintGreen, // Loader color Verde Menta
+                    color: cMintGreen,
                     strokeWidth: 2,
                   ))
                   : _profileImageUrl != null
@@ -279,7 +276,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   },
                 ),
               )
-              // Ícono fallback en Azul Petróleo
                   : Icon(Icons.person, size: 24, color: cPetrolBlue),
             ),
           ),
@@ -296,7 +292,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               Padding(
                 padding: const EdgeInsets.only(bottom: 24.0),
                 child: Card(
-                  color: Colors.orange[50], // Mantenemos naranja para alertas
+                  color: Colors.orange[50],
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     side: BorderSide(color: Colors.orange[200]!),
@@ -323,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                           style: TextStyle(
                             color: Colors.orange[700],
                             fontSize: 14,
-                            fontFamily: 'Inter', // Fuente secundaria
+                            fontFamily: 'Inter',
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -342,7 +338,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   ),
                 ),
               ),
-            // NOTA: Recuerda actualizar los colores DENTRO de estos widgets también
             const BalanceCard(),
             const SizedBox(height: 24),
             const QuickActions(),
@@ -351,58 +346,67 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: cWhite,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              spreadRadius: 1,
-              blurRadius: 10,
-              offset: const Offset(0, -4),
+
+      // ✅ 2. Aquí integramos el Anuncio dentro del BottomNavigationBar
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min, // Importante para que no ocupe toda la pantalla
+        children: [
+          // Anuncio Banner
+          const AdBannerWidget(),
+
+          // Tu Barra de Navegación Original
+          Container(
+            decoration: BoxDecoration(
+              color: cWhite,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.15),
+                  spreadRadius: 1,
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          // Ítem seleccionado: Verde Menta
-          selectedItemColor: cMintGreen,
-          // Ítem no seleccionado: Azul Petróleo con opacidad
-          unselectedItemColor: cPetrolBlue.withOpacity(0.5),
-          selectedLabelStyle: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Inicio',
+            child: BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: cMintGreen,
+              unselectedItemColor: cPetrolBlue.withOpacity(0.5),
+              selectedLabelStyle: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 12),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Inicio',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.bar_chart_outlined),
+                  activeIcon: Icon(Icons.bar_chart),
+                  label: 'Reportes',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  activeIcon: Icon(Icons.account_balance_wallet),
+                  label: 'Presupuestos',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.category_outlined),
+                  activeIcon: Icon(Icons.category),
+                  label: 'Categorías',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: 'Ajustes',
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart),
-              label: 'Reportes',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              activeIcon: Icon(Icons.account_balance_wallet),
-              label: 'Presupuestos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.category_outlined),
-              activeIcon: Icon(Icons.category),
-              label: 'Categorías',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Ajustes',
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

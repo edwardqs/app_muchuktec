@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
+// ✅ 1. Importar el widget del banner
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,7 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadAccessTokenAndFetchPhoto();
   }
 
-  // Método para cargar el token y luego la foto de perfil
   Future<void> _loadAccessTokenAndFetchPhoto() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
@@ -48,12 +49,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
-
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
         if (mounted) {
-          print('Token no encontrado, redirigiendo al login...');
           Navigator.of(context).pushReplacementNamed('/');
         }
         return;
@@ -61,7 +60,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (selectedAccountId == null) {
         if (mounted) {
-          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
           setState(() {
             _profileImageUrl = null;
             _isLoading = false;
@@ -71,8 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
-      print('Fetching account details from URL: $url');
-
       final response = await http.get(
         url,
         headers: {
@@ -91,22 +87,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
-            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
           _isLoading = false;
         });
       } else {
-        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
-        print('Body de la respuesta de error: ${response.body}');
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        print('Excepción al obtener los detalles de la cuenta: $e');
         setState(() {
           _isLoading = false;
         });
@@ -242,7 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cGrisClaro, // Fondo #F4F4F4
+      backgroundColor: cGrisClaro,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -268,7 +260,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           InkWell(
             onTap: () {
-              print('Navigating to accounts_screen');
               Navigator.pushNamed(context, '/accounts');
             },
             borderRadius: BorderRadius.circular(16),
@@ -276,7 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               margin: const EdgeInsets.only(right: 16),
               child: CircleAvatar(
                 radius: 16,
-                backgroundColor: cVerdeMenta, // Verde Menta #2A9D8F
+                backgroundColor: cVerdeMenta,
                 backgroundImage: _profileImageUrl != null
                     ? NetworkImage(_profileImageUrl!)
                     : null,
@@ -302,7 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: cAzulPetroleo, // Azul Petróleo
+                color: cAzulPetroleo,
               ),
             ),
             const SizedBox(height: 16),
@@ -347,7 +338,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     iconColor: cVerdeMenta,
                     textColor: cAzulPetroleo,
                     onTap: () {
-                      print('Navigating to accounts_screen');
                       Navigator.pushNamed(context, '/accounts');
                     },
                   ),
@@ -390,7 +380,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsItem(
                     icon: Icons.logout,
                     title: 'Cerrar sesión',
-                    iconColor: Colors.red[400]!, // Rojo pero suave
+                    iconColor: Colors.red[400]!,
                     textColor: Colors.red[700]!,
                     trailing: Icon(
                       Icons.power_settings_new,
@@ -406,56 +396,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: cBlanco,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+
+      // ✅ 2. Integración del Banner y la Barra de Navegación
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min, // Vital para que no ocupe toda la pantalla
+        children: [
+          // Banner de Publicidad
+          const AdBannerWidget(),
+
+          // Barra de navegación original
+          Container(
+            decoration: BoxDecoration(
+              color: cBlanco,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  spreadRadius: 1,
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: cAzulPetroleo, // Azul Petróleo para activo
-          unselectedItemColor: Colors.grey[400],
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Inicio',
+            child: BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: cAzulPetroleo, // Azul Petróleo para activo
+              unselectedItemColor: Colors.grey[400],
+              selectedFontSize: 12,
+              unselectedFontSize: 12,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Inicio',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.bar_chart_outlined),
+                  activeIcon: Icon(Icons.bar_chart),
+                  label: 'Reportes',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  activeIcon: Icon(Icons.account_balance_wallet),
+                  label: 'Presupuestos',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.category_outlined),
+                  activeIcon: Icon(Icons.category),
+                  label: 'Categorías',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: 'Ajustes',
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart),
-              label: 'Reportes',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              activeIcon: Icon(Icons.account_balance_wallet),
-              label: 'Presupuestos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.category_outlined),
-              activeIcon: Icon(Icons.category),
-              label: 'Categorías',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Ajustes',
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

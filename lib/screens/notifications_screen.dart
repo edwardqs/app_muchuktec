@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:app_muchik/config/constants.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+// ✅ 1. Importamos el widget del anuncio
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 // --- MODELO ---
 class NotificationModel {
@@ -144,7 +146,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAsRead(int notificationId) async {
-    // 1. Encontrar la notificación
+    // 1. Encontrar la notificación en la lista
     final notificationIndex = _notifications.indexWhere((n) => n.id == notificationId);
     if (notificationIndex == -1) return;
 
@@ -153,10 +155,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // 2. Si ya está leída, no hacer nada
     if (notification.isRead) return;
 
-    // Guardar estado original
+    // Guardar el estado original por si falla la API
     final originalNotificationsList = List<NotificationModel>.from(_notifications);
 
-    // 3. Optimistic Update
+    // 3. Actualizar la UI localmente (Optimistic Update)
     setState(() {
       _notifications[notificationIndex] = notification.copyWith(isRead: true);
       _notifications.sort((a, b) {
@@ -167,7 +169,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     });
 
-    // 4. Llamada al Backend
+    // 4. Intentar actualizar en el backend
     try {
       final url = Uri.parse('$API_BASE_URL/notifications/$notificationId/read');
       final response = await http.post(
@@ -240,16 +242,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Map<String, dynamic> _getStyle(NotificationType type) {
     switch (type) {
       case NotificationType.payment:
-      // Azul Petróleo para temas financieros
         return {'color': cAzulPetroleo, 'icon': Icons.account_balance_wallet_rounded};
       case NotificationType.alert:
-      // Rojo para errores críticos
         return {'color': Colors.red[700], 'icon': Icons.error_outline_rounded};
       case NotificationType.info:
-      // Azul Petróleo suave para info
         return {'color': cAzulPetroleo.withOpacity(0.7), 'icon': Icons.info_outline_rounded};
       case NotificationType.success:
-      // Verde Menta para éxitos
         return {'color': cVerdeMenta, 'icon': Icons.check_circle_outline_rounded};
     }
   }
@@ -346,7 +344,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final color = style['color'] as Color?;
     final icon = style['icon'] as IconData?;
 
-    // Estilo diferenciado para leídas vs no leídas
+    // Estilo diferenciado (Leído vs No Leído) con colores oficiales
     final bgColor = notification.isRead ? cGrisClaro : cBlanco;
     final titleColor = notification.isRead ? cAzulPetroleo.withOpacity(0.6) : cAzulPetroleo;
     final fontWeight = notification.isRead ? FontWeight.w400 : FontWeight.w600;
@@ -391,7 +389,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               notification.body,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: cAzulPetroleo.withOpacity(0.6), // Gris azulado
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -407,19 +405,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ],
         ),
-
-        // --- FUNCIONALIDAD INTACTA ---
         trailing: notification.isRead
             ? Icon(Icons.check_circle, color: cVerdeMenta.withOpacity(0.5), size: 24)
             : IconButton(
           icon: Icon(Icons.circle_outlined, color: cVerdeMenta, size: 24),
           tooltip: 'Marcar como leída',
           onPressed: () {
-            // Llama a la función de marcar como leída
             _markAsRead(notification.id);
           },
         ),
-
         onTap: () {
           _showNotificationModal(context, notification);
         },
@@ -459,6 +453,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
         ],
       ),
+
+      // ✅ 2. Integración del Banner aquí
+      bottomNavigationBar: const AdBannerWidget(),
+
       body: _buildBody(unread, read),
     );
   }

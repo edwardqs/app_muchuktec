@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'budgets_detail_screen.dart';
 import 'package:app_muchik/config/constants.dart';
-
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 // ✅ 1. Importamos tu modelo de categoría
 import '../models/category_model.dart';
 
@@ -642,7 +642,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min, // Vital para no ocupar toda la pantalla
+        children: [
+          const AdBannerWidget(), // El anuncio
+          _buildBottomNavigationBar(), // Tu barra de navegación
+        ],
+      ),
+
     );
   }
 

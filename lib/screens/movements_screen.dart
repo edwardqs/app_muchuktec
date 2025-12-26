@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:app_muchik/config/constants.dart';
-
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 class CategoryModel {
   final String id;
   final String name;
@@ -520,7 +520,13 @@ class _MovementsScreenState extends State<MovementsScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min, // Vital para no ocupar toda la pantalla
+        children: [
+          const AdBannerWidget(), // El anuncio
+          _buildBottomNavigationBar(), // Tu barra de navegación
+        ],
+      ),
     );
   }
 

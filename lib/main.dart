@@ -2,12 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
-// --- NUEVOS IMPORTS ---
 import 'package:provider/provider.dart';
 import '../services/user_session.dart';
-// --- FIN DE NUEVOS IMPORTS ---
-
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -28,6 +24,7 @@ import 'screens/notifications_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // <--- Importar
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -52,7 +49,7 @@ void main() async {
 
   // Inicializar localización para formatos de fecha
   await initializeDateFormatting('es');
-
+  await MobileAds.instance.initialize();
   runApp(
     ChangeNotifierProvider(
       create: (context) => UserSession(), // Aquí creamos la instancia global

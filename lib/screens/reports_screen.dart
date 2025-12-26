@@ -5,7 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/report_service.dart';
 import '../models/report_data.dart';
-
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 // Formateador de moneda
 final NumberFormat currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
 
@@ -202,7 +202,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ),
       body: _buildBody(),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min, // Vital para no ocupar toda la pantalla
+        children: [
+          const AdBannerWidget(), // El anuncio
+          _buildBottomNavigationBar(), // Tu barra de navegación
+        ],
+      ),
     );
   }
 

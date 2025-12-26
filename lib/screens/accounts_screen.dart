@@ -7,6 +7,8 @@ import 'package:app_muchik/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:app_muchik/config/constants.dart';
+// ✅ 1. Importar el widget del anuncio
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -494,10 +496,23 @@ class _AccountsScreenState extends State<AccountsScreen> {
           ),
         ],
       ),
+
+      // ✅ 2. Aquí integramos el Banner en el BottomSheet
+      bottomSheet: Container(
+        color: cGrisClaro, // Para que el fondo coincida
+        width: double.infinity,
+        child: const AdBannerWidget(), // El anuncio se muestra aquí
+      ),
+
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
           : Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.only(
+            left: 24.0,
+            right: 24.0,
+            top: 24.0,
+            bottom: 80.0 // ✅ IMPORTANTE: Espacio extra abajo para que el banner no tape los perfiles
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -536,7 +551,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   String rawName = profile['nombre'];
                   String displayName = rawName;
 
-                  // --- LÓGICA VISUAL PEDIDA ---
                   if (index == 0 && rawName.length > 2 && rawName.endsWith('-1')) {
                     displayName = rawName.substring(0, rawName.length - 2);
                   }
@@ -553,7 +567,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     isSelected: isSelected,
                     cAzulPetroleo: cAzulPetroleo,
                     cVerdeMenta: cVerdeMenta,
-                    cBlanco: cBlanco, // <--- AHORA PASAMOS EL COLOR
+                    cBlanco: cBlanco,
                   );
                 },
               ),
@@ -576,7 +590,7 @@ class _ProfileItem extends StatelessWidget {
   final bool isSelected;
   final Color cAzulPetroleo;
   final Color cVerdeMenta;
-  final Color cBlanco; // <--- VARIABLE AGREGADA
+  final Color cBlanco;
 
   const _ProfileItem({
     required this.name,
@@ -588,7 +602,7 @@ class _ProfileItem extends StatelessWidget {
     this.isSelected = false,
     required this.cAzulPetroleo,
     required this.cVerdeMenta,
-    required this.cBlanco, // <--- VARIABLE AGREGADA
+    required this.cBlanco,
   });
 
   @override
@@ -647,14 +661,14 @@ class _ProfileItem extends StatelessWidget {
                       errorWidget: (context, url, error) => Icon(
                         Icons.person,
                         size: 45,
-                        color: cBlanco, // <--- AHORA SÍ RECONOCE cBlanco
+                        color: cBlanco,
                       ),
                     ),
                   )
                       : Icon(
                     Icons.person,
                     size: 45,
-                    color: cBlanco, // <--- AHORA SÍ RECONOCE cBlanco
+                    color: cBlanco,
                   ),
                 ),
                 const SizedBox(height: 12),

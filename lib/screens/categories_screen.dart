@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
+// ✅ 1. Importamos el widget del anuncio
+import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -90,13 +92,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           const SnackBar(content: Text('Error: La categoría no fue encontrada.'), backgroundColor: Colors.orange),
         );
       } else if (response.statusCode == 401) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('accessToken');
+        // ✅ CORRECCIÓN: No cerramos sesión, solo avisamos.
+        // final prefs = await SharedPreferences.getInstance();
+        // await prefs.remove('accessToken');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error de autenticación. Intente reiniciar la app.'), backgroundColor: Colors.red),
         );
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+        // Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al eliminar la categoría: ${response.statusCode}'), backgroundColor: Colors.red),
@@ -233,13 +236,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           SnackBar(content: const Text('Categoría actualizada con éxito.'), backgroundColor: cVerdeMenta),
         );
       } else if (response.statusCode == 401) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('accessToken');
+        // ✅ CORRECCIÓN
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Su sesión ha expirado. Por favor, inicie sesión de nuevo.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error de autenticación.'), backgroundColor: Colors.red),
         );
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al actualizar la categoría: ${response.statusCode}'), backgroundColor: Colors.red),
@@ -418,7 +419,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       } else {
         String errorMessage;
         if (response.statusCode == 401 || response.statusCode == 302) {
-          errorMessage = 'Sesión expirada o token inválido. Por favor, inicie sesión de nuevo.';
+          errorMessage = 'Sesión expirada o token inválido.'; // ✅ CORREGIDO
         } else if (response.headers['content-type']?.contains('application/json') == true) {
           final errorData = json.decode(response.body);
           errorMessage = errorData['message'] ?? 'Error desconocido';
@@ -648,7 +649,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+
+      // ✅ 2. Aquí integramos el Banner en el BottomNavigationBar
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min, // Crucial para no ocupar toda la pantalla
+        children: [
+          const AdBannerWidget(), // El anuncio
+          _buildBottomNavigationBar(), // Tu barra de navegación
+        ],
+      ),
     );
   }
 

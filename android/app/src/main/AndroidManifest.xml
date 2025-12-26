@@ -36,6 +36,9 @@
         </activity> <meta-data
         android:name="flutterEmbedding"
         android:value="2" />
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8969829414364199~7735788626"/>
     </application>
     <queries>
         <intent>
