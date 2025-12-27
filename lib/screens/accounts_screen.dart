@@ -25,7 +25,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
   final Color cBlanco = const Color(0xFFFFFFFF);
 
   List<dynamic> _userProfiles = [];
+
+  // Estado de carga inicial (pantalla completa al entrar)
   bool _isLoading = true;
+
+  // ✅ Estado de carga para operaciones (Overlay central transparente)
+  bool _isOperationLoading = false;
+
   String? _accessToken;
   int? _selectedAccountId;
   final TextEditingController _editNameController = TextEditingController();
@@ -87,9 +93,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Solo mostramos loading global si es la primera carga y no hay datos
+    if (_userProfiles.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final response = await http.get(
@@ -130,10 +139,15 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   // --- MODAL AGREGAR ---
   void _showAddProfileModal() {
+    // ✅ Validación: Máximo 4 perfiles
     if (_userProfiles.length >= 4) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No puedes tener más de 4 perfiles.'), backgroundColor: Colors.orange),
+          SnackBar(
+            content: const Text('Límite alcanzado: Máximo 4 perfiles permitidos.'),
+            backgroundColor: Colors.orange[700],
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       return;
@@ -163,8 +177,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  _addProfile(nameController.text);
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Cerramos modal primero
+                  _addProfile(nameController.text); // Luego lógica con loader
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -182,6 +196,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Future<void> _addProfile(String nombre) async {
     if (_accessToken == null) return;
 
+    // ✅ Activamos el loader central
+    setState(() {
+      _isOperationLoading = true;
+    });
+
     try {
       final response = await http.post(
         Uri.parse('$API_BASE_URL/cuentas'),
@@ -198,7 +217,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             SnackBar(content: const Text('Perfil agregado exitosamente.'), backgroundColor: cVerdeMenta),
           );
         }
-        _fetchUserProfiles();
+        await _fetchUserProfiles();
       } else {
         throw Exception('Failed to add profile');
       }
@@ -207,6 +226,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al agregar el perfil.'), backgroundColor: Colors.red),
         );
+      }
+    } finally {
+      // ✅ Desactivamos el loader pase lo que pase
+      if (mounted) {
+        setState(() {
+          _isOperationLoading = false;
+        });
       }
     }
   }
@@ -243,6 +269,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Future<void> _deleteProfile(int id) async {
     if (_accessToken == null) return;
 
+    // ✅ Activamos el loader central
+    setState(() {
+      _isOperationLoading = true;
+    });
+
     try {
       final response = await http.delete(
         Uri.parse('$API_BASE_URL/cuentas/$id'),
@@ -257,7 +288,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             SnackBar(content: const Text('Perfil eliminado exitosamente.'), backgroundColor: cVerdeMenta),
           );
         }
-        _fetchUserProfiles();
+        await _fetchUserProfiles();
       } else {
         throw Exception('Failed to delete profile');
       }
@@ -266,6 +297,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al eliminar el perfil.'), backgroundColor: Colors.red),
         );
+      }
+    } finally {
+      // ✅ Desactivamos el loader
+      if (mounted) {
+        setState(() {
+          _isOperationLoading = false;
+        });
       }
     }
   }
@@ -391,6 +429,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
       return;
     }
 
+    // ✅ Activamos el loader central
+    setState(() {
+      _isOperationLoading = true;
+    });
+
     try {
       var request = http.MultipartRequest('POST', Uri.parse('$API_BASE_URL/cuentas/$id'));
       request.headers['Authorization'] = 'Bearer $_accessToken';
@@ -413,7 +456,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             SnackBar(content: const Text('Perfil actualizado con éxito.'), backgroundColor: cVerdeMenta),
           );
         }
-        _fetchUserProfiles();
+        await _fetchUserProfiles();
       } else {
         throw Exception('Failed to update profile: ${response.body}');
       }
@@ -423,7 +466,43 @@ class _AccountsScreenState extends State<AccountsScreen> {
           const SnackBar(content: Text('Error al actualizar el perfil.'), backgroundColor: Colors.red),
         );
       }
+    } finally {
+      // ✅ Desactivamos el loader
+      if (mounted) {
+        setState(() {
+          _isOperationLoading = false;
+        });
+      }
     }
+  }
+
+  // ✅ Nueva función para mostrar el modal de confirmación de logout
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Cerrar Sesión', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
+        content: Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: cAzulPetroleo.withOpacity(0.8))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Cierra el modal
+              _logout(); // Ejecuta el cierre de sesión
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Cerrar Sesión', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _logout() async {
@@ -478,11 +557,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cGrisClaro, // Fondo oficial #F4F4F4
+      backgroundColor: cGrisClaro,
       appBar: AppBar(
         title: const Text('Perfiles de Usuario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: cAzulPetroleo, // Fondo oficial #264653
+        backgroundColor: cAzulPetroleo,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -491,89 +570,125 @@ class _AccountsScreenState extends State<AccountsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout,
+            onPressed: _showLogoutConfirmation, // ✅ Llama al modal, no directo al logout
             tooltip: 'Cerrar Sesión',
           ),
         ],
       ),
 
-      // ✅ 2. Aquí integramos el Banner en el BottomSheet
       bottomSheet: Container(
-        color: cGrisClaro, // Para que el fondo coincida
+        color: cGrisClaro,
         width: double.infinity,
-        child: const AdBannerWidget(), // El anuncio se muestra aquí
+        child: const AdBannerWidget(),
       ),
 
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
-          : Padding(
-        padding: const EdgeInsets.only(
-            left: 24.0,
-            right: 24.0,
-            top: 24.0,
-            bottom: 80.0 // ✅ IMPORTANTE: Espacio extra abajo para que el banner no tape los perfiles
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '¿Quién está usando?',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: cAzulPetroleo,
-              ),
+      // ✅ Usamos un Stack para superponer la animación de carga
+      body: Stack(
+        children: [
+          // Contenido Principal
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
+              : Padding(
+            padding: const EdgeInsets.only(
+                left: 24.0,
+                right: 24.0,
+                top: 24.0,
+                bottom: 80.0
             ),
-            const SizedBox(height: 32),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 24,
-                  mainAxisSpacing: 24,
-                  childAspectRatio: 0.8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '¿Quién está usando?',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: cAzulPetroleo,
+                  ),
                 ),
-                itemCount: _userProfiles.length < 4
-                    ? _userProfiles.length + 1
-                    : _userProfiles.length,
-                itemBuilder: (context, index) {
-                  // Botón de agregar
-                  if (index == _userProfiles.length && _userProfiles.length < 4) {
-                    return _AddProfileButton(
-                      onTap: _showAddProfileModal,
-                      cVerdeMenta: cVerdeMenta,
-                      cAzulPetroleo: cAzulPetroleo,
-                    );
-                  }
+                const SizedBox(height: 32),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 24,
+                      mainAxisSpacing: 24,
+                      childAspectRatio: 0.8,
+                    ),
+                    itemCount: _userProfiles.length < 4
+                        ? _userProfiles.length + 1
+                        : _userProfiles.length,
+                    itemBuilder: (context, index) {
+                      // Botón de agregar
+                      if (index == _userProfiles.length && _userProfiles.length < 4) {
+                        return _AddProfileButton(
+                          onTap: _showAddProfileModal,
+                          cVerdeMenta: cVerdeMenta,
+                          cAzulPetroleo: cAzulPetroleo,
+                        );
+                      }
 
-                  final profile = _userProfiles[index];
-                  bool isSelected = _selectedAccountId == profile['id'];
-                  String rawName = profile['nombre'];
-                  String displayName = rawName;
+                      final profile = _userProfiles[index];
+                      bool isSelected = _selectedAccountId == profile['id'];
+                      String rawName = profile['nombre'];
+                      String displayName = rawName;
 
-                  if (index == 0 && rawName.length > 2 && rawName.endsWith('-1')) {
-                    displayName = rawName.substring(0, rawName.length - 2);
-                  }
+                      if (index == 0 && rawName.length > 2 && rawName.endsWith('-1')) {
+                        displayName = rawName.substring(0, rawName.length - 2);
+                      }
 
-                  return _ProfileItem(
-                    name: displayName,
-                    imagePath: profile['ruta_imagen'] != null
-                        ? '$STORAGE_BASE_URL/${profile['ruta_imagen']}'
-                        : null,
-                    onEdit: () => _showEditProfileDialog(profile),
-                    onDelete: () => _showDeleteConfirmation(profile),
-                    onTap: () => _showSelectionConfirmation(profile),
-                    canDelete: index > 0,
-                    isSelected: isSelected,
-                    cAzulPetroleo: cAzulPetroleo,
-                    cVerdeMenta: cVerdeMenta,
-                    cBlanco: cBlanco,
-                  );
-                },
+                      return _ProfileItem(
+                        name: displayName,
+                        imagePath: profile['ruta_imagen'] != null
+                            ? '$STORAGE_BASE_URL/${profile['ruta_imagen']}'
+                            : null,
+                        onEdit: () => _showEditProfileDialog(profile),
+                        onDelete: () => _showDeleteConfirmation(profile),
+                        onTap: () => _showSelectionConfirmation(profile),
+                        canDelete: index > 0,
+                        isSelected: isSelected,
+                        cAzulPetroleo: cAzulPetroleo,
+                        cVerdeMenta: cVerdeMenta,
+                        cBlanco: cBlanco,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ✅ Overlay de Carga (Animación central)
+          if (_isOperationLoading)
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.black.withOpacity(0.5), // Fondo semi-transparente oscuro
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: cBlanco,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: cVerdeMenta),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Procesando...',
+                        style: TextStyle(
+                          color: cAzulPetroleo,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

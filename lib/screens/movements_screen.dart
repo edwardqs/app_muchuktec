@@ -6,7 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:app_muchik/config/constants.dart';
+// ✅ Importamos el widget del anuncio
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
+
 class CategoryModel {
   final String id;
   final String name;
@@ -66,8 +68,8 @@ class _MovementsScreenState extends State<MovementsScreen> {
     _idCuenta = prefs.getInt('idCuenta');
 
     if (_accessToken != null) {
-      await _fetchCategories();
-      _loadSelectedAccountAndFetchImage();
+      await _fetchCategories(); // Primero cargamos categorías
+      _loadSelectedAccountAndFetchImage(); // Luego la imagen en segundo plano
     } else {
       if (!mounted) return;
       setState(() {
@@ -82,10 +84,14 @@ class _MovementsScreenState extends State<MovementsScreen> {
   Future<void> _fetchCategories() async {
     if (_accessToken == null || _idCuenta == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falta información de la sesión.'), backgroundColor: Colors.orange),
-      );
       return;
+    }
+
+    // Solo mostramos loading si la lista está vacía (carga inicial)
+    if (_allCategories.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
     }
 
     try {
@@ -133,38 +139,14 @@ class _MovementsScreenState extends State<MovementsScreen> {
   }
 
   Future<void> _loadSelectedAccountAndFetchImage() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
-
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
-      if (token == null) {
-        if (mounted) {
-          print('Token no encontrado, redirigiendo al login...');
-          Navigator.of(context).pushReplacementNamed('/');
-        }
-        return;
-      }
-
-      if (selectedAccountId == null) {
-        if (mounted) {
-          print('No se ha seleccionado una cuenta, mostrando imagen por defecto.');
-          setState(() {
-            _profileImageUrl = null;
-            _isLoading = false;
-          });
-        }
-        return;
-      }
+      if (token == null || selectedAccountId == null) return;
 
       final url = Uri.parse('$API_BASE_URL/accounts/${selectedAccountId.toString()}');
-      print('Fetching account details from URL: $url');
-
       final response = await http.get(
         url,
         headers: {
@@ -183,26 +165,13 @@ class _MovementsScreenState extends State<MovementsScreen> {
         setState(() {
           if (relativePath != null) {
             _profileImageUrl = '$STORAGE_BASE_URL/$relativePath';
-            print('URL de la imagen construida: $_profileImageUrl');
           } else {
             _profileImageUrl = null;
           }
-          _isLoading = false;
-        });
-      } else {
-        print('Error al obtener los detalles de la cuenta. Status Code: ${response.statusCode}');
-        print('Body de la respuesta de error: ${response.body}');
-        setState(() {
-          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        print('Excepción al obtener los detalles de la cuenta: $e');
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      print('Excepción al obtener los detalles de la cuenta: $e');
     }
   }
 
@@ -287,7 +256,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
     final double? amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Monto inválido. Por favor, introduce un número válido.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Monto inválido.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -377,12 +346,20 @@ class _MovementsScreenState extends State<MovementsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: cGrisClaro,
+        body: Center(child: CircularProgressIndicator(color: cVerdeMenta)),
+      );
+    }
+
+    // 1. Filtrar las categorías según el tipo (Gasto/Ingreso)
     final filteredCategories = _allCategories
         .where((category) => category.type.toLowerCase() == _selectedMovementType.toLowerCase())
         .toList();
 
     return Scaffold(
-      backgroundColor: cGrisClaro, // Fondo oficial
+      backgroundColor: cGrisClaro,
       appBar: AppBar(
         backgroundColor: cBlanco,
         elevation: 0,
@@ -423,8 +400,10 @@ class _MovementsScreenState extends State<MovementsScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: cVerdeMenta))
+
+      // ✅ Si no hay categorías, mostramos la pantalla de "No hay categorías"
+      body: _allCategories.isEmpty
+          ? _buildNoCategoriesView()
           : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -501,7 +480,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
               child: ElevatedButton(
                 onPressed: _saveMovement,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: cVerdeMenta, // Verde Menta oficial
+                  backgroundColor: cVerdeMenta,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
@@ -521,11 +500,77 @@ class _MovementsScreenState extends State<MovementsScreen> {
         ),
       ),
       bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min, // Vital para no ocupar toda la pantalla
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const AdBannerWidget(), // El anuncio
-          _buildBottomNavigationBar(), // Tu barra de navegación
+          Container(
+            width: double.infinity,
+            color: cBlanco,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: const Center(child: AdBannerWidget()),
+          ),
+          _buildBottomNavigationBar(),
         ],
+      ),
+    );
+  }
+
+  // ✅ Vista de "No existen categorías"
+  Widget _buildNoCategoriesView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // ✅ CAMBIO: Usamos un icono estándar y seguro
+            Icon(Icons.folder_open_outlined, size: 80, color: cAzulPetroleo.withOpacity(0.3)),
+            const SizedBox(height: 24),
+            Text(
+              '¡Vaya!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: cAzulPetroleo,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No tienes categorías registradas para esta cuenta. Necesitas crear una antes de registrar movimientos.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: cAzulPetroleo.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Redirigir a categorías y al volver recargar la data
+                  Navigator.pushNamed(context, '/categories').then((_) {
+                    _fetchCategories();
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cVerdeMenta,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                ),
+                icon: Icon(Icons.add_circle_outline, color: cBlanco),
+                label: Text(
+                  'Crear Categorías',
+                  style: TextStyle(
+                    color: cBlanco,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -701,7 +746,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: cBlanco,
-        selectedItemColor: cAzulPetroleo, // Azul Petróleo para seleccionado
+        selectedItemColor: cAzulPetroleo,
         unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
