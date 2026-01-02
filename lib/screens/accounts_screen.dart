@@ -7,8 +7,9 @@ import 'package:app_muchik/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:app_muchik/config/constants.dart';
-// ✅ 1. Importar el widget del anuncio
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
+import 'package:app_muchik/widgets/image_cropper_widget.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -138,6 +139,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   // --- MODAL AGREGAR ---
+  // --- MODAL AGREGAR ---
   void _showAddProfileModal() {
     // ✅ Validación: Máximo 4 perfiles
     if (_userProfiles.length >= 4) {
@@ -159,15 +161,48 @@ class _AccountsScreenState extends State<AccountsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Agregar Nuevo Perfil', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
-          content: TextField(
-            controller: nameController,
-            decoration: InputDecoration(
-              hintText: 'Nombre del perfil',
-              filled: true,
-              fillColor: cGrisClaro,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-            ),
+          title: Text(
+              'Agregar Nuevo Perfil',
+              style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // Importante para que el modal no crezca de más
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 📝 Texto de recordatorio
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: cAzulPetroleo.withOpacity(0.7)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Recuerda que sólo puedes tener hasta 4 perfiles.',
+                        style: TextStyle(
+                          color: cAzulPetroleo.withOpacity(0.7),
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Campo de texto
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  hintText: 'Nombre del perfil',
+                  filled: true,
+                  fillColor: cGrisClaro,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none
+                  ),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -177,8 +212,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  Navigator.pop(context); // Cerramos modal primero
-                  _addProfile(nameController.text); // Luego lógica con loader
+                  Navigator.pop(context);
+                  _addProfile(nameController.text);
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -330,10 +365,33 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       onTap: () async {
                         final picker = ImagePicker();
                         final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
                         if (pickedFile != null) {
-                          setState(() {
-                            newImage = File(pickedFile.path);
-                          });
+                          // 1. Convertimos la imagen seleccionada a bytes (Uint8List)
+                          final bytes = await pickedFile.readAsBytes();
+
+                          if (!mounted) return;
+
+                          // 2. Navegamos al nuevo widget de recorte
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ImageCropperWidget(
+                                imageBytes: bytes,
+                                onCropped: (croppedData) async {
+                                  // 3. Cuando el usuario termina el recorte:
+                                  // Convertimos los bytes a un archivo temporal para subirlo a Render
+                                  final tempDir = await getTemporaryDirectory();
+                                  final file = await File('${tempDir.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg').create();
+                                  await file.writeAsBytes(croppedData);
+
+                                  setState(() {
+                                    newImage = file; // Actualizamos la vista previa del modal
+                                  });
+                                },
+                              ),
+                            ),
+                          );
                         }
                       },
                       child: Container(

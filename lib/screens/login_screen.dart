@@ -101,8 +101,10 @@ class _LoginScreenState extends State<LoginScreen> {
         body: json.encode(body),
       );
 
+      final responseData = json.decode(response.body);
+
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
+        // --- USUARIO VERIFICADO: FLUJO NORMAL ---
         final accessToken = responseData['access_token'];
         final idCuenta = responseData['idCuenta'];
 
@@ -110,6 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('accessToken', accessToken);
           await prefs.setInt('idCuenta', idCuenta);
+
           if (!_isRedirecting) {
             _isRedirecting = true;
             Navigator.of(context).pushReplacementNamed(
@@ -120,12 +123,35 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           _errorMessage.value = 'Error de token.';
         }
-      } else {
-        final errorData = json.decode(response.body);
-        if (errorData['errors'] != null && errorData['errors']['login'] != null) {
-          _errorMessage.value = errorData['errors']['login'][0];
+      }
+      else if (response.statusCode == 403) {
+        // 1. Mostramos el mensaje que viene de Laravel (que confirma el reenvío del correo)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(responseData['message'] ?? 'Cuenta no verificada. Se envió un nuevo código.'),
+            backgroundColor: Colors.orange[800],
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        // 2. Redirigimos a la pantalla de verificación después de un breve delay
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const VerificationScreen(),
+              ),
+            );
+          }
+        });
+      }
+      else {
+        // Manejo de otros errores (401, 422, 500)
+        if (responseData['errors'] != null && responseData['errors']['login'] != null) {
+          _errorMessage.value = responseData['errors']['login'][0];
         } else {
-          _errorMessage.value = errorData['message'] ?? 'Credenciales incorrectas.';
+          _errorMessage.value = responseData['message'] ?? 'Credenciales incorrectas.';
         }
       }
     } catch (e) {
@@ -187,8 +213,6 @@ class _LoginScreenState extends State<LoginScreen> {
           _buildLoginForm(),
           const SizedBox(height: 24),
           _buildLoginButton(),
-          const SizedBox(height: 10),
-          _buildVerifyButton(context),
           const SizedBox(height: 16),
           const _Divider(),
           const SizedBox(height: 16),
@@ -197,32 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
           const _FooterSection(),
           const SizedBox(height: 10),
         ],
-      ),
-    );
-  }
-
-  Widget _buildVerifyButton(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => VerificationScreen()),
-        );
-      },
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      child: Text(
-        '¿Aún no verificaste tu correo? Haz clic aquí',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Colors.white.withOpacity(0.9),
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          decoration: TextDecoration.underline,
-          fontFamily: 'Poppins',
-        ),
       ),
     );
   }

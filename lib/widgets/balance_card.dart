@@ -101,17 +101,10 @@ class _BalanceCardState extends State<BalanceCard> {
 
   @override
   Widget build(BuildContext context) {
-    // --- SOLUCIÓN DEFINITIVA PARA EL SÍMBOLO ---
     final currencyFormatter = NumberFormat.currency(
-      // Usamos 'es_ES' si quieres comas en decimales (300,50),
-      // o usa 'en_US' si prefieres puntos (300.50).
-      // Al usar customPattern, el locale solo define si usa coma o punto.
       locale: 'es_ES',
       symbol: 'S/ ',
       decimalDigits: 2,
-      // ESTO ES LO IMPORTANTE:
-      // 'S/ ' está escrito "a mano" al inicio del patrón.
-      // #,##0.00 le dice cómo formatear los números.
       customPattern: 'S/ #,##0.00',
     );
 
