@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/report_service.dart';
 import '../models/report_data.dart';
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
+
 // Formateador de moneda
 final NumberFormat currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
 
@@ -17,6 +18,13 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  // --- COLORES OFICIALES ---
+  final Color cAzulPetroleo = const Color(0xFF264653);
+  final Color cVerdeMenta = const Color(0xFF2A9D8F);
+  final Color cGrisClaro = const Color(0xFFF4F4F4);
+  final Color cBlanco = const Color(0xFFFFFFFF);
+  final Color cRojo = const Color(0xFFE76F51);
+
   final ReportService _reportService = ReportService();
   final int _selectedIndex = 1;
   late Future<ReportData> _reportsFuture;
@@ -33,7 +41,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       summary: MonthlySummary(ingresos: 0, gastos: 0, balance: 0, mes: 'n/a', nombreMes: 'Cargando...'),
       trend: [],
       budgets: [],
-      commitmentPayments: [], // <-- AÑADE ESTO
+      commitmentPayments: [],
     ));
     _checkAuthAndLoadReports();
   }
@@ -100,6 +108,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       lastDate: DateTime(2101),
       locale: const Locale('es', 'ES'),
       initialDatePickerMode: DatePickerMode.year,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: cVerdeMenta,
+            colorScheme: ColorScheme.light(primary: cVerdeMenta, onPrimary: cBlanco),
+            buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null && (picked.month != _selectedDate.month || picked.year != _selectedDate.year)) {
@@ -113,12 +131,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void _showExportOptions() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: cBlanco,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext bc) {
         return SafeArea(
           child: Wrap(
             children: <Widget>[
               ListTile(
-                leading: const Icon(Icons.picture_as_pdf),
+                leading: Icon(Icons.picture_as_pdf, color: cAzulPetroleo),
                 title: const Text('Exportar a PDF'),
                 onTap: () {
                   Navigator.pop(bc);
@@ -126,7 +148,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.insert_drive_file),
+                leading: Icon(Icons.insert_drive_file, color: cVerdeMenta),
                 title: const Text('Exportar a Hoja de Cálculo (Excel)'),
                 onTap: () {
                   Navigator.pop(bc);
@@ -141,25 +163,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _exportReport(String format) async {
-    // Muestra un indicador de que la descarga ha comenzado
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Descargando reporte en $format...')),
+      SnackBar(
+        content: Text('Descargando reporte en $format...'),
+        backgroundColor: cAzulPetroleo,
+      ),
     );
     try {
-      // Llamamos a nuestro nuevo método que guarda el archivo
-      final String filePath = await _reportService.exportReports(
+      await _reportService.exportReports(
         format,
         month: _selectedDate.month,
         year: _selectedDate.year,
       );
 
-      // Si todo fue bien, mostramos un mensaje de éxito con la ubicación
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reporte guardado en la carpeta de Descargas.'),
+          content: const Text('Reporte guardado en la carpeta de Descargas.'),
+          backgroundColor: cVerdeMenta,
           duration: const Duration(seconds: 4),
-
         ),
       );
 
@@ -177,36 +199,41 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: cGrisClaro,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: cGrisClaro,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: cAzulPetroleo),
           onPressed: () => Navigator.pushReplacementNamed(context, '/dashboard'),
         ),
-        title: const Text(
+        title: Text(
           'Reportes',
           style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            color: cAzulPetroleo,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.ios_share, color: Colors.black87),
+            icon: Icon(Icons.ios_share, color: cAzulPetroleo),
             onPressed: _showExportOptions,
           ),
         ],
       ),
       body: _buildBody(),
       bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min, // Vital para no ocupar toda la pantalla
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const AdBannerWidget(), // El anuncio
-          _buildBottomNavigationBar(), // Tu barra de navegación
+          Container(
+            width: double.infinity,
+            color: cBlanco,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: const Center(child: AdBannerWidget()),
+          ),
+          _buildBottomNavigationBar(),
         ],
       ),
     );
@@ -226,7 +253,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       future: _reportsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator(color: cVerdeMenta));
         } else if (snapshot.hasError) {
           final errorText = snapshot.error.toString().replaceFirst('Exception: ', '');
 
@@ -246,7 +273,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: _loadReports,
-                    child: const Text('Reintentar', style: TextStyle(color: Colors.purple)),
+                    child: Text('Reintentar', style: TextStyle(color: cVerdeMenta)),
                   ),
                 ],
               ),
@@ -261,24 +288,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 _MonthSelector(
                   selectedDate: _selectedDate,
                   onTap: () => _selectMonth(context),
+                  color: cAzulPetroleo,
                 ),
                 const SizedBox(height: 20),
-                MonthlySummaryCard(summary: reportData.summary),
+                MonthlySummaryCard(
+                  summary: reportData.summary,
+                  cAzulPetroleo: cAzulPetroleo,
+                ),
                 const SizedBox(height: 24),
-                MonthlyTrendChart(trendData: reportData.trend),
-                const SizedBox(height: 24),
-                BudgetComplianceCard(budgets: reportData.budgets),
 
-                // 👇 AÑADE ESTO
-                const SizedBox(height: 24),
-                CommitmentPaymentsCard(payments: reportData.commitmentPayments),
-                // ---
+                MonthlyTrendChart(
+                  trendData: reportData.trend,
+                  cAzulPetroleo: cAzulPetroleo,
+                  cVerdeMenta: cVerdeMenta,
+                  cRojo: cRojo,
+                ),
 
+                const SizedBox(height: 24),
+                BudgetComplianceCard(budgets: reportData.budgets, cAzulPetroleo: cAzulPetroleo),
+                const SizedBox(height: 24),
+                CommitmentPaymentsCard(payments: reportData.commitmentPayments, cAzulPetroleo: cAzulPetroleo),
               ],
             ),
           );
         } else {
-          return const Center(child: Text('No hay datos de reportes disponibles.'));
+          return Center(child: Text('No hay datos de reportes disponibles.', style: TextStyle(color: cAzulPetroleo)));
         }
       },
     );
@@ -287,12 +321,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cBlanco,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
-            blurRadius: 8,
+            blurRadius: 10,
             offset: const Offset(0, -2),
           ),
         ],
@@ -301,89 +335,70 @@ class _ReportsScreenState extends State<ReportsScreen> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: Colors.purple[700],
-        unselectedItemColor: Colors.grey[600],
+        backgroundColor: cBlanco,
+        selectedItemColor: cAzulPetroleo, // Color Oficial Activo
+        unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined),
-            activeIcon: Icon(Icons.bar_chart),
-            label: 'Reportes',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            activeIcon: Icon(Icons.account_balance_wallet),
-            label: 'Presupuestos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.category_outlined),
-            activeIcon: Icon(Icons.category),
-            label: 'Categorías',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Ajustes',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Reportes'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Presupuestos'),
+          BottomNavigationBarItem(icon: Icon(Icons.category), label: 'Categorías'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Ajustes'),
         ],
       ),
     );
   }
-
 }
 
 // -----------------------------------------------------------------------------
-// WIDGETS AUXILIARES (Los he dejado igual ya que solo contienen UI/Chart Logic)
+// WIDGETS AUXILIARES
 // -----------------------------------------------------------------------------
 
 class _MonthSelector extends StatelessWidget {
   final DateTime selectedDate;
   final VoidCallback onTap;
+  final Color color;
 
-  const _MonthSelector({required this.selectedDate, required this.onTap});
+  const _MonthSelector({required this.selectedDate, required this.onTap, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.purple.shade100),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.2)),
           boxShadow: [
             BoxShadow(
-              color: Colors.purple.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.05),
+              spreadRadius: 0,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.calendar_today, size: 18, color: Colors.purple[700]),
+            Icon(Icons.calendar_today, size: 18, color: color),
             const SizedBox(width: 8),
             Text(
-              DateFormat('MMMM yyyy', 'es_ES').format(selectedDate),
+              DateFormat('MMMM yyyy', 'es_ES').format(selectedDate).toUpperCase(),
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.purple[700],
+                color: color,
+                letterSpacing: 0.5,
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down, color: Colors.purple[700]),
+            Icon(Icons.arrow_drop_down, color: color),
           ],
         ),
       ),
@@ -393,8 +408,9 @@ class _MonthSelector extends StatelessWidget {
 
 class MonthlySummaryCard extends StatelessWidget {
   final MonthlySummary summary;
+  final Color cAzulPetroleo;
 
-  const MonthlySummaryCard({super.key, required this.summary});
+  const MonthlySummaryCard({super.key, required this.summary, required this.cAzulPetroleo});
 
   @override
   Widget build(BuildContext context) {
@@ -402,13 +418,13 @@ class MonthlySummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -416,17 +432,17 @@ class MonthlySummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Resumen Mensual (${summary.nombreMes})',
-            style: const TextStyle(
+            'Resumen Mensual',
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: cAzulPetroleo,
             ),
           ),
           const SizedBox(height: 20),
 
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _SummaryItem(
                 label: 'Ingresos',
@@ -441,7 +457,7 @@ class MonthlySummaryCard extends StatelessWidget {
               _SummaryItem(
                 label: 'Balance',
                 value: currencyFormat.format(summary.balance),
-                color: summary.balance >= 0 ? Colors.blue[600]! : Colors.red[600]!,
+                color: summary.balance >= 0 ? cAzulPetroleo : Colors.red[600]!,
               ),
             ],
           ),
@@ -465,20 +481,21 @@ class _SummaryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             color: Colors.grey,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -490,139 +507,228 @@ class _SummaryItem extends StatelessWidget {
 
 class MonthlyTrendChart extends StatelessWidget {
   final List<TrendData> trendData;
+  final Color cAzulPetroleo;
+  final Color cVerdeMenta;
+  final Color cRojo;
 
-  const MonthlyTrendChart({super.key, required this.trendData});
+  const MonthlyTrendChart({
+    super.key,
+    required this.trendData,
+    required this.cAzulPetroleo,
+    required this.cVerdeMenta,
+    required this.cRojo,
+  });
+
+  void _showInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.info_outline, color: cAzulPetroleo),
+              const SizedBox(width: 10),
+              Text('Acerca del Gráfico', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Este gráfico muestra la evolución de tus finanzas en los últimos 6 meses.',
+                style: TextStyle(color: Colors.grey[800]),
+              ),
+              const SizedBox(height: 12),
+              RichText(
+                text: TextSpan(
+                  style: TextStyle(color: Colors.grey[800], fontSize: 14),
+                  children: [
+                    const TextSpan(text: '• '),
+                    TextSpan(text: 'Ingresos: ', style: TextStyle(fontWeight: FontWeight.bold, color: cVerdeMenta)),
+                    const TextSpan(text: 'Suma de todos tus ingresos registrados + préstamos recibidos.'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              RichText(
+                text: TextSpan(
+                  style: TextStyle(color: Colors.grey[800], fontSize: 14),
+                  children: [
+                    const TextSpan(text: '• '),
+                    TextSpan(text: 'Gastos: ', style: TextStyle(fontWeight: FontWeight.bold, color: cRojo)),
+                    const TextSpan(text: 'Suma de todos tus gastos (presupuestos) + pagos de deudas realizados.'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Entendido', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // ... (La lógica de maxY, interval, spots, y left/bottom titles se queda igual) ...
     double maxY = 0;
     for (var data in trendData) {
       if (data.ingresos > maxY) maxY = data.ingresos;
       if (data.gastos > maxY) maxY = data.gastos;
     }
+    maxY = maxY == 0 ? 100 : maxY * 1.2;
     double interval = maxY / 4;
-    if (maxY == 0) {
-      maxY = 100.0;
-      interval = 25.0;
-    } else {
-      maxY = maxY * 1.1;
-      interval = (maxY / 4).ceilToDouble();
-    }
-    final List<FlSpot> ingresosSpots = trendData.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.ingresos);
-    }).toList();
-    final List<FlSpot> gastosSpots = trendData.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.gastos);
-    }).toList();
-    Widget leftTitleWidgets(double value, TitleMeta meta) {
-      if (value == meta.max) return Container();
-      const style = TextStyle(fontSize: 10, color: Colors.grey);
-      String text = currencyFormat.format(value).replaceAll('S/', '').split(',').first;
-      return Text(text, style: style, textAlign: TextAlign.left);
-    }
-    Widget bottomTitleWidgets(double value, TitleMeta meta) {
-      const style = TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500);
-      String text;
-      if (value.toInt() >= 0 && value.toInt() < trendData.length) {
-        text = trendData[value.toInt()].mesFull;
-      } else {
-        return Container();
-      }
-      return SideTitleWidget(axisSide: meta.axisSide, child: Text(text, style: style));
-    }
 
+    final List<FlSpot> ingresosSpots = [];
+    final List<FlSpot> gastosSpots = [];
+
+    for (int i = 0; i < trendData.length; i++) {
+      ingresosSpots.add(FlSpot(i.toDouble(), trendData[i].ingresos));
+      gastosSpots.add(FlSpot(i.toDouble(), trendData[i].gastos));
+    }
 
     return Container(
-      // ... (El Container exterior se queda igual) ...
-      padding: const EdgeInsets.fromLTRB(10, 20, 20, 10),
+      padding: const EdgeInsets.fromLTRB(16, 24, 24, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ... (El título se queda igual) ...
-          const Padding(
-            padding: EdgeInsets.only(left: 10.0),
-            child: Text(
-              'Tendencia Mensual (Ingresos vs. Gastos)',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tendencia (Últimos 6 meses)',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: cAzulPetroleo,
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _showInfoDialog(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Icon(Icons.info_outline, color: Colors.grey[400], size: 22),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
+
           SizedBox(
-            height: 200,
+            height: 250,
             child: LineChart(
               LineChartData(
-                // ... (gridData se queda igual) ...
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
+                  horizontalInterval: interval,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: Colors.grey.shade200,
+                      color: Colors.grey.shade100,
                       strokeWidth: 1,
-                      dashArray: [3, 3],
                     );
                   },
                 ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    axisNameWidget: Text('Meses', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: cAzulPetroleo.withOpacity(0.6))),
+                    axisNameSize: 22,
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        int index = value.toInt();
+                        if (index >= 0 && index < trendData.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              trendData[index].mes,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    axisNameWidget: Text('Monto', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: cAzulPetroleo.withOpacity(0.6))),
+                    axisNameSize: 22,
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: interval,
+                      reservedSize: 46,
+                      getTitlesWidget: (value, meta) {
+                        if (value == 0) return const SizedBox.shrink();
+                        return Text(
+                          NumberFormat.compact(locale: 'en_US').format(value),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.right,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: 0,
+                maxX: (trendData.length - 1).toDouble(),
+                minY: 0,
+                maxY: maxY,
 
-                // --- Tooltips (CON CORRECCIONES) ---
                 lineTouchData: LineTouchData(
-                  handleBuiltInTouches: true,
-                  getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
-                    return spotIndexes.map((spotIndex) {
-                      return TouchedSpotIndicatorData(
-                        FlLine(color: Colors.purple.withOpacity(0.5), strokeWidth: 4),
-                        FlDotData(
-                          getDotPainter: (spot, percent, barData, index) {
-                            return FlDotCirclePainter(
-                              radius: 6,
-                              // 👇 CORRECCIÓN 1: Añadir un color por defecto (fallback)
-                              // Esto soluciona el 'color: barData.color' en rojo
-                              color: barData.color ?? Colors.transparent,
-                              strokeColor: Colors.white,
-                              strokeWidth: 2,
-                            );
-                          },
-                        ),
-                      );
-                    }).toList();
-                  },
                   touchTooltipData: LineTouchTooltipData(
-                    // 👇 CORRECCIÓN 2: Usar el color del tema de forma más segura
-                    // Esto soluciona el 'tooltipBgColor' en rojo
-                    tooltipBgColor: Theme.of(context).primaryColorDark,
+                    tooltipBgColor: cAzulPetroleo,
                     getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
                       return touchedBarSpots.map((barSpot) {
                         final flSpot = barSpot;
-                        String text = currencyFormat.format(flSpot.y);
-
-                        // 👇 CORRECCIÓN 3: Usar barIndex (0 o 1) en lugar de comparar colores
-                        // Esta es la corrección de lógica más importante
-                        final String label = barSpot.barIndex == 0 ? 'Ingreso: ' : 'Gasto: ';
-
+                        final bool isIncome = barSpot.barIndex == 0;
                         return LineTooltipItem(
-                          label,
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          '${isIncome ? "Ingreso" : "Gasto"}: \n',
+                          TextStyle(
+                            color: isIncome ? cVerdeMenta : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                           children: [
                             TextSpan(
-                              text: text,
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              text: currencyFormat.format(flSpot.y),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.normal,
+                              ),
                             ),
                           ],
                         );
@@ -630,113 +736,72 @@ class MonthlyTrendChart extends StatelessWidget {
                     },
                   ),
                 ),
-                // --- Fin de las correcciones ---
 
-                // ... (titlesData, borderData, min/max X/Y, y lineBarsData se quedan igual) ...
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: bottomTitleWidgets,
-                      interval: 1,
-                    ),
-                    axisNameWidget: const Text(
-                      'Mes',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black54),
-                    ),
-                    axisNameSize: 24,
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 45,
-                      getTitlesWidget: leftTitleWidgets,
-                      interval: interval,
-                    ),
-                    axisNameWidget: const Text(
-                      'Monto (S/)',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black54),
-                    ),
-                    axisNameSize: 30,
-                  ),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade300, width: 2),
-                    left: BorderSide(color: Colors.grey.shade300, width: 2),
-                    top: BorderSide.none,
-                    right: BorderSide.none,
-                  ),
-                ),
-                minX: 0,
-                maxX: trendData.length.toDouble() - 1,
-                minY: 0,
-                maxY: maxY,
                 lineBarsData: [
                   LineChartBarData(
                     spots: ingresosSpots,
                     isCurved: true,
-                    color: Colors.green.shade600, // <-- Este color se usa en la Corrección 1
-                    barWidth: 4,
+                    color: cVerdeMenta,
+                    barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                          strokeColor: cVerdeMenta,
+                        );
+                      },
+                    ),
                     belowBarData: BarAreaData(
                       show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.green.shade600.withOpacity(0.3),
-                          Colors.green.shade600.withOpacity(0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
+                      color: cVerdeMenta.withOpacity(0.1),
                     ),
                   ),
                   LineChartBarData(
                     spots: gastosSpots,
                     isCurved: true,
-                    color: Colors.red.shade600, // <-- Este color se usa en la Corrección 1
-                    barWidth: 4,
+                    color: cRojo,
+                    barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                          strokeColor: cRojo,
+                        );
+                      },
+                    ),
                     belowBarData: BarAreaData(
                       show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.red.shade600.withOpacity(0.3),
-                          Colors.red.shade600.withOpacity(0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
+                      color: cRojo.withOpacity(0.1),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+
           const SizedBox(height: 10),
-          // ... (La leyenda se queda igual) ...
-          Padding(
-            padding: const EdgeInsets.only(left: 10.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _LegendItem(color: Colors.green.shade600, text: 'Ingresos'),
-                const SizedBox(width: 20),
-                _LegendItem(color: Colors.red.shade600, text: 'Gastos'),
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendItem(color: cVerdeMenta, text: 'Ingresos'),
+              const SizedBox(width: 24),
+              _LegendItem(color: cRojo, text: 'Gastos'),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String text;
@@ -752,15 +817,16 @@ class _LegendItem extends StatelessWidget {
           height: 10,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(5),
+            shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 5),
+        const SizedBox(width: 6),
         Text(
           text,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             color: Colors.grey[700],
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -770,8 +836,9 @@ class _LegendItem extends StatelessWidget {
 
 class BudgetComplianceCard extends StatelessWidget {
   final List<BudgetCompliance> budgets;
+  final Color cAzulPetroleo;
 
-  const BudgetComplianceCard({super.key, required this.budgets});
+  const BudgetComplianceCard({super.key, required this.budgets, required this.cAzulPetroleo});
 
   @override
   Widget build(BuildContext context) {
@@ -779,35 +846,35 @@ class BudgetComplianceCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Cumplimiento de Presupuestos',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: cAzulPetroleo,
             ),
           ),
           const SizedBox(height: 20),
 
           if (budgets.isEmpty)
-            const Center(child: Text('No hay presupuestos activos para este mes.'))
+            Center(child: Text('No hay presupuestos activos para este mes.', style: TextStyle(color: Colors.grey[600])))
           else
             ...budgets.map((budget) => Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
-              child: _DynamicBudgetItem(budget: budget),
+              child: _DynamicBudgetItem(budget: budget, cAzulPetroleo: cAzulPetroleo),
             )).toList(),
         ],
       ),
@@ -817,51 +884,41 @@ class BudgetComplianceCard extends StatelessWidget {
 
 class _DynamicBudgetItem extends StatelessWidget {
   final BudgetCompliance budget;
+  final Color cAzulPetroleo;
 
-  const _DynamicBudgetItem({required this.budget});
+  const _DynamicBudgetItem({required this.budget, required this.cAzulPetroleo});
 
   @override
   Widget build(BuildContext context) {
-    final bool isIncome = budget.categoriaTipo == 'ingreso'; // <-- Checkea el tipo
+    final bool isIncome = budget.categoriaTipo == 'ingreso';
 
-    // --- Lógica condicional para colores y textos ---
     Color amountColor;
     Color progressColor;
-    String amountLabel;
     String remainingLabel;
     double progressValue = budget.presupuestoMonto > 0 ? (budget.montoAlcanzado / budget.presupuestoMonto) : 0;
 
     if (isIncome) {
-      // Lógica para Ingresos
-      amountLabel = 'Alcanzado:';
-      amountColor = Colors.green.shade600; // Verde si se alcanza/supera
+      amountColor = Colors.green.shade600;
       progressColor = Colors.green.shade600;
       if (budget.montoAlcanzado >= budget.presupuestoMonto) {
         remainingLabel = 'Meta superada en ${currencyFormat.format(budget.montoAlcanzado - budget.presupuestoMonto)}';
       } else {
         remainingLabel = '${(budget.porcentajeAlcanzado).toStringAsFixed(0)}%. Queda ${currencyFormat.format(budget.restante)}';
       }
-      // Aseguramos que el progreso no pase de 1.0 para la barra visual
       progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
 
     } else {
-      // Lógica para Gastos (la que ya tenías, ajustada)
-      amountLabel = 'Gastado:';
       final bool isOverBudget = budget.restante < 0;
-      amountColor = isOverBudget ? Colors.red.shade600 : Colors.orange.shade700; // Naranja/Rojo para gastos
-      progressColor = isOverBudget ? Colors.red.shade600 : Colors.orange.shade700;
+      amountColor = isOverBudget ? Colors.red.shade600 : cAzulPetroleo;
+      progressColor = isOverBudget ? Colors.red.shade600 : const Color(0xFF2A9D8F); // Verde menta
       if (isOverBudget) {
         remainingLabel = 'Excedido en ${currencyFormat.format(budget.restante.abs())}';
       } else {
-        // Calculamos % restante basado en el monto restante
         double remainingPercentage = budget.presupuestoMonto > 0 ? (budget.restante / budget.presupuestoMonto * 100) : 0;
         remainingLabel = '${remainingPercentage.toStringAsFixed(0)}%. Queda ${currencyFormat.format(budget.restante)}';
       }
-      // Aseguramos que el progreso no pase de 1.0 para la barra visual
       progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
     }
-    // --- Fin lógica condicional ---
-
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -871,19 +928,18 @@ class _DynamicBudgetItem extends StatelessWidget {
           children: [
             Text(
               budget.categoriaNombre,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
             ),
-            // Muestra Monto Alcanzado (sea ingreso o gasto)
             Text(
-              currencyFormat.format(budget.montoAlcanzado), // Usa el nuevo nombre
+              currencyFormat.format(budget.montoAlcanzado),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: amountColor, // Color dinámico
+                color: amountColor,
               ),
             ),
           ],
@@ -892,7 +948,6 @@ class _DynamicBudgetItem extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Muestra el Monto del Presupuesto
             Text(
               'Presupuesto: ${currencyFormat.format(budget.presupuestoMonto)}',
               style: TextStyle(
@@ -900,23 +955,21 @@ class _DynamicBudgetItem extends StatelessWidget {
                 color: Colors.grey[600],
               ),
             ),
-            // Muestra el texto de 'restante' dinámico
             Text(
               remainingLabel,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: amountColor, // Usa el mismo color dinámico
+                color: amountColor,
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        // Barra de progreso
         LinearProgressIndicator(
-          value: progressValue, // Usa el valor calculado
+          value: progressValue,
           backgroundColor: Colors.grey.shade200,
-          color: progressColor, // Color dinámico
+          color: progressColor,
           minHeight: 8,
           borderRadius: BorderRadius.circular(4),
         ),
@@ -927,8 +980,9 @@ class _DynamicBudgetItem extends StatelessWidget {
 
 class CommitmentPaymentsCard extends StatelessWidget {
   final List<CommitmentPayment> payments;
+  final Color cAzulPetroleo;
 
-  const CommitmentPaymentsCard({super.key, required this.payments});
+  const CommitmentPaymentsCard({super.key, required this.payments, required this.cAzulPetroleo});
 
   @override
   Widget build(BuildContext context) {
@@ -936,30 +990,30 @@ class CommitmentPaymentsCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Pagos de Compromisos del Mes',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: cAzulPetroleo,
             ),
           ),
           const SizedBox(height: 20),
           if (payments.isEmpty)
-            const Center(child: Text('No se realizaron pagos de compromisos este mes.'))
+            Center(child: Text('No se realizaron pagos de compromisos este mes.', style: TextStyle(color: Colors.grey[600])))
           else
             ListView.separated(
               shrinkWrap: true,
@@ -976,7 +1030,6 @@ class CommitmentPaymentsCard extends StatelessWidget {
   }
 }
 
-// --- 👇 WIDGET NUEVO: ITEM INDIVIDUAL DE PAGO ---
 class _PaymentItem extends StatelessWidget {
   final CommitmentPayment payment;
 
@@ -984,12 +1037,11 @@ class _PaymentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determina si es ingreso (préstamo recibido) o gasto (pago de deuda)
-    final bool isIncome = payment.tipoMovimiento == 'pago_ingreso';
+    final bool isIncome = payment.esIngreso;
+
     final Color amountColor = isIncome ? Colors.green[600]! : Colors.red[600]!;
     final String sign = isIncome ? '+' : '-';
 
-    // Crea el subtítulo dinámicamente
     String subtitle;
     if (payment.cuotaNumero != null) {
       subtitle = 'Cta. N° ${payment.cuotaNumero}: ${payment.compromisoNombre}';
@@ -1002,7 +1054,7 @@ class _PaymentItem extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: amountColor.withOpacity(0.1),
         child: Icon(
-          isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+          isIncome ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, // <-- CORREGIDO AQUÍ
           color: amountColor,
           size: 20,
         ),

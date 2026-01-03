@@ -1,9 +1,5 @@
 // lib/models/report_data.dart
 import 'dart:convert';
-
-// --- NUEVA FUNCIÓN AUXILIAR ---
-// Esta función intentará parsear un valor a double,
-// sin importar si es int, double, o String.
 double _parseDouble(dynamic value) {
   if (value == null) {
     return 0.0;
@@ -49,8 +45,8 @@ class MonthlySummary {
 }
 
 class TrendData {
-  final String mes;
-  final String mesFull;
+  final String mes;      // Ejemplo: "12" o "Dic"
+  final String mesFull;  // Ejemplo: "Diciembre"
   final int year;
   final double ingresos;
   final double gastos;
@@ -64,13 +60,19 @@ class TrendData {
   });
 
   factory TrendData.fromJson(Map<String, dynamic> json) {
+    // Helper seguro para convertir a double
+    double toDouble(dynamic val) {
+      if (val == null) return 0.0;
+      if (val is int) return val.toDouble();
+      return val as double;
+    }
+
     return TrendData(
-      mes: json['mes'] as String,
-      mesFull: json['mes_full'] as String,
-      year: json['year'] as int,
-      // 👇 USA LA NUEVA FUNCIÓN AUXILIAR
-      ingresos: _parseDouble(json['ingresos']),
-      gastos: _parseDouble(json['gastos']),
+      mes: json['mes'].toString(),
+      mesFull: json['mes_full']?.toString() ?? json['mes'].toString(),
+      year: int.parse(json['year'].toString()),
+      ingresos: toDouble(json['ingresos']),
+      gastos: toDouble(json['gastos']),
     );
   }
 }
@@ -112,16 +114,16 @@ class CommitmentPayment {
   final int id;
   final double monto;
   final DateTime fechaPago;
-  final String tipoMovimiento;
   final String compromisoNombre;
+  final String tipoCompromiso; // 'Préstamo' o 'Deuda'
   final int? cuotaNumero;
 
   CommitmentPayment({
     required this.id,
     required this.monto,
     required this.fechaPago,
-    required this.tipoMovimiento,
     required this.compromisoNombre,
+    required this.tipoCompromiso,
     this.cuotaNumero,
   });
 
@@ -131,14 +133,17 @@ class CommitmentPayment {
 
     return CommitmentPayment(
       id: json['id'] as int,
-      // 👇 USA LA NUEVA FUNCIÓN AUXILIAR
       monto: _parseDouble(json['monto']),
       fechaPago: DateTime.parse(json['fecha_pago']),
-      tipoMovimiento: json['tipo_movimiento'] ?? 'desconocido',
+      // Extraemos el tipo directamente del compromiso padre
+      tipoCompromiso: compromiso?['tipo_compromiso'] ?? 'Desconocido',
       compromisoNombre: compromiso?['nombre'] ?? 'Compromiso Eliminado',
       cuotaNumero: cuota?['numero_cuota'] as int?,
     );
   }
+
+  // Helper para saber si es ingreso
+  bool get esIngreso => tipoCompromiso == 'Préstamo';
 }
 
 class ReportData {
