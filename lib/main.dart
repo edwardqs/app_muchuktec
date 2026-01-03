@@ -36,24 +36,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 void main() async {
-  // Asegurar que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializar Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 👇 3. REGISTRA EL MANEJADOR DE SEGUNDO PLANO
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Inicializar localización para formatos de fecha
-  await initializeDateFormatting('es');
-  await MobileAds.instance.initialize();
+
+  MobileAds.instance.initialize();
+  initializeDateFormatting('es');
   runApp(
     ChangeNotifierProvider(
       create: (context) => UserSession(), // Aquí creamos la instancia global
-      child: EconoMuchikApp(), // Tu app ahora es un hijo
+      child: const EconoMuchikApp(), // Tu app ahora es un hijo
     ),
   );
 }

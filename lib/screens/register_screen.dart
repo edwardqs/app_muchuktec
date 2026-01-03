@@ -39,7 +39,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final ValueNotifier<bool> _isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _selectedGender = ValueNotifier<String?>(null);
   final ValueNotifier<DateTime?> _selectedDate = ValueNotifier<DateTime?>(null);
-  final ValueNotifier<String> _errorMessage = ValueNotifier<String>('');
+  // _errorMessage ya no se usa para mostrar en el UI, pero lo mantengo por si acaso lo usas en lógica interna,
+  // aunque para el modal usaremos una función directa.
 
   @override
   void dispose() {
@@ -58,22 +59,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _isLoading.dispose();
     _selectedGender.dispose();
     _selectedDate.dispose();
-    _errorMessage.dispose();
     super.dispose();
+  }
+
+  // ✅ NUEVA FUNCIÓN: Muestra el error en un modal rojo
+  void _showErrorModal(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.red, // Fondo Rojo
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: const EdgeInsets.all(24),
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white, size: 28),
+              SizedBox(width: 12),
+              Text(
+                'Error',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white, // Texto Blanco
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cAzulPetroleo, // Fondo base por si falla el gradiente
+      backgroundColor: cAzulPetroleo,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              cAzulPetroleo, // #264653
-              Color.lerp(cAzulPetroleo, cVerdeMenta, 0.3)!, // Transición suave
+              cAzulPetroleo,
+              Color.lerp(cAzulPetroleo, cVerdeMenta, 0.3)!,
             ],
           ),
         ),
@@ -94,7 +146,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 30),
-          // Header simplificado (sin logo, solo texto limpio)
           const _HeaderSection(),
           const SizedBox(height: 30),
           _buildFormContainer(),
@@ -112,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: cBlanco, // Fondo blanco para el formulario
+        color: cBlanco,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -125,38 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       child: Column(
         children: [
-          // Mensaje de error
-          ValueListenableBuilder<String>(
-            valueListenable: _errorMessage,
-            builder: (context, errorMsg, child) {
-              if (errorMsg.isEmpty) return const SizedBox.shrink();
-              return Container(
-                margin: const EdgeInsets.only(bottom: 20),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red[700], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        errorMsg,
-                        style: TextStyle(
-                          color: Colors.red[700],
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          // ❌ SE ELIMINÓ EL ValueListenableBuilder QUE MOSTRABA EL ERROR AQUÍ
 
           _buildModernTextField(
             controller: _nameController,
@@ -299,7 +319,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       keyboardType: keyboardType,
       obscureText: isPassword ? !(isPasswordVisible ?? false) : false,
       inputFormatters: inputFormatters,
-      // ESTO HACE QUE EL ERROR SE QUITE AL ESCRIBIR
       autovalidateMode: AutovalidateMode.onUserInteraction,
       style: TextStyle(
         fontSize: 16,
@@ -308,7 +327,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       decoration: InputDecoration(
         labelText: label,
-        // Configuración para que el label se vea bien
         alignLabelWithHint: true,
         floatingLabelStyle: TextStyle(
             color: cVerdeMenta,
@@ -339,9 +357,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           color: cAzulPetroleo.withOpacity(0.5),
           fontSize: 12,
         ),
-        // Bordes y Rellenos limpios
         filled: true,
-        fillColor: cGrisClaro, // #F4F4F4
+        fillColor: cGrisClaro,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -572,7 +589,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           width: double.infinity,
           height: 56,
           decoration: BoxDecoration(
-            color: cVerdeMenta, // Verde Menta oficial
+            color: cVerdeMenta,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -651,7 +668,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       _isLoading.value = true;
-      _errorMessage.value = '';
+      // Ya no seteamos _errorMessage.value aquí para mostrar en form
 
       int tipoDocumento = _selectedDocumentType.value == 'DNI' ? 1 : 2;
       String? generoParaEnvio;
@@ -698,16 +715,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           }
         } else {
           final responseData = json.decode(response.body);
+          String errorText = '';
           if (responseData['errors'] != null) {
-            final firstError = responseData['errors'].values.first[0];
-            _errorMessage.value = firstError;
+            errorText = responseData['errors'].values.first[0];
           } else {
-            _errorMessage.value =
-                responseData['message'] ?? 'Error desconocido al registrar.';
+            errorText = responseData['message'] ?? 'Error desconocido al registrar.';
           }
+
+          // ✅ AQUÍ ES DONDE LLAMAMOS AL MODAL
+          _showErrorModal(errorText);
         }
       } catch (e) {
-        _errorMessage.value = 'No se pudo conectar al servidor: $e';
+        _showErrorModal('No se pudo conectar al servidor: $e');
         print('Error en el registro: $e');
       } finally {
         _isLoading.value = false;
@@ -721,7 +740,6 @@ class _HeaderSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Logo eliminado, solo textos limpios y modernos
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

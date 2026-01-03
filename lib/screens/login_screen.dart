@@ -250,25 +250,27 @@ class _LoginScreenState extends State<LoginScreen> {
             valueListenable: _errorMessage,
             builder: (context, errorMsg, child) {
               if (errorMsg.isEmpty) return const SizedBox.shrink();
+
+              // ✅ CAMBIOS APLICADOS AQUÍ PARA EL MENSAJE DE ERROR
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red, // Rojo sólido
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  // No border needed with solid color
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red[700], size: 18),
+                    const Icon(Icons.error_outline, color: Colors.white, size: 20), // Ícono blanco
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         errorMsg,
-                        style: TextStyle(
-                          color: Colors.red[700],
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                        style: const TextStyle(
+                          color: Colors.white, // Texto blanco
+                          fontSize: 15, // Letra un poco más grande
+                          fontWeight: FontWeight.w600, // Un poco más grueso para que se lea bien en rojo
                           fontFamily: 'Poppins',
                         ),
                       ),
@@ -430,10 +432,7 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: TextFormField(
-            // ¡ESTA LÍNEA ES LA MAGIA! 👇
-            // Hace que el error desaparezca apenas el usuario interactúa con el campo
             autovalidateMode: AutovalidateMode.onUserInteraction,
-
             controller: controller,
             keyboardType: keyboardType,
             obscureText: isPassword ? !(isPasswordVisible ?? false) : false,
