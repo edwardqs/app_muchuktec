@@ -90,6 +90,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   // Beneficios
                   _buildPremiumCard(Icons.app_blocking, 'Cero Anuncios', 'Navega por la app sin distracciones publicitarias.'),
                   _buildPremiumCard(Icons.group_add_rounded, 'Multiperfiles', 'Crea hasta 10 perfiles para toda tu familia.'),
+                  _buildPremiumCard(Icons.file_download_rounded, 'Exportar Reportes', 'Descarga tus informes detallados en formato PDF y Excel.'),
                   _buildPremiumCard(Icons.security_rounded, 'Soporte VIP', 'Atención prioritaria para cualquier consulta.'),
                 ],
               ),
@@ -97,7 +98,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
 
           // Espacio para que el botón no tape el contenido
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          const SliverToBoxAdapter(child: SizedBox(height: 180)),
         ],
       ),
 
@@ -117,9 +118,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Suscripción Mensual', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const Text('Suscripción Anual', style: TextStyle(fontSize: 14, color: Colors.grey)),
                 Text(
-                  'S/ 9.90',
+                  'S/ 4.90',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: cAzulPetroleo),
                 ),
               ],

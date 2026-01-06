@@ -162,7 +162,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                           ),
                           textAlign: TextAlign.center,
                           decoration: InputDecoration(
-                            hintText: 'Ej: ABC-123',
+                            hintText: 'Ej: ABC123',
                             hintStyle: TextStyle(
                                 color: cAzulPetroleo.withOpacity(0.3),
                                 letterSpacing: 1

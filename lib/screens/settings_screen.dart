@@ -313,10 +313,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 children: [
                   _SettingsItem(
-                    icon: Icons.star_rounded,
-                    title: 'Plan Premium',
-                    iconColor: Colors.orange[700],
+                    icon: Icons.auto_awesome,
+                    title: 'Planifiko Premium',
+                    iconColor: cVerdeMenta,
                     textColor: cAzulPetroleo,
+                    // 🌟 CAMBIO: Bajamos la intensidad al 80% para que no sea un bloque tan sólido
+                    backgroundColor: cAzulPetroleo.withOpacity(0.95),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -480,7 +482,9 @@ class _SettingsItem extends StatelessWidget {
   final String title;
   final Color? iconColor;
   final Color? textColor;
+  final Color? backgroundColor;
   final Widget? trailing;
+  final Widget? leading;
   final VoidCallback onTap;
 
   const _SettingsItem({
@@ -488,17 +492,19 @@ class _SettingsItem extends StatelessWidget {
     required this.title,
     this.iconColor,
     this.textColor,
+    this.backgroundColor,
     this.trailing,
+    this.leading,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Container(
+      leading: leading ?? Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: (iconColor ?? Colors.grey).withOpacity(0.1),
+          color: backgroundColor ?? (iconColor ?? Colors.grey).withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(

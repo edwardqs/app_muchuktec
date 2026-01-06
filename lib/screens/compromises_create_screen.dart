@@ -529,7 +529,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             const SizedBox(height: 16),
 
             _buildLabeledTextField(
-              label: 'Cuota mensual calculada:',
+              label: 'Cuota calculada:',
               hint: 'S/.',
               controller: _calculatedAmountController,
               keyboardType: TextInputType.number,
