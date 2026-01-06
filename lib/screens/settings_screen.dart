@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_muchik/config/constants.dart';
-// ✅ 1. Importar el widget del banner
+import 'package:app_muchik/screens/subscription_screen.dart';
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -312,6 +312,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Column(
                 children: [
+                  _SettingsItem(
+                    icon: Icons.star_rounded,
+                    title: 'Plan Premium',
+                    iconColor: Colors.orange[700],
+                    textColor: cAzulPetroleo,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+                      );
+                    },
+                  ),
+                  Divider(height: 1, indent: 56, color: cGrisClaro), // Divisor
                   _SettingsItem(
                     icon: Icons.edit_outlined,
                     title: 'Editar datos personales',
