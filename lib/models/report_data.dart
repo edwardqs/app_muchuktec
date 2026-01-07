@@ -146,32 +146,68 @@ class CommitmentPayment {
   bool get esIngreso => tipoCompromiso == 'Préstamo';
 }
 
+class MonthlyMovement {
+  final int id;
+  final double monto;
+  final String tipo; // 'ingreso' o 'gasto'
+  final String fecha;
+  final String? nota;
+  final String categoriaNombre;
+
+  MonthlyMovement({
+    required this.id,
+    required this.monto,
+    required this.tipo,
+    required this.fecha,
+    this.nota,
+    required this.categoriaNombre,
+  });
+
+  factory MonthlyMovement.fromJson(Map<String, dynamic> json) {
+    return MonthlyMovement(
+      id: json['id'] ?? 0,
+      monto: double.tryParse(json['monto'].toString()) ?? 0.0,
+      tipo: json['tipo'] ?? 'gasto',
+      fecha: json['fecha'] ?? '',
+      nota: json['nota'],
+      categoriaNombre: json['categoria_nombre'] ?? 'Sin categoría',
+    );
+  }
+}
 class ReportData {
   final MonthlySummary summary;
   final List<TrendData> trend;
   final List<BudgetCompliance> budgets;
   final List<CommitmentPayment> commitmentPayments;
 
+  // ✅ 1. Agregamos la propiedad necesaria
+  final List<MonthlyMovement> movements;
+
   ReportData({
     required this.summary,
     required this.trend,
     required this.budgets,
     required this.commitmentPayments,
+    // ✅ 2. Agregamos al constructor con valor por defecto
+    this.movements = const [],
   });
 
   factory ReportData.fromJson(Map<String, dynamic> json) {
-    // --- VERIFICACIÓN DE NULOS (Defensa extra) ---
-    // Si alguna lista es nula en el JSON, la convertimos en una lista vacía.
     final trendList = json['trend'] as List?;
     final budgetsList = json['budgets'] as List?;
-    // Corregí el nombre de la clave para que coincida con tu Laravel
     final commitmentPaymentsList = json['commitmentPayments'] as List?;
+
+    // ✅ 3. Leemos la lista del JSON
+    final movementsList = json['movements'] as List?;
 
     return ReportData(
       summary: MonthlySummary.fromJson(json['summary']),
       trend: trendList?.map((i) => TrendData.fromJson(i)).toList() ?? [],
       budgets: budgetsList?.map((i) => BudgetCompliance.fromJson(i)).toList() ?? [],
       commitmentPayments: commitmentPaymentsList?.map((i) => CommitmentPayment.fromJson(i)).toList() ?? [],
+
+      // ✅ 4. Mapeamos usando tu clase MonthlyMovement
+      movements: movementsList?.map((i) => MonthlyMovement.fromJson(i)).toList() ?? [],
     );
   }
 }

@@ -1,5 +1,6 @@
 // widgets/monthly_summary.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // ✅ Import necesario
 import '../widgets/finance_chart.dart';
 
 class MonthlySummary extends StatelessWidget {
@@ -7,6 +8,13 @@ class MonthlySummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ DEFINIMOS EL FORMATO DE MONEDA AQUÍ
+    final currencyFormat = NumberFormat.currency(
+        locale: 'en_US',
+        symbol: 'S/ ',
+        decimalDigits: 2
+    );
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -49,8 +57,9 @@ class MonthlySummary extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // ✅ USO DEL FORMATTER
                   Text(
-                    'S/2,500.00',
+                    currencyFormat.format(2500.00),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -70,8 +79,9 @@ class MonthlySummary extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // ✅ USO DEL FORMATTER
                   Text(
-                    'S/1,249.25',
+                    currencyFormat.format(1249.25),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -91,8 +101,9 @@ class MonthlySummary extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // ✅ USO DEL FORMATTER
                   Text(
-                    'S/1,250.75',
+                    currencyFormat.format(1250.75),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

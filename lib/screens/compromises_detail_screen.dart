@@ -215,7 +215,8 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                               border: Border.all(color: cVerdeMenta.withOpacity(0.3)),
                             ),
                             child: Text(
-                              "Pagando ${preselectedInstallment.displayText}",
+                              // AQUI ESTÁ EL FORMATO
+                              "Pagando Cuota ${preselectedInstallment.numeroCuota} (${_formatDate(preselectedInstallment.fechaPagoProgramada)}) - Restante: ${_formatCurrency(preselectedInstallment.saldoRestante)}",
                               style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -342,9 +343,9 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
 
   String _formatCurrency(double? value) {
     if (value == null) return 'N/A';
-    final numberFormatter = NumberFormat("#,##0.00", "es_PE");
-    String numeroFormateado = numberFormatter.format(value);
-    return 'S/ $numeroFormateado';
+    // ✅ CAMBIO: Locale 'en_US' para formato 1,234.56
+    final numberFormatter = NumberFormat.currency(locale: 'en_US', symbol: 'S/ ', decimalDigits: 2);
+    return numberFormatter.format(value);
   }
 
   String _formatDate(String? date) {
@@ -436,7 +437,8 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                 ),
                 _buildConfirmationRow(
                     'Monto a Pagar:',
-                    'S/ ${amount.toStringAsFixed(2)}',
+                    // ✅ USO DE FORMATTER
+                    NumberFormat.currency(locale: 'en_US', symbol: 'S/ ', decimalDigits: 2).format(amount),
                     isBold: true,
                     valueColor: cVerdeMenta
                 ),
@@ -612,6 +614,9 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
         ? allPayments
         : (hasMoreThanThreePayments ? allPayments.sublist(0, 3) : allPayments);
 
+    // ✅ Formatter para la tabla
+    final currencyFormatter = NumberFormat.currency(locale: 'en_US', symbol: 'S/ ', decimalDigits: 2);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -717,7 +722,8 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                       cells: [
                         DataCell(Text(_formatDate(pago.fechaPago))),
                         DataCell(Text(pago.cuotaDisplayText)),
-                        DataCell(Text(pago.montoFormateado, style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold))),
+                        // ✅ USO DE FORMATTER
+                        DataCell(Text(currencyFormatter.format(pago.monto), style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold))),
                       ],
                     );
                   }).toList(),
@@ -776,9 +782,11 @@ class _CompromisesDetailScreenState extends State<CompromisesDetailScreen> {
                       return DataRow(
                         cells: [
                           DataCell(Text(cuota.numeroCuota.toString())),
-                          DataCell(Text(cuota.montoTotalFormateado)),
+                          // ✅ USO DE FORMATTER
+                          DataCell(Text(currencyFormatter.format(cuota.monto))),
+                          // ✅ USO DE FORMATTER
                           DataCell(Text(
-                            cuota.saldoRestanteFormateado,
+                            currencyFormatter.format(cuota.saldoRestante),
                             style: TextStyle(fontWeight: FontWeight.bold, color: cuota.pagado ? Colors.grey : cAzulPetroleo),
                           )),
                           DataCell(

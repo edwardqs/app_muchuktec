@@ -45,7 +45,7 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
 
-  MobileAds.instance.initialize();
+  await MobileAds.instance.initialize();
   initializeDateFormatting('es');
   runApp(
     ChangeNotifierProvider(

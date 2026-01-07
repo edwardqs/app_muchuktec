@@ -89,7 +89,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
   void _showEditDialog(CompromiseModel compromise) {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: compromise.name);
-    final amountController = TextEditingController(text: compromise.montoTotal?.toStringAsFixed(2) ?? '0.00');
+    // Nota: amountController no se usa para editar el monto en este ejemplo, solo visualización si quisieras
 
     showDialog(
       context: context,
@@ -367,6 +367,13 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ DEFINIMOS EL FORMATO DE MONEDA AQUÍ
+    final currencyFormat = NumberFormat.currency(
+        locale: 'en_US',
+        symbol: 'S/ ',
+        decimalDigits: 2
+    );
+
     return Scaffold(
       backgroundColor: cGrisClaro, // Fondo oficial #F4F4F4
       appBar: AppBar(
@@ -499,7 +506,8 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                   itemCount: compromises.length,
                   itemBuilder: (context, index) {
                     final compromise = compromises[index];
-                    return _buildCompromiseItem(compromise);
+                    // ✅ PASAMOS EL FORMATTER
+                    return _buildCompromiseItem(compromise, currencyFormat);
                   },
                 ),
           ],
@@ -658,7 +666,7 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
     );
   }
 
-  Widget _buildCompromiseItem(CompromiseModel compromise) {
+  Widget _buildCompromiseItem(CompromiseModel compromise, NumberFormat currencyFormat) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -689,8 +697,9 @@ class _CompromisesScreenState extends State<CompromisesScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
+                // ✅ USO DEL FORMATTER
                 Text(
-                  'Monto Total: S/ ${compromise.montoTotal?.toStringAsFixed(2) ?? compromise.amount.toStringAsFixed(2)}',
+                  'Monto Total: ${currencyFormat.format(compromise.montoTotal ?? compromise.amount)}',
                   style: TextStyle(
                     fontSize: 14,
                     color: cAzulPetroleo.withOpacity(0.6),

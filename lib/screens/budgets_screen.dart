@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'budgets_detail_screen.dart';
 import 'package:app_muchik/config/constants.dart';
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
-// ✅ 1. Importamos tu modelo de categoría
 import '../models/category_model.dart';
 
 class BudgetsScreen extends StatefulWidget {
@@ -22,6 +21,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   final Color cVerdeMenta = const Color(0xFF2A9D8F);
   final Color cGrisClaro = const Color(0xFFF4F4F4);
   final Color cBlanco = const Color(0xFFFFFFFF);
+  // Color complementario para gastos (Rojo suave que combina con la paleta)
+  final Color cRojo = const Color(0xFFE76F51);
 
   final int _selectedIndex = 2;
   bool _isLoading = true;
@@ -112,13 +113,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
-
       final int? selectedAccountId = prefs.getInt('idCuenta');
 
       if (token == null) {
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/');
-        }
+        if (mounted) Navigator.of(context).pushReplacementNamed('/');
         return;
       }
 
@@ -175,13 +173,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
 
-    if (token == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No se encontró el token de acceso.'), backgroundColor: Colors.red),
-      );
-      return;
-    }
+    if (token == null) return;
 
     final url = Uri.parse('$API_BASE_URL/presupuestos/$budgetId');
 
@@ -222,9 +214,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final token = prefs.getString('accessToken');
     final idCuenta = prefs.getInt('idCuenta');
 
-    if (token == null || idCuenta == null) {
-      throw Exception('Token o ID de cuenta no encontrados');
-    }
+    if (token == null || idCuenta == null) throw Exception('Auth error');
 
     final uri = Uri.parse('$API_BASE_URL/categorias').replace(
       queryParameters: {'idcuenta': idCuenta.toString()},
@@ -241,6 +231,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
+      // Aquí podrías filtrar si solo quieres editar gastos, o ambos.
+      // Por ahora mantenemos tu lógica de solo gastos si así lo deseas,
+      // o quitas el .where() para permitir cambiar a ingreso.
       return data
           .map((json) => CategoryModel.fromJson(json))
           .where((cat) => cat.type == 'gasto')
@@ -430,8 +423,33 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Widget build(BuildContext context) {
     final currentMonthBudgets = _getBudgetsForCurrentMonth();
 
+    // ✅ Formato de moneda: Miles con coma, decimales con punto
+    final currencyFormat = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: 'S/ ',
+      decimalDigits: 2,
+    );
+
+    // ✅ CÁLCULOS SEPARADOS PARA EL RESUMEN
+    // 1. Ingresos
+    final double budgetIngresos = currentMonthBudgets
+        .where((b) => b.categoryType == 'ingreso')
+        .fold(0.0, (sum, item) => sum + item.budgetAmount);
+    final double executedIngresos = currentMonthBudgets
+        .where((b) => b.categoryType == 'ingreso')
+        .fold(0.0, (sum, item) => sum + item.spentAmount);
+
+    // 2. Gastos
+    final double budgetGastos = currentMonthBudgets
+        .where((b) => b.categoryType == 'gasto')
+        .fold(0.0, (sum, item) => sum + item.budgetAmount);
+    final double executedGastos = currentMonthBudgets
+        .where((b) => b.categoryType == 'gasto')
+        .fold(0.0, (sum, item) => sum + item.spentAmount);
+
+
     return Scaffold(
-      backgroundColor: cGrisClaro, // Fondo oficial #F4F4F4
+      backgroundColor: cGrisClaro,
       appBar: AppBar(
         backgroundColor: cBlanco,
         elevation: 0,
@@ -451,29 +469,21 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.notifications_outlined, color: cAzulPetroleo),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
           ),
           InkWell(
-            onTap: () {
-              Navigator.pushNamed(context, '/accounts');
-            },
+            onTap: () => Navigator.pushNamed(context, '/accounts'),
             borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: cVerdeMenta.withOpacity(0.2), // Fondo suave
+                color: cVerdeMenta.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: _isLoading
-                  ? Center(
-                  child: CircularProgressIndicator(
-                    color: cVerdeMenta,
-                    strokeWidth: 2,
-                  ))
+                  ? Center(child: CircularProgressIndicator(color: cVerdeMenta, strokeWidth: 2))
                   : _profileImageUrl != null
                   ? ClipOval(
                 child: Image.network(
@@ -506,13 +516,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tarjeta Resumen con degradado oficial
+              // --- TARJETA RESUMEN SEPARADA (INGRESOS vs GASTOS) ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [cAzulPetroleo, cVerdeMenta], // Gradiente oficial
+                    colors: [cAzulPetroleo, cVerdeMenta],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -546,55 +556,84 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // CABECERAS DE COLUMNA
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Presupuestado',
-                              style: TextStyle(
-                                color: cBlanco.withOpacity(0.7),
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.budgetAmount).toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: cBlanco,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        SizedBox(width: 80, child: Text("Tipo", style: TextStyle(color: cBlanco.withOpacity(0.7), fontSize: 12))),
+                        Expanded(child: Text("Presupuestado", textAlign: TextAlign.right, style: TextStyle(color: cBlanco.withOpacity(0.7), fontSize: 12))),
+                        Expanded(child: Text("Ejecutado", textAlign: TextAlign.right, style: TextStyle(color: cBlanco.withOpacity(0.7), fontSize: 12))),
+                      ],
+                    ),
+                    const Divider(color: Colors.white24, height: 16),
+
+                    // FILA INGRESOS
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_upward, color: cBlanco, size: 14),
+                              const SizedBox(width: 4),
+                              Text('Ingresos', style: TextStyle(color: cBlanco, fontSize: 13, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         ),
-                        Container(width: 1, height: 40, color: cBlanco.withOpacity(0.2)),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Gastado Real',
-                              style: TextStyle(
-                                color: cBlanco.withOpacity(0.7),
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              'S/.${currentMonthBudgets.fold(0.0, (sum, item) => sum + item.spentAmount).toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: cBlanco,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        Expanded(
+                          child: Text(
+                            currencyFormat.format(budgetIngresos),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(color: cBlanco, fontSize: 14),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            currencyFormat.format(executedIngresos),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(color: cBlanco, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // FILA GASTOS
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_downward, color: Colors.red[100], size: 14),
+                              const SizedBox(width: 4),
+                              Text('Gastos', style: TextStyle(color: Colors.red[100], fontSize: 13, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            currencyFormat.format(budgetGastos),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(color: Colors.red[100], fontSize: 14),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            currencyFormat.format(executedGastos),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(color: Colors.red[100], fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -616,6 +655,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+
               currentMonthBudgets.isEmpty
                   ? Center(
                   child: Padding(
@@ -635,7 +675,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 itemCount: currentMonthBudgets.length,
                 itemBuilder: (context, index) {
                   final budget = currentMonthBudgets[index];
-                  return _buildBudgetCard(budget);
+                  // ✅ Usamos el método actualizado
+                  return _buildBudgetCard(budget, currencyFormat);
                 },
               ),
             ],
@@ -653,20 +694,40 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     );
   }
 
-  Widget _buildBudgetCard(Budget budget) {
-    Color statusColor;
-    String statusText;
-    double percentage = budget.budgetAmount > 0 ? (budget.spentAmount / budget.budgetAmount) * 100 : 0;
+  // ✅ WIDGET TARJETA ACTUALIZADO: Color difuminado según tipo (Ingreso vs Gasto)
+  Widget _buildBudgetCard(Budget budget, NumberFormat currencyFormat) {
+    final bool isIncome = budget.categoryType == 'ingreso';
 
-    if (percentage >= 100) {
-      statusColor = Colors.red;
-      statusText = 'Excedido en S/.${(budget.spentAmount - budget.budgetAmount).toStringAsFixed(2)}';
-    } else if (percentage >= 75) {
-      statusColor = Colors.orange;
-      statusText = '${(100 - percentage).toStringAsFixed(0)}% disponible';
+    // Colores base según tipo
+    final Color baseColor = isIncome ? cVerdeMenta : cRojo;
+    // Fondo difuminado oficial (Verde o Rojo)
+    final Color backgroundColor = baseColor.withOpacity(0.08);
+    final Color borderColor = baseColor.withOpacity(0.3);
+
+    double percentage = budget.budgetAmount > 0 ? (budget.spentAmount / budget.budgetAmount) : 0.0;
+
+    // Texto de estado y Color de barra
+    String statusText;
+    Color progressBarColor;
+
+    if (isIncome) {
+      // Lógica Ingreso: Verde es bueno, queremos llegar al 100%
+      if (percentage >= 1.0) {
+        statusText = '¡Meta Alcanzada!';
+        progressBarColor = cVerdeMenta;
+      } else {
+        statusText = 'Falta ${currencyFormat.format(budget.budgetAmount - budget.spentAmount)}';
+        progressBarColor = cVerdeMenta.withOpacity(0.7);
+      }
     } else {
-      statusColor = cVerdeMenta; // Verde oficial
-      statusText = '${(100 - percentage).toStringAsFixed(0)}% disponible';
+      // Lógica Gasto: Rojo es alerta, queremos no pasar el 100%
+      if (percentage >= 1.0) {
+        statusText = 'Excedido en ${currencyFormat.format(budget.spentAmount - budget.budgetAmount)}';
+        progressBarColor = Colors.red;
+      } else {
+        statusText = '${currencyFormat.format(budget.budgetAmount - budget.spentAmount)} disponible';
+        progressBarColor = cRojo; // Rojizo oficial
+      }
     }
 
     final monthName = getMonthName(budget.month);
@@ -684,11 +745,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: cBlanco,
+          color: backgroundColor, // ✅ Fondo difuminado según tipo
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor), // ✅ Borde sutil del color
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.03),
               spreadRadius: 0,
               blurRadius: 10,
               offset: const Offset(0, 4),
@@ -702,13 +764,31 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    budget.category,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: cAzulPetroleo,
-                    ),
+                  child: Row(
+                    children: [
+                      // Indicador visual de tipo
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: baseColor.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isIncome ? Icons.arrow_upward : Icons.arrow_downward,
+                          size: 16,
+                          color: baseColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        budget.category,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: cAzulPetroleo,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 PopupMenuButton<String>(
@@ -749,26 +829,31 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              monthName,
-              style: TextStyle(
-                fontSize: 12,
-                color: cAzulPetroleo.withOpacity(0.5),
+            Padding(
+              padding: const EdgeInsets.only(left: 32.0), // Indentación para alinear con nombre
+              child: Text(
+                monthName,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cAzulPetroleo.withOpacity(0.5),
+                ),
               ),
             ),
             const SizedBox(height: 12),
+
+            // Barra de progreso con fondo blanco para resaltar sobre el fondo de color
             Container(
               height: 8,
               decoration: BoxDecoration(
-                color: cGrisClaro,
+                color: cBlanco,
                 borderRadius: BorderRadius.circular(4),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: (percentage / 100).clamp(0.0, 1.0),
+                widthFactor: percentage.clamp(0.0, 1.0),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: statusColor,
+                    color: progressBarColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -781,8 +866,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ✅ USO DEL FORMATTER
                     Text(
-                      'S/.${budget.spentAmount.toStringAsFixed(2)} de S/.${budget.budgetAmount.toStringAsFixed(2)}',
+                      '${currencyFormat.format(budget.spentAmount)} de ${currencyFormat.format(budget.budgetAmount)}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -794,18 +880,18 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       statusText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: statusColor,
+                        color: baseColor, // Texto del color del tipo (Verde o Rojo)
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
                 Text(
-                  '${percentage.toStringAsFixed(0)}%',
+                  '${(percentage * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: statusColor,
+                    color: baseColor,
                   ),
                 ),
               ],
@@ -925,10 +1011,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 }
 
+// ✅ MODELO ACTUALIZADO CON TIPO Y LOGICA DE PARSEO
 class Budget {
   final String id;
   final int categoryId;
   final String category;
+  final String categoryType; // Nuevo campo
   final String month;
   final double budgetAmount;
   final double spentAmount;
@@ -937,6 +1025,7 @@ class Budget {
     required this.id,
     required this.categoryId,
     required this.category,
+    required this.categoryType,
     required this.month,
     required this.budgetAmount,
     required this.spentAmount,
@@ -948,13 +1037,19 @@ class Budget {
     final month = json['mes'] as String? ?? '';
     final category = json['categoria_nombre'] as String? ?? 'Sin categoría';
 
+    // Si tu backend no envía 'categoria_tipo', asumimos 'gasto' por defecto para no romper la app
+    final categoryType = json['categoria_tipo'] as String? ?? 'gasto';
+
     final budgetAmount = double.tryParse(json['monto'].toString()) ?? 0.0;
-    final spentAmount = double.tryParse(json['monto_gastado'].toString()) ?? 0.0;
+
+    // Aceptamos 'monto_ejecutado' (nuevo backend) o 'monto_gastado' (viejo backend) para compatibilidad
+    final spentAmount = double.tryParse(json['monto_ejecutado']?.toString() ?? json['monto_gastado']?.toString() ?? '0.0') ?? 0.0;
 
     return Budget(
       id: id,
       categoryId: categoryId,
       category: category,
+      categoryType: categoryType,
       month: month,
       budgetAmount: budgetAmount,
       spentAmount: spentAmount,

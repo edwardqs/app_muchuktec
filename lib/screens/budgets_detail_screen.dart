@@ -190,7 +190,12 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     final double remainingAmount = plannedAmount - spentAmount;
     final double progress = plannedAmount > 0 ? spentAmount / plannedAmount : 0.0;
 
-    final currencyFormatter = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2);
+    // ✅ CAMBIO: Locale 'en_US' para formato 1,234.56
+    final currencyFormatter = NumberFormat.currency(
+        locale: 'en_US',
+        symbol: 'S/ ',
+        decimalDigits: 2
+    );
 
     return Card(
       elevation: 2, // Sombra más sutil
@@ -300,7 +305,14 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           itemCount: movementsToShow.length,
           itemBuilder: (context, index) {
             final movement = movementsToShow[index];
-            final amount = NumberFormat.currency(locale: 'es_PE', symbol: 'S/', decimalDigits: 2).format(double.tryParse(movement['monto'].toString()) ?? 0.0);
+
+            // ✅ CAMBIO: Locale 'en_US' para formato 1,234.56
+            final amount = NumberFormat.currency(
+                locale: 'en_US',
+                symbol: 'S/ ',
+                decimalDigits: 2
+            ).format(double.tryParse(movement['monto'].toString()) ?? 0.0);
+
             final bool isExpense = movement['tipo'] == 'gasto';
             final bool isIncome = movement['tipo'] == 'ingreso';
 

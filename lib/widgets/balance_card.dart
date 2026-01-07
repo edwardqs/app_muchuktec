@@ -101,11 +101,11 @@ class _BalanceCardState extends State<BalanceCard> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ CAMBIO REALIZADO: Locale 'en_US' asegura coma en miles y punto en decimales
     final currencyFormatter = NumberFormat.currency(
-      locale: 'es_ES',
+      locale: 'en_US',
       symbol: 'S/ ',
       decimalDigits: 2,
-      customPattern: 'S/ #,##0.00',
     );
 
     return Container(

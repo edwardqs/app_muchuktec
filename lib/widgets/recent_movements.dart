@@ -125,6 +125,13 @@ class _RecentMovementsState extends State<RecentMovements> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ DEFINIMOS EL FORMATO DE MONEDA AQUÍ
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: 'S/ ',
+      decimalDigits: 2,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -188,7 +195,8 @@ class _RecentMovementsState extends State<RecentMovements> {
                     iconColor: isExpense ? cExpenseRed : cMintGreen,
                     title: movement.categoriaNombre,
                     date: DateFormat('dd MMM yyyy').format(DateTime.parse(movement.fecha)),
-                    amount: '${isExpense ? '-' : '+'}S/${movement.monto.toStringAsFixed(2)}',
+                    // ✅ USAMOS EL FORMATTER AQUÍ
+                    amount: '${isExpense ? '-' : '+'}${currencyFormatter.format(movement.monto)}',
                     amountColor: isExpense ? cExpenseRed : cMintGreen,
                     titleColor: cPetrolBlue,
                   ),

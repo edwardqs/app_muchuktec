@@ -7,8 +7,8 @@ import '../services/report_service.dart';
 import '../models/report_data.dart';
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
-// Formateador de moneda
-final NumberFormat currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
+// ✅ Locale 'en_US' para formato 1,234.56
+final NumberFormat currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: 'S/ ', decimalDigits: 2);
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -29,19 +29,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
   final int _selectedIndex = 1;
   late Future<ReportData> _reportsFuture;
 
-  // Estado para el filtro de mes/año
   DateTime _selectedDate = DateTime.now();
   String? _fatalError;
 
   @override
   void initState() {
     super.initState();
-
     _reportsFuture = Future.value(ReportData(
       summary: MonthlySummary(ingresos: 0, gastos: 0, balance: 0, mes: 'n/a', nombreMes: 'Cargando...'),
       trend: [],
       budgets: [],
       commitmentPayments: [],
+      movements: [],
     ));
     _checkAuthAndLoadReports();
   }
@@ -52,9 +51,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final int? idCuenta = prefs.getInt('idCuenta');
 
     if (accessToken == null) {
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
+      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       return;
     }
 
@@ -66,13 +63,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
       return;
     }
-
     _loadReports();
   }
 
   void _loadReports() {
     if (_fatalError != null) return;
-
     setState(() {
       _reportsFuture = _reportService.fetchReports(
         month: _selectedDate.month,
@@ -83,20 +78,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   void _onItemTapped(int index) {
     switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/dashboard');
-        break;
-      case 1:
-        break;
-      case 2:
-        Navigator.pushReplacementNamed(context, '/budgets');
-        break;
-      case 3:
-        Navigator.pushReplacementNamed(context, '/categories');
-        break;
-      case 4:
-        Navigator.pushReplacementNamed(context, '/settings');
-        break;
+      case 0: Navigator.pushReplacementNamed(context, '/dashboard'); break;
+      case 1: break;
+      case 2: Navigator.pushReplacementNamed(context, '/budgets'); break;
+      case 3: Navigator.pushReplacementNamed(context, '/categories'); break;
+      case 4: Navigator.pushReplacementNamed(context, '/settings'); break;
     }
   }
 
@@ -164,10 +150,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   void _exportReport(String format) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Descargando reporte en $format...'),
-        backgroundColor: cAzulPetroleo,
-      ),
+      SnackBar(content: Text('Descargando reporte en $format...'), backgroundColor: cAzulPetroleo),
     );
     try {
       await _reportService.exportReports(
@@ -175,23 +158,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         month: _selectedDate.month,
         year: _selectedDate.year,
       );
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Reporte guardado en la carpeta de Descargas.'),
-          backgroundColor: cVerdeMenta,
-          duration: const Duration(seconds: 4),
-        ),
+        SnackBar(content: const Text('Reporte guardado en la carpeta de Descargas.'), backgroundColor: cVerdeMenta, duration: const Duration(seconds: 4)),
       );
-
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar: ${e.toString().replaceFirst('Exception: ', '')}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error al guardar: ${e.toString().replaceFirst('Exception: ', '')}'), backgroundColor: Colors.red),
       );
     }
   }
@@ -209,11 +183,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
         title: Text(
           'Reportes',
-          style: TextStyle(
-            color: cAzulPetroleo,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: cAzulPetroleo, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
@@ -256,7 +226,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           return Center(child: CircularProgressIndicator(color: cVerdeMenta));
         } else if (snapshot.hasError) {
           final errorText = snapshot.error.toString().replaceFirst('Exception: ', '');
-
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -265,16 +234,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.red, size: 40),
                   const SizedBox(height: 16),
-                  Text(
-                    'Error al cargar reportes: $errorText',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                  Text('Error al cargar reportes: $errorText', textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
                   const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: _loadReports,
-                    child: Text('Reintentar', style: TextStyle(color: cVerdeMenta)),
-                  ),
+                  TextButton(onPressed: _loadReports, child: Text('Reintentar', style: TextStyle(color: cVerdeMenta))),
                 ],
               ),
             ),
@@ -308,6 +270,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 BudgetComplianceCard(budgets: reportData.budgets, cAzulPetroleo: cAzulPetroleo),
                 const SizedBox(height: 24),
                 CommitmentPaymentsCard(payments: reportData.commitmentPayments, cAzulPetroleo: cAzulPetroleo),
+                const SizedBox(height: 24),
+
+                // ✅ SECCIÓN DE MOVIMIENTOS CORREGIDA
+                // Ahora pasamos cGrisClaro como parámetro
+                MovementsListCard(
+                  movements: reportData.movements,
+                  cAzulPetroleo: cAzulPetroleo,
+                  cVerdeMenta: cVerdeMenta,
+                  cRojo: cRojo,
+                  cGrisClaro: cGrisClaro, // <-- Pasando la variable de color
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           );
@@ -323,12 +297,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       decoration: BoxDecoration(
         color: cBlanco,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 1, blurRadius: 10, offset: const Offset(0, -2)),
         ],
       ),
       child: BottomNavigationBar(
@@ -336,7 +305,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         backgroundColor: cBlanco,
-        selectedItemColor: cAzulPetroleo, // Color Oficial Activo
+        selectedItemColor: cAzulPetroleo,
         unselectedItemColor: Colors.grey[400],
         selectedFontSize: 12,
         unselectedFontSize: 12,
@@ -355,6 +324,239 @@ class _ReportsScreenState extends State<ReportsScreen> {
 // -----------------------------------------------------------------------------
 // WIDGETS AUXILIARES
 // -----------------------------------------------------------------------------
+
+// ✅ WIDGET: LISTA DE MOVIMIENTOS (Corregido el error de cGrisClaro)
+class MovementsListCard extends StatelessWidget {
+  final List<MonthlyMovement> movements;
+  final Color cAzulPetroleo;
+  final Color cVerdeMenta;
+  final Color cRojo;
+  final Color cGrisClaro; // ✅ 1. Definir la variable
+
+  const MovementsListCard({
+    super.key,
+    required this.movements,
+    required this.cAzulPetroleo,
+    required this.cVerdeMenta,
+    required this.cRojo,
+    required this.cGrisClaro, // ✅ 2. Requerirla en el constructor
+  });
+
+  void _showAllMovementsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Todos los Movimientos',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                      color: Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: movements.length,
+                  itemBuilder: (context, index) {
+                    return _MovementItem(
+                      movement: movements[index],
+                      cVerdeMenta: cVerdeMenta,
+                      cRojo: cRojo,
+                      cAzulPetroleo: cAzulPetroleo,
+                    );
+                  },
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const int maxPreviewItems = 10;
+    final bool showMoreButton = movements.length > maxPreviewItems;
+    final List<MonthlyMovement> displayList = showMoreButton
+        ? movements.sublist(0, maxPreviewItems)
+        : movements;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Movimientos del Mes',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo),
+              ),
+              if (showMoreButton)
+                Text(
+                  '${movements.length} total',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (movements.isEmpty)
+            Center(child: Text('No hay movimientos registrados este mes.', style: TextStyle(color: Colors.grey[600])))
+          else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayList.length,
+              itemBuilder: (context, index) {
+                return _MovementItem(
+                    movement: displayList[index],
+                    cVerdeMenta: cVerdeMenta,
+                    cRojo: cRojo,
+                    cAzulPetroleo: cAzulPetroleo
+                );
+              },
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+            ),
+
+            if (showMoreButton)
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => _showAllMovementsModal(context),
+                    icon: Icon(Icons.visibility_outlined, color: cVerdeMenta),
+                    label: Text(
+                      'Ver todos (${movements.length})',
+                      style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: cGrisClaro, // ✅ 3. Aquí usamos el color pasado
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MovementItem extends StatelessWidget {
+  final MonthlyMovement movement;
+  final Color cVerdeMenta;
+  final Color cRojo;
+  final Color cAzulPetroleo;
+
+  const _MovementItem({
+    required this.movement,
+    required this.cVerdeMenta,
+    required this.cRojo,
+    required this.cAzulPetroleo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIncome = movement.tipo == 'ingreso';
+    final Color baseColor = isIncome ? cVerdeMenta : cRojo;
+    final Color backgroundColor = baseColor.withOpacity(0.1);
+    final Color borderColor = baseColor.withOpacity(0.3);
+    final String sign = isIncome ? '+' : '-';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isIncome ? Icons.arrow_upward : Icons.arrow_downward,
+            color: baseColor,
+            size: 20,
+          ),
+        ),
+        title: Text(
+          movement.categoriaNombre,
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: cAzulPetroleo),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              DateFormat('dd MMM yyyy', 'es_ES').format(DateTime.parse(movement.fecha)),
+              style: TextStyle(fontSize: 12, color: cAzulPetroleo.withOpacity(0.6)),
+            ),
+            if (movement.nota != null && movement.nota!.isNotEmpty)
+              Text(
+                movement.nota!,
+                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey[600]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+        trailing: Text(
+          '$sign${currencyFormat.format(movement.monto)}',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: baseColor),
+        ),
+      ),
+    );
+  }
+}
+
+// ... _MonthSelector, MonthlySummaryCard, etc.
 
 class _MonthSelector extends StatelessWidget {
   final DateTime selectedDate;
@@ -375,12 +577,7 @@ class _MonthSelector extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withOpacity(0.2)),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 0,
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 0, blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -390,12 +587,7 @@ class _MonthSelector extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               DateFormat('MMMM yyyy', 'es_ES').format(selectedDate).toUpperCase(),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-                letterSpacing: 0.5,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color, letterSpacing: 0.5),
             ),
             const SizedBox(width: 4),
             Icon(Icons.arrow_drop_down, color: color),
@@ -420,12 +612,7 @@ class MonthlySummaryCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 0, blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -433,27 +620,14 @@ class MonthlySummaryCard extends StatelessWidget {
         children: [
           Text(
             'Resumen Mensual',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: cAzulPetroleo,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo),
           ),
           const SizedBox(height: 20),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _SummaryItem(
-                label: 'Ingresos',
-                value: currencyFormat.format(summary.ingresos),
-                color: Colors.green[600]!,
-              ),
-              _SummaryItem(
-                label: 'Gastos',
-                value: currencyFormat.format(summary.gastos),
-                color: Colors.red[600]!,
-              ),
+              _SummaryItem(label: 'Ingresos', value: currencyFormat.format(summary.ingresos), color: Colors.green[600]!),
+              _SummaryItem(label: 'Gastos', value: currencyFormat.format(summary.gastos), color: Colors.red[600]!),
               _SummaryItem(
                 label: 'Balance',
                 value: currencyFormat.format(summary.balance),
@@ -472,34 +646,16 @@ class _SummaryItem extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _SummaryItem({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _SummaryItem({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
+        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
@@ -511,13 +667,7 @@ class MonthlyTrendChart extends StatelessWidget {
   final Color cVerdeMenta;
   final Color cRojo;
 
-  const MonthlyTrendChart({
-    super.key,
-    required this.trendData,
-    required this.cAzulPetroleo,
-    required this.cVerdeMenta,
-    required this.cRojo,
-  });
+  const MonthlyTrendChart({super.key, required this.trendData, required this.cAzulPetroleo, required this.cVerdeMenta, required this.cRojo});
 
   void _showInfoDialog(BuildContext context) {
     showDialog(
@@ -537,10 +687,7 @@ class MonthlyTrendChart extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Este gráfico muestra la evolución de tus finanzas en los últimos 6 meses.',
-                style: TextStyle(color: Colors.grey[800]),
-              ),
+              Text('Este gráfico muestra la evolución de tus finanzas en los últimos 6 meses.', style: TextStyle(color: Colors.grey[800])),
               const SizedBox(height: 12),
               RichText(
                 text: TextSpan(
@@ -566,10 +713,7 @@ class MonthlyTrendChart extends StatelessWidget {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Entendido', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('Entendido', style: TextStyle(color: cAzulPetroleo, fontWeight: FontWeight.bold))),
           ],
         );
       },
@@ -600,12 +744,7 @@ class MonthlyTrendChart extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 0, blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -616,26 +755,15 @@ class MonthlyTrendChart extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Tendencia (Últimos 6 meses)',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: cAzulPetroleo,
-                  ),
-                ),
+                Text('Tendencia (Últimos 6 meses)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo)),
                 InkWell(
                   onTap: () => _showInfoDialog(context),
                   borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Icon(Icons.info_outline, color: Colors.grey[400], size: 22),
-                  ),
+                  child: Padding(padding: const EdgeInsets.all(4.0), child: Icon(Icons.info_outline, color: Colors.grey[400], size: 22)),
                 ),
               ],
             ),
           ),
-
           SizedBox(
             height: 250,
             child: LineChart(
@@ -644,12 +772,7 @@ class MonthlyTrendChart extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: interval,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey.shade100,
-                      strokeWidth: 1,
-                    );
-                  },
+                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.shade100, strokeWidth: 1),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
@@ -667,14 +790,7 @@ class MonthlyTrendChart extends StatelessWidget {
                         if (index >= 0 && index < trendData.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              trendData[index].mes,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
+                            child: Text(trendData[index].mes, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 12)),
                           );
                         }
                         return const Text('');
@@ -692,11 +808,7 @@ class MonthlyTrendChart extends StatelessWidget {
                         if (value == 0) return const SizedBox.shrink();
                         return Text(
                           NumberFormat.compact(locale: 'en_US').format(value),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w600),
                           textAlign: TextAlign.right,
                         );
                       },
@@ -708,7 +820,6 @@ class MonthlyTrendChart extends StatelessWidget {
                 maxX: (trendData.length - 1).toDouble(),
                 minY: 0,
                 maxY: maxY,
-
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
                     tooltipBgColor: cAzulPetroleo,
@@ -718,25 +829,15 @@ class MonthlyTrendChart extends StatelessWidget {
                         final bool isIncome = barSpot.barIndex == 0;
                         return LineTooltipItem(
                           '${isIncome ? "Ingreso" : "Gasto"}: \n',
-                          TextStyle(
-                            color: isIncome ? cVerdeMenta : Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          TextStyle(color: isIncome ? cVerdeMenta : Colors.white, fontWeight: FontWeight.bold),
                           children: [
-                            TextSpan(
-                              text: currencyFormat.format(flSpot.y),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            ),
+                            TextSpan(text: currencyFormat.format(flSpot.y), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.normal)),
                           ],
                         );
                       }).toList();
                     },
                   ),
                 ),
-
                 lineBarsData: [
                   LineChartBarData(
                     spots: ingresosSpots,
@@ -744,21 +845,8 @@ class MonthlyTrendChart extends StatelessWidget {
                     color: cVerdeMenta,
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.white,
-                          strokeWidth: 2,
-                          strokeColor: cVerdeMenta,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: cVerdeMenta.withOpacity(0.1),
-                    ),
+                    dotData: FlDotData(show: true, getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: cVerdeMenta)),
+                    belowBarData: BarAreaData(show: true, color: cVerdeMenta.withOpacity(0.1)),
                   ),
                   LineChartBarData(
                     spots: gastosSpots,
@@ -766,34 +854,20 @@ class MonthlyTrendChart extends StatelessWidget {
                     color: cRojo,
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.white,
-                          strokeWidth: 2,
-                          strokeColor: cRojo,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: cRojo.withOpacity(0.1),
-                    ),
+                    dotData: FlDotData(show: true, getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: cRojo)),
+                    belowBarData: BarAreaData(show: true, color: cRojo.withOpacity(0.1)),
                   ),
                 ],
               ),
             ),
           ),
-
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _LegendItem(color: cVerdeMenta, text: 'Ingresos'),
+              ChartLegendItem(color: cVerdeMenta, text: 'Ingresos'), // ✅ Renombrado y corregido
               const SizedBox(width: 24),
-              _LegendItem(color: cRojo, text: 'Gastos'),
+              ChartLegendItem(color: cRojo, text: 'Gastos'), // ✅ Renombrado y corregido
             ],
           ),
         ],
@@ -802,11 +876,12 @@ class MonthlyTrendChart extends StatelessWidget {
   }
 }
 
-class _LegendItem extends StatelessWidget {
+// ✅ CLASE RENOMBRADA PARA EVITAR CONFLICTOS
+class ChartLegendItem extends StatelessWidget {
   final Color color;
   final String text;
 
-  const _LegendItem({required this.color, required this.text});
+  const ChartLegendItem({required this.color, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -848,12 +923,7 @@ class BudgetComplianceCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 0, blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -861,14 +931,9 @@ class BudgetComplianceCard extends StatelessWidget {
         children: [
           Text(
             'Cumplimiento de Presupuestos',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: cAzulPetroleo,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo),
           ),
           const SizedBox(height: 20),
-
           if (budgets.isEmpty)
             Center(child: Text('No hay presupuestos activos para este mes.', style: TextStyle(color: Colors.grey[600])))
           else
@@ -891,7 +956,6 @@ class _DynamicBudgetItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isIncome = budget.categoriaTipo == 'ingreso';
-
     Color amountColor;
     Color progressColor;
     String remainingLabel;
@@ -906,11 +970,10 @@ class _DynamicBudgetItem extends StatelessWidget {
         remainingLabel = '${(budget.porcentajeAlcanzado).toStringAsFixed(0)}%. Queda ${currencyFormat.format(budget.restante)}';
       }
       progressValue = (progressValue > 1.0) ? 1.0 : progressValue;
-
     } else {
       final bool isOverBudget = budget.restante < 0;
       amountColor = isOverBudget ? Colors.red.shade600 : cAzulPetroleo;
-      progressColor = isOverBudget ? Colors.red.shade600 : const Color(0xFF2A9D8F); // Verde menta
+      progressColor = isOverBudget ? Colors.red.shade600 : const Color(0xFF2A9D8F);
       if (isOverBudget) {
         remainingLabel = 'Excedido en ${currencyFormat.format(budget.restante.abs())}';
       } else {
@@ -926,53 +989,20 @@ class _DynamicBudgetItem extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              budget.categoriaNombre,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-            Text(
-              currencyFormat.format(budget.montoAlcanzado),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: amountColor,
-              ),
-            ),
+            Text(budget.categoriaNombre, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+            Text(currencyFormat.format(budget.montoAlcanzado), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: amountColor)),
           ],
         ),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Presupuesto: ${currencyFormat.format(budget.presupuestoMonto)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-            Text(
-              remainingLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: amountColor,
-              ),
-            ),
+            Text('Presupuesto: ${currencyFormat.format(budget.presupuestoMonto)}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            Text(remainingLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: amountColor)),
           ],
         ),
         const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: progressValue,
-          backgroundColor: Colors.grey.shade200,
-          color: progressColor,
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(4),
-        ),
+        LinearProgressIndicator(value: progressValue, backgroundColor: Colors.grey.shade200, color: progressColor, minHeight: 8, borderRadius: BorderRadius.circular(4)),
       ],
     );
   }
@@ -992,25 +1022,13 @@ class CommitmentPaymentsCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 0,
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 0, blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Pagos de Compromisos del Mes',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: cAzulPetroleo,
-            ),
-          ),
+          Text('Pagos de Compromisos del Mes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cAzulPetroleo)),
           const SizedBox(height: 20),
           if (payments.isEmpty)
             Center(child: Text('No se realizaron pagos de compromisos este mes.', style: TextStyle(color: Colors.grey[600])))
@@ -1019,9 +1037,7 @@ class CommitmentPaymentsCard extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: payments.length,
-              itemBuilder: (context, index) {
-                return _PaymentItem(payment: payments[index]);
-              },
+              itemBuilder: (context, index) => _PaymentItem(payment: payments[index]),
               separatorBuilder: (context, index) => Divider(color: Colors.grey[200]),
             ),
         ],
@@ -1038,51 +1054,16 @@ class _PaymentItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isIncome = payment.esIngreso;
-
     final Color amountColor = isIncome ? Colors.green[600]! : Colors.red[600]!;
     final String sign = isIncome ? '+' : '-';
-
-    String subtitle;
-    if (payment.cuotaNumero != null) {
-      subtitle = 'Cta. N° ${payment.cuotaNumero}: ${payment.compromisoNombre}';
-    } else {
-      subtitle = payment.compromisoNombre;
-    }
+    String subtitle = payment.cuotaNumero != null ? 'Cta. N° ${payment.cuotaNumero}: ${payment.compromisoNombre}' : payment.compromisoNombre;
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundColor: amountColor.withOpacity(0.1),
-        child: Icon(
-          isIncome ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, // <-- CORREGIDO AQUÍ
-          color: amountColor,
-          size: 20,
-        ),
-      ),
-      title: Text(
-        subtitle,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        DateFormat('dd MMM, yyyy', 'es_ES').format(payment.fechaPago),
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey[600],
-        ),
-      ),
-      trailing: Text(
-        '$sign${currencyFormat.format(payment.monto)}',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: amountColor,
-        ),
-      ),
+      leading: CircleAvatar(backgroundColor: amountColor.withOpacity(0.1), child: Icon(isIncome ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, color: amountColor, size: 20)),
+      title: Text(subtitle, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(DateFormat('dd MMM, yyyy', 'es_ES').format(payment.fechaPago), style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+      trailing: Text('$sign${currencyFormat.format(payment.monto)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: amountColor)),
     );
   }
 }
