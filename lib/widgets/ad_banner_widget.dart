@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdBannerWidget extends StatefulWidget {
   const AdBannerWidget({super.key});
@@ -13,67 +14,69 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   bool _isLoading = false;
+  bool _isPremium = false; // ✅ Nuevo estado para controlar el bloqueo
 
-  // ID REAL DE BRUNO (AdMob)
   final String _adUnitId = Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/6300978111' // <--- TU ID REAL
-      : 'ca-app-pub-3940256099942544/2934735716'; // ID iOS Test
+      ? 'ca-app-pub-3940256099942544/6300978111'
+      : 'ca-app-pub-3940256099942544/2934735716';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPremiumStatus(); // ✅ Verificamos apenas inicia el widget
+  }
+
+  // Función para verificar si el usuario es Premium
+  Future<void> _checkPremiumStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool premiumStatus = prefs.getBool('isPremium') ?? false;
+
+    if (mounted) {
+      setState(() {
+        _isPremium = premiumStatus;
+      });
+    }
+
+    // Solo si NO es premium, iniciamos la carga del anuncio
+    if (!premiumStatus) {
+      _loadAd();
+    } else {
+      print('✨ [AdBanner] Usuario Premium detectado. No se cargará publicidad.');
+    }
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Log inicial
-    if (!_isLoaded && _bannerAd == null && !_isLoading) {
-      print('🟢 [AdBanner] didChangeDependencies: Iniciando solicitud de carga...');
-      _loadAd();
-    }
+    // Ya no llamamos a _loadAd aquí directamente para evitar doble carga
   }
 
   Future<void> _loadAd() async {
+    // Si ya es premium o está cargando, no hacer nada
+    if (_isPremium || _isLoading || _isLoaded) return;
+
     _isLoading = true;
-
     try {
-      if (!mounted) {
-        print('🔴 [AdBanner] Widget no montado al inicio.');
-        return;
-      }
+      if (!mounted) return;
 
-      // 1. Obtener tamaño de pantalla
       final size = MediaQuery.of(context).size;
       final double screenWidth = size.width;
-      print('🔵 [AdBanner] Ancho de pantalla detectado: $screenWidth');
 
-      // 2. Calcular tamaño adaptativo
-      print('🔵 [AdBanner] Calculando tamaño adaptativo...');
-
-      // NOTA: Si esto falla, el error suele ser aquí.
       final AnchoredAdaptiveBannerAdSize? adSize =
       await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
           screenWidth.truncate());
 
-      if (!mounted) {
-        print('🔴 [AdBanner] Widget desmontado durante el cálculo del tamaño.');
+      if (!mounted || adSize == null) {
         _isLoading = false;
         return;
       }
 
-      if (adSize == null) {
-        print('🔴 [AdBanner] Error: El tamaño del banner adaptativo retornó NULL.');
-        _isLoading = false;
-        return;
-      }
-
-      print('🟢 [AdBanner] Tamaño calculado: ${adSize.width}x${adSize.height}');
-      print('🔵 [AdBanner] Instanciando BannerAd con ID: $_adUnitId');
-
-      // 3. Crear la instancia del anuncio
       _bannerAd = BannerAd(
         adUnitId: _adUnitId,
         request: const AdRequest(),
-        size: adSize, // <--- Si falla aquí, probaremos cambiar esto por AdSize.banner
+        size: adSize,
         listener: BannerAdListener(
           onAdLoaded: (ad) {
-            print('✅ [AdBanner] ¡EXITO! Banner cargado. ID: ${ad.responseInfo?.responseId}');
             if (mounted) {
               setState(() {
                 _isLoaded = true;
@@ -82,58 +85,41 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
             }
           },
           onAdFailedToLoad: (ad, err) {
-            print('❌ [AdBanner] FALLÓ LA CARGA.');
-            print('   -> Código: ${err.code}');
-            print('   -> Mensaje: ${err.message}');
-            print('   -> Dominio: ${err.domain}');
-
-            // Log extra para ver si hay info de mediación o respuesta
-            if (ad.responseInfo != null) {
-              print('   -> Response Info: ${ad.responseInfo}');
-            }
-
             _isLoading = false;
             ad.dispose();
           },
-          onAdOpened: (Ad ad) => print('bf [AdBanner] Anuncio abierto.'),
-          onAdClosed: (Ad ad) => print('bf [AdBanner] Anuncio cerrado.'),
-          onAdImpression: (Ad ad) => print('bf [AdBanner] Impresión registrada.'),
         ),
       );
 
-      // 4. Cargar
-      print('🚀 [AdBanner] Ejecutando .load()...');
       await _bannerAd!.load();
 
-    } catch (e, stackTrace) {
-      print('🔥 [AdBanner] EXCEPCIÓN FATAL en _loadAd:');
-      print(e);
-      print(stackTrace);
+    } catch (e) {
       _isLoading = false;
     }
   }
 
   @override
   void dispose() {
-    print('🗑️ [AdBanner] Dispose llamado. Liberando recursos.');
     _bannerAd?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // 🚫 REGLA DE ORO: Si es premium, el widget no ocupa espacio (0x0)
+    if (_isPremium) {
+      return const SizedBox.shrink();
+    }
+
     if (_bannerAd != null && _isLoaded) {
       return Container(
         alignment: Alignment.center,
         width: _bannerAd!.size.width.toDouble(),
         height: _bannerAd!.size.height.toDouble(),
-        // Pinta el fondo rojo temporalmente para ver si el contenedor ocupa espacio
-        // color: Colors.red.withOpacity(0.2),
         child: AdWidget(ad: _bannerAd!),
       );
     }
 
-    // Mientras carga o si falló, mostramos un espacio vacío (o un texto debug)
     return _isLoading
         ? const SizedBox(
         height: 50,

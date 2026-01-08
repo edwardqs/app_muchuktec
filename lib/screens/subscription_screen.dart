@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -138,7 +140,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   shadowColor: cVerdeMenta.withOpacity(0.4),
                 ),
                 child: const Text(
-                  'ADQUIRIR PREMIUM',
+                  'OBTENER PREMIUM',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
                 ),
               ),
@@ -189,8 +191,62 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  void _startPurchase() {
-    // Aquí irá tu lógica de Google Play
-    print('Llamando a Google Play Store...');
+  Future<void> _startPurchase() async {
+    // 1. Mostramos un pequeño loader para que parezca real
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // 2. Simulamos un retraso de red de 2 segundos
+    await Future.delayed(const Duration(seconds: 2));
+
+    // 3. Guardamos en SharedPreferences que el usuario YA ES PREMIUM
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isPremium', true);
+
+    // 4. Cerramos el loader y mostramos el éxito
+    if (!mounted) return;
+    Navigator.pop(context); // Cierra el loader
+
+    _showSuccessDialog(); // Llamamos a la animación de éxito
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF2A9D8F), size: 80), // cVerdeMenta
+            const SizedBox(height: 16),
+            const Text(
+              '¡Bienvenido a Premium!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ahora tienes acceso a todos los beneficios de Planifiko.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF264653)), // cAzulPetroleo
+                onPressed: () {
+                  Navigator.pop(context); // Cierra el diálogo
+                  Navigator.pushReplacementNamed(context, '/settings'); // Refresca los ajustes
+                },
+                child: const Text('EMPEZAR', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/report_service.dart';
 import '../models/report_data.dart';
+import 'package:app_muchik/screens/subscription_screen.dart';
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
 
 // ✅ Locale 'en_US' para formato 1,234.56
@@ -149,9 +150,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _exportReport(String format) async {
+    // 1. Verificar el estado Premium en SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    bool isPremium = prefs.getBool('isPremium') ?? false;
+
+    // 2. Si NO es premium, mostrar diálogo y detener la función
+    if (!isPremium) {
+      _showPremiumRequiredDialog();
+      return;
+    }
+
+    // 3. Si ES premium, ejecutar tu lógica original
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Descargando reporte en $format...'), backgroundColor: cAzulPetroleo),
     );
+
     try {
       await _reportService.exportReports(
         format,
@@ -160,14 +173,61 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Reporte guardado en la carpeta de Descargas.'), backgroundColor: cVerdeMenta, duration: const Duration(seconds: 4)),
+        SnackBar(
+            content: const Text('Reporte guardado en la carpeta de Descargas.'),
+            backgroundColor: cVerdeMenta,
+            duration: const Duration(seconds: 4)
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar: ${e.toString().replaceFirst('Exception: ', '')}'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error al guardar: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red
+        ),
       );
     }
+  }
+
+  void _showPremiumRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: cVerdeMenta), // El icono premium de tus ajustes
+            const SizedBox(width: 10),
+            const Text('Función Premium'),
+          ],
+        ),
+        content: const Text(
+            'La exportación de reportes en PDF y Excel es exclusiva para usuarios Planifiko Premium.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cerrar', style: TextStyle(color: cAzulPetroleo)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cVerdeMenta,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Cierra el diálogo
+              // Navega a tu nueva SubscriptionScreen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+              );
+            },
+            child: const Text('OBTENER PREMIUM', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

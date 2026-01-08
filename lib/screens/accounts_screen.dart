@@ -10,6 +10,7 @@ import 'package:app_muchik/config/constants.dart';
 import 'package:app_muchik/widgets/ad_banner_widget.dart';
 import 'package:app_muchik/widgets/image_cropper_widget.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:app_muchik/screens/subscription_screen.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -27,11 +28,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   List<dynamic> _userProfiles = [];
 
-  // Estado de carga inicial (pantalla completa al entrar)
   bool _isLoading = true;
-
-  // ✅ Estado de carga para operaciones (Overlay central transparente)
   bool _isOperationLoading = false;
+  bool _isPremium = false;
 
   String? _accessToken;
   int? _selectedAccountId;
@@ -46,7 +45,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Future<void> _loadAccessTokenAndFetchProfiles() async {
     final prefs = await SharedPreferences.getInstance();
-    _accessToken = prefs.getString('accessToken');
+    setState(() {
+      _isPremium = prefs.getBool('isPremium') ?? false;
+      _accessToken = prefs.getString('accessToken');
+    });
 
     if (_accessToken != null) {
       await _fetchUserProfiles();
@@ -94,7 +96,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
       return;
     }
 
-    // Solo mostramos loading global si es la primera carga y no hay datos
     if (_userProfiles.isEmpty) {
       setState(() {
         _isLoading = true;
@@ -138,77 +139,43 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
-  // --- MODAL AGREGAR ---
-  // --- MODAL AGREGAR ---
   void _showAddProfileModal() {
-    // ✅ Validación: Máximo 4 perfiles
-    if (_userProfiles.length >= 4) {
-      if (mounted) {
+    // 1. Definir límites según el estatus
+    final int limiteActual = _isPremium ? 10 : 1;
+
+    // 2. Si ya alcanzó su límite, mostrar el bloqueo
+    if (_userProfiles.length >= limiteActual) {
+      if (!_isPremium) {
+        // Caso: Usuario gratuito intenta agregar un segundo perfil
+        _showPremiumUpgradeModal();
+      } else {
+        // Caso: Usuario Premium alcanzó el tope de 10
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Límite alcanzado: Máximo 4 perfiles permitidos.'),
-            backgroundColor: Colors.orange[700],
-            behavior: SnackBarBehavior.floating,
-          ),
+          const SnackBar(content: Text('Has alcanzado el límite máximo de 10 perfiles.')),
         );
       }
       return;
     }
 
+    // 3. Si tiene permiso, mostrar el modal normal de creación
     final TextEditingController nameController = TextEditingController();
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-              'Agregar Nuevo Perfil',
-              style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min, // Importante para que el modal no crezca de más
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 📝 Texto de recordatorio
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: cAzulPetroleo.withOpacity(0.7)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Recuerda que sólo puedes tener hasta 4 perfiles.',
-                        style: TextStyle(
-                          color: cAzulPetroleo.withOpacity(0.7),
-                          fontSize: 13,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Campo de texto
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  hintText: 'Nombre del perfil',
-                  filled: true,
-                  fillColor: cGrisClaro,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none
-                  ),
-                ),
-              ),
-            ],
+          title: Text('Nuevo Perfil', style: TextStyle(fontWeight: FontWeight.bold, color: cAzulPetroleo)),
+          content: TextField(
+            controller: nameController,
+            decoration: InputDecoration(
+              hintText: 'Nombre del perfil',
+              filled: true,
+              fillColor: cGrisClaro,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
@@ -216,15 +183,52 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   _addProfile(nameController.text);
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: cVerdeMenta,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: cVerdeMenta),
               child: const Text('Agregar', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
       },
+    );
+  }
+
+  void _showPremiumUpgradeModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: cVerdeMenta),
+            const SizedBox(width: 10),
+            const Expanded(child: Text('Desbloquea esta función con Premium', style: TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: const Text(
+          'Agrega hasta 10 perfiles y accede a herramientas avanzadas usando la versión Premium de Planifiko.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Luego', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cAzulPetroleo,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+              );
+            },
+            child: const Text('OBTENER PREMIUM', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -673,12 +677,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       mainAxisSpacing: 24,
                       childAspectRatio: 0.8,
                     ),
-                    itemCount: _userProfiles.length < 4
+                    itemCount: _userProfiles.length < 10
                         ? _userProfiles.length + 1
                         : _userProfiles.length,
                     itemBuilder: (context, index) {
                       // Botón de agregar
-                      if (index == _userProfiles.length && _userProfiles.length < 4) {
+                      if (index == _userProfiles.length && _userProfiles.length < 10) {
                         return _AddProfileButton(
                           onTap: _showAddProfileModal,
                           cVerdeMenta: cVerdeMenta,
