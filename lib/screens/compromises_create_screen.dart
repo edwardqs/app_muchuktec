@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -46,9 +47,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   // Mapa: Texto visible -> ID que vas a enviar
   final Map<String, int> frequencyMap = {
     'Sin cuotas': 1,
-    'S': 2,
-    'M': 3,
-    'A': 4,
+    'Semanal': 2,
+    'Mensual': 3,
+    'Anual': 4,
   };
 
   String _selectedFrequencyText = 'Sin cuotas';
@@ -162,36 +163,52 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     }
   }
 
+  // Variable para guardar el total internamente
+  double _montoTotalFinal = 0.0;
+
   void _calculateInstallmentAmount() {
-    final String amountText = _amountController.text;
-    final String rateText = _interestRateController.text;
-    final String installmentsText = _installmentsController.text;
+    final double? P = double.tryParse(_amountController.text); //
+    final double? tasaAnual = double.tryParse(_interestRateController.text); //
+    final int? n = int.tryParse(_installmentsController.text); //
 
-    final double? amount = double.tryParse(amountText);
-    final double? rate = double.tryParse(rateText);
-    final int? installments = int.tryParse(installmentsText);
-
-    if (amount == null || amount <= 0 || (installments == null || installments <= 0)) {
+    if (P == null || P <= 0 || n == null || n <= 0) {
       _calculatedAmountController.text = '';
+      _montoTotalFinal = 0.0;
       return;
     }
 
-    double calculatedAmount = 0.0;
-    double monthlyRate = (rate ?? 0.0) / 100 / 12;
+    double frequencyFactor = 12;
+    if (_selectedFrequencyText == 'Semanal') {
+      frequencyFactor = 52;
+    } else if (_selectedFrequencyText == 'Mensual') {
+      frequencyFactor = 12;
+    } else if (_selectedFrequencyText == 'Anual') {
+      frequencyFactor = 1;
+    }
+    double ia = (tasaAnual ?? 0.0) / 100;
+    double i = ia/frequencyFactor;
+    double C = 0.0;
 
     if (_interestType == 'Simple') {
-      if (installments > 0) {
-        calculatedAmount = (amount + (amount * (rate ?? 0.0) / 100)) / installments;
-      }
+      // FÓRMULA (SIMPLE): M = P(1 + i*n)
+      _montoTotalFinal = P * (1 + (i * n));
+      C = _montoTotalFinal / n;
     } else {
-      if (monthlyRate > 0) {
-        calculatedAmount = amount * (monthlyRate * (1 + monthlyRate) * installments) / ((1 + monthlyRate) * installments - 1);
+      // FÓRMULA (COMPUESTO): M = P * [1+(1+i)^1/f-1]^n
+      if (i > 0) {
+        double f = 1/frequencyFactor;
+        double factor = pow(1 + ia, f).toDouble(); // (1+i)^f
+        double Ca = (1 + factor -1);
+        _montoTotalFinal = P * pow(Ca, n).toDouble();// C^n
+        C = _montoTotalFinal / n;
       } else {
-        calculatedAmount = amount / installments;
+        C = P / n;
+        _montoTotalFinal = P;
       }
     }
 
-    _calculatedAmountController.text = calculatedAmount.toStringAsFixed(2);
+    // Mostramos la cuota (C) en el controlador existente
+    _calculatedAmountController.text = C.toStringAsFixed(2);
   }
 
   Future<void> _selectDate() async {
@@ -246,9 +263,13 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
                 _buildPreviewText('Tasa de Interés:', '${_interestRateController.text.isEmpty ? '0.00' : _interestRateController.text}%'),
                 _buildPreviewText('Tipo de Interés:', _interestType),
                 _buildPreviewText('Cuotas:', _installmentsController.text.isEmpty ? '0' : _installmentsController.text),
-                _buildPreviewText('Frecuencia:', _selectedFrequency),
+                _buildPreviewText('Frecuencia:', _selectedFrequencyText),
                 _buildPreviewText('Cuota Calculada:', 'S/. ${_calculatedAmountController.text.isEmpty ? '0.00' : _calculatedAmountController.text}'),
                 _buildPreviewText('Fecha de Inicio:', DateFormat('dd/MM/yyyy').format(_startDate!)),
+                _buildPreviewText(
+                  'Total a Pagar (M):',
+                  'S/. ${_montoTotalFinal.toStringAsFixed(2)}',
+                ),
               ],
             ),
           ),
