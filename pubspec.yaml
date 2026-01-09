@@ -50,26 +50,28 @@ flutter:
 
   uses-material-design: true
   assets:
-    - assets/icon/logo4.jpg
+    - assets/icon/logo.png
+    - assets/icon/logo5.png
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon/logo4.jpg"
+  image_path: "assets/icon/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/logo.png"
 
 
 flutter_native_splash:
-  # 1. AQUÍ pones tu color turquesa exacto
-  color: "#FBFBFB"
+  # Color de fondo general
+  color: "#F4F4F4"
 
-  # 2. Tu imagen actual
-  image: "assets/icon/logo4.jpg"
+  # Imagen para versiones de Android anteriores a la 12
+  image: "assets/icon/logo5.png"
+  fullscreen: false    # IMPORTANTE: Desactiva esto para evitar deformaciones
 
-  # 3. Importante para Android 12+ (para que no salga un círculo blanco alrededor)
+  # Configuración específica Android 12+
   android_12:
-    image: "assets/icon/logo4.jpg"
-    color: "#FBFBFB" # El mismo turquesa aquí
-    icon_background_color: "#FBFBFB" # Y aquí también por si acaso
-
-  # 4. Esto quita la barra de estado superior para dar más inmersión
-  fullscreen: true
+    image: "assets/icon/logo5.png"
+    color: "#F4F4F4"
+    icon_background_color: "#F4F4F4"

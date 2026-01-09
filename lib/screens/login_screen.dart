@@ -500,7 +500,7 @@ class _HeaderSection extends StatelessWidget {
             padding: const EdgeInsets.all(10.0),
             child: ClipOval(
               child: Image.asset(
-                'assets/icon/logo4.jpg',
+                'assets/icon/logo5.png',
                 fit: BoxFit.contain,
               ),
             ),

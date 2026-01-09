@@ -269,7 +269,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                         ),
                         // 3. Quitamos el Padding para que la imagen toque los bordes
                         child: Image.asset(
-                          'assets/icon/logo4.jpg',
+                          'assets/icon/logo5.png',
                           // 4. Usamos 'cover' para que haga zoom y llene todo el espacio
                           fit: BoxFit.cover,
                         ),

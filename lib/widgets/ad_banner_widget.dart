@@ -17,7 +17,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   bool _isPremium = false; // ✅ Nuevo estado para controlar el bloqueo
 
   final String _adUnitId = Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/6300978111'
+      ? 'ca-app-pub-8969829414364199/6043433009' // Tu ID real de Android
       : 'ca-app-pub-3940256099942544/2934735716';
 
   @override
