@@ -67,7 +67,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
     final url = Uri.parse('$API_BASE_URL/categorias/$categoryId');
 
-    setState(() {});
+    // setState(() {}); // No es necesario redibujar aquí si no cambiamos variables de estado visibles
 
     try {
       final response = await http.delete(
@@ -92,17 +92,27 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           const SnackBar(content: Text('Error: La categoría no fue encontrada.'), backgroundColor: Colors.orange),
         );
       } else if (response.statusCode == 401) {
-        // ✅ CORRECCIÓN: No cerramos sesión, solo avisamos.
-        // final prefs = await SharedPreferences.getInstance();
-        // await prefs.remove('accessToken');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error de autenticación. Intente reiniciar la app.'), backgroundColor: Colors.red),
         );
-        // Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       } else {
+        // ✅ CORRECCIÓN AQUÍ: Leer el mensaje del servidor
+        String msg = 'Error al eliminar la categoría: ${response.statusCode}';
+
+        try {
+          // Intentamos decodificar el cuerpo de la respuesta para ver si trae un "message"
+          final body = json.decode(response.body);
+          if (body['message'] != null) {
+            msg = body['message']; // Usamos el mensaje específico del backend
+          }
+        } catch (e) {
+          // Si falla la decodificación, nos quedamos con el mensaje genérico
+          print('No se pudo parsear el error del servidor: $e');
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar la categoría: ${response.statusCode}'), backgroundColor: Colors.red),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -236,7 +246,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           SnackBar(content: const Text('Categoría actualizada con éxito.'), backgroundColor: cVerdeMenta),
         );
       } else if (response.statusCode == 401) {
-        // ✅ CORRECCIÓN
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error de autenticación.'), backgroundColor: Colors.red),
@@ -419,7 +428,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       } else {
         String errorMessage;
         if (response.statusCode == 401 || response.statusCode == 302) {
-          errorMessage = 'Sesión expirada o token inválido.'; // ✅ CORREGIDO
+          errorMessage = 'Sesión expirada o token inválido.';
         } else if (response.headers['content-type']?.contains('application/json') == true) {
           final errorData = json.decode(response.body);
           errorMessage = errorData['message'] ?? 'Error desconocido';
