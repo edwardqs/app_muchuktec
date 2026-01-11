@@ -167,9 +167,9 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
   double _montoTotalFinal = 0.0;
 
   void _calculateInstallmentAmount() {
-    final double? P = double.tryParse(_amountController.text); //
-    final double? tasaAnual = double.tryParse(_interestRateController.text); //
-    final int? n = int.tryParse(_installmentsController.text); //
+    final double? P = double.tryParse(_amountController.text);
+    final double? tasaAnual = double.tryParse(_interestRateController.text);
+    final int? n = int.tryParse(_installmentsController.text);
 
     if (P == null || P <= 0 || n == null || n <= 0) {
       _calculatedAmountController.text = '';
@@ -235,17 +235,96 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
     }
   }
 
+  // ✅ VALIDACIÓN DE TERCERO NO REGISTRADO
+  void _showUnregisteredTerceroDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: cBlanco,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Tercero no registrado', style: TextStyle(fontSize: 18))),
+            ],
+          ),
+          content: Text(
+            'El tercero "${_entityController.text}" no se encuentra en sus registros. Debe registrarlo antes de asignar un compromiso.',
+            style: TextStyle(color: cAzulPetroleo),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cVerdeMenta,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                // Asumiendo que la ruta de terceros es '/terceros'
+                Navigator.pushNamed(context, '/compromises_tiers').then((_) {
+                  // Recargar terceros al volver
+                  _loadTerceros();
+                });
+              },
+              child: const Text('Registrar Tercero', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ✅ FUNCIÓN DE CONFIRMACIÓN MODIFICADA CON VALIDACIONES
   void _showConfirmationDialog() {
-    if (_nameController.text.isEmpty ||
-        _entityController.text.isEmpty ||
-        _amountController.text.isEmpty ||
-        _startDate == null) {
+    // 1. Validar campos obligatorios específicos
+    List<String> missingFields = [];
+
+    if (_nameController.text.trim().isEmpty) missingFields.add('Nombre');
+    if (_entityController.text.trim().isEmpty) missingFields.add('Tercero');
+    if (_amountController.text.trim().isEmpty) missingFields.add('Monto total');
+    if (_startDate == null) missingFields.add('Fecha de inicio');
+
+    // Validación de cuotas si la frecuencia NO es 'Sin cuotas'
+    if (_selectedFrequencyText != 'Sin cuotas') {
+      if (_installmentsController.text.trim().isEmpty || _installmentsController.text == '0') {
+        missingFields.add('Cantidad de cuotas');
+      }
+    }
+
+    if (missingFields.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, complete los campos obligatorios.'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Por favor complete: ${missingFields.join(', ')}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
       return;
     }
 
+    // 2. Validar que el tercero exista en la lista cargada
+    // Buscamos si el texto actual coincide con algún nombre en la lista (case insensitive)
+    final existingTercero = _terceros.firstWhere(
+          (t) => t['nombre'].toString().toLowerCase() == _entityController.text.trim().toLowerCase(),
+      orElse: () => {},
+    );
+
+    if (existingTercero.isEmpty) {
+      // El tercero escrito no está en la lista -> Mostrar Modal
+      _showUnregisteredTerceroDialog();
+      return;
+    } else {
+      // Si existe, nos aseguramos que el ID esté seteado correctamente
+      _selectedTerceroId = existingTercero['id'];
+    }
+
+    // 3. Si todo está bien, mostrar diálogo de confirmación
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -567,6 +646,7 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                // ✅ CAMBIO: Ahora llama a _showConfirmationDialog que contiene las validaciones
                 onPressed: isLoading ? null : _showConfirmationDialog,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: cVerdeMenta,
@@ -680,11 +760,22 @@ class _CompromisesCreateScreenState extends State<CompromisesCreateScreen> {
           displayStringForOption: (option) => option['nombre'],
           fieldViewBuilder:
               (context, controller, focusNode, onFieldSubmitted) {
-            controller.text = _entityController.text;
+
+            // Si el controlador del padre tiene texto pero el interno no, sincronizamos.
+            if (_entityController.text.isNotEmpty && controller.text.isEmpty) {
+              controller.text = _entityController.text;
+            }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
               style: TextStyle(color: cAzulPetroleo),
+              // ✅ CAMBIO: Detectamos cambios manuales para resetear el ID seleccionado
+              onChanged: (val) {
+                _entityController.text = val;
+                // Si el usuario edita el texto, reseteamos el ID porque podría no coincidir ya
+                _selectedTerceroId = null;
+              },
               decoration: InputDecoration(
                 hintText: 'Escribe para buscar...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
